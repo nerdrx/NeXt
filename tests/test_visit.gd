@@ -1,6 +1,7 @@
 extends SceneTree
 
 const GameStateScript = preload("res://scripts/game_state.gd")
+const PlayerFactionScript = preload("res://scripts/player_faction.gd")
 
 var main: Node
 var home_path: String
@@ -26,12 +27,15 @@ func _run() -> void:
 	root.add_child(main)
 	await process_frame
 	main.save_path = home_path
-	main.state.credits = 12345
+	main.state.credits = 30000
+	if not _check(main.state.found_faction("Home Cooperative") == "", "found home faction"): return
+	if not _check(main.state.faction_deposit(3000) == "", "fund home faction treasury"): return
 	main.state.shares = {"NOVA": 7}
 	main.state.company_name = "Home Cooperative"
 	main.state.company_balance = 650
 	main.state.wanted = 2
 	main.state.cargo.ore = 4
+	var home_faction: Dictionary = main.state.faction.duplicate(true)
 	if not _check(ShipLayout.set_panel(main.state, Vector3i(0, 0, 0), "-z", "window").is_empty(), "home hull panel refit"): return
 	var original_layout: Dictionary = main.state.ship_layout.duplicate(true)
 	var home_credits: int = main.state.credits
@@ -42,10 +46,13 @@ func _run() -> void:
 	main.session.is_host = false
 	main._visit_host(7919)
 	if not _check(main.state.world_id == remote_id and main.state.system_index == 7919, "visitor profile gets host identity and location"): return
-	if not _check(main.home_state != null and main.home_state.credits == home_credits and main.home_state.company_balance == 650, "home economy remains active in suspended home profile"): return
+	if not _check(main.home_state != null and main.home_state.credits == home_credits and main.home_state.company_balance == 650 and main.home_state.faction == home_faction, "home economy and faction remain active in suspended home profile"): return
 	if not _check(main.state.credits == 18000 and main.state.ship_modules == original_modules and main.state.cargo.ore == 4, "new visitor receives starting wallet plus carried ship and cargo"): return
+	if not _check(main.state.faction == PlayerFactionScript.empty_data(), "new visitor starts with a separate faction and treasury"): return
 	if not _check(main.state.ship_layout == original_layout, "room and hull refits travel with incoming ship"): return
 	main.state.credits = 22222
+	if not _check(main.state.found_faction("Visiting Ventures") == "", "found visiting faction"): return
+	if not _check(main.state.faction_deposit(2222) == "", "fund visiting faction treasury"): return
 	main.state.shares = {"HELI": 3}
 	main.state.company_name = "Visiting Ventures"
 	main.state.company_balance = 987
@@ -54,6 +61,7 @@ func _run() -> void:
 	main.state.hull = 72.0
 	main.state.shield = 61.0
 	main.state.fuel = 43.0
+	var visitor_faction: Dictionary = main.state.faction.duplicate(true)
 	var module_error: String = main.state.add_module("habitat", Vector3i(-1, 0, 2))
 	if not _check(module_error.is_empty(), "visitor can modify carried ship: " + module_error): return
 	if not _check(ShipLayout.set_panel(main.state, Vector3i(0, 0, 0), "-z", "armored").is_empty(), "visiting hull refit"): return
@@ -62,16 +70,16 @@ func _run() -> void:
 	var visiting_modules: Array[Dictionary] = main.state.ship_modules.duplicate(true)
 	main.leave_visit()
 	if not _check(main.home_state == null and main.state.world_id == host_state_id, "leaving restores home identity"): return
-	if not _check(main.state.credits == home_credits and main.state.shares == {"NOVA": 7} and main.state.company_name == "Home Cooperative" and main.state.company_balance == 650 and main.state.wanted == 2, "visitor economics do not leak into home"): return
+	if not _check(main.state.credits == home_credits and main.state.shares == {"NOVA": 7} and main.state.company_name == "Home Cooperative" and main.state.company_balance == 650 and main.state.wanted == 2 and main.state.faction == home_faction, "visitor economics and faction do not leak into home"): return
 	if not _check(main.state.ship_modules == visiting_modules and main.state.cargo.alloys == 6 and main.state.hull == 72.0 and main.state.shield == 61.0 and main.state.fuel == 43.0, "only carried ship, cargo, and vitals transfer home"): return
 	if not _check(main.state.ship_layout == visiting_layout, "updated hull refit returns home with ship"): return
 	if not _check(FileAccess.file_exists(visit_path) and FileAccess.file_exists(home_path), "home and visitor profiles are saved separately"): return
 	var persisted_home := GameStateScript.new()
-	if not _check(persisted_home.load_save(home_path).is_empty() and persisted_home.credits == home_credits and persisted_home.company_balance == 650 and persisted_home.world_id == host_state_id, "home commander save retains its separate economy"): return
+	if not _check(persisted_home.load_save(home_path).is_empty() and persisted_home.credits == home_credits and persisted_home.company_balance == 650 and persisted_home.world_id == host_state_id and persisted_home.faction == home_faction, "home commander save retains its separate economy and faction treasury"): return
 	main.session.connected = true
 	main.session.world_id = remote_id
 	main._visit_host(7919)
-	if not _check(main.state.world_id == remote_id and main.state.credits == visitor_credits and main.state.shares == {"HELI": 3} and main.state.company_name == "Visiting Ventures" and main.state.company_balance == 987 and main.state.wanted == 9, "rejoining restores visitor finances and reputation"): return
+	if not _check(main.state.world_id == remote_id and main.state.credits == visitor_credits and main.state.shares == {"HELI": 3} and main.state.company_name == "Visiting Ventures" and main.state.company_balance == 987 and main.state.wanted == 9 and main.state.faction == visitor_faction, "rejoining restores visitor finances, faction treasury and reputation"): return
 	if not _check(main.state.ship_modules == visiting_modules and main.state.cargo.alloys == 6, "rejoining carries the updated home ship"): return
 	main.leave_visit()
 	_cleanup()

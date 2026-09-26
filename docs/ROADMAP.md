@@ -7,6 +7,7 @@
 - Modular ship assembly, live preview, generated walkable module interiors and compatible room/hull face refits.
 - Commodities, shares, contracts, named crew and timed fleet orders, company treasury and station construction/upgrades.
 - Insurance, recovery debt, persistent wreck cargo and one-time salvage.
+- Player faction charters, treasury, station affiliations and stances affecting personal trade and police; dockable owned outpost decks.
 - Versioned saves, persistent destruction, separate visitor finances and experimental ENet presence/travel.
 - Automated state, generation, actor, network, visitor and control checks; Windows export workflow.
 
@@ -25,7 +26,7 @@ These are bounded development systems. README lists their limits. Placeholder vi
 - Replace abstract fleet trip/patrol resolution with physical local flight and combat when vessels enter the loaded scene; add richer named crew behavior.
 - Extend existing compatible room/panel refits to wall placement, equipment movement, doors and physically persistent ship interiors.
 - Expand implemented rescue/insurance and wreck recovery into towing, repairable derelicts and NPC rescue encounters.
-- Player factions, sovereignty, diplomacy, production chains and law enforcement consequences.
+- Extend player factions into membership, territorial sovereignty, negotiated diplomacy and production chains; deepen law enforcement consequences.
 - Populated cities with useful interiors and procedural variation tied to local industry and culture.
 
 ## Presentation and release

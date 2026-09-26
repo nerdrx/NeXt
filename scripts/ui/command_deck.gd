@@ -200,7 +200,7 @@ func _market() -> void:
 	if game.pilot.flying or game.aboard: _text("Dock to trade commodities.", 16, InterfaceTheme.GOLD)
 	for good: String in GameState.GOODS:
 		var row := _row()
-		var label := InterfaceTheme.label("%s\n%d CR  •  %d in hold" % [good.capitalize(), s.price(good), int(s.cargo.get(good, 0))], 17)
+		var label := InterfaceTheme.label("%s\nBuy %d / Sell %d CR  •  %d in hold" % [good.capitalize(), s.trade_quote(good, true), s.trade_quote(good, false), int(s.cargo.get(good, 0))], 17)
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(label)
 		for quantity in [1, 10]:
@@ -340,10 +340,36 @@ func _factions() -> void:
 	var s: GameState = game.state
 	_text("Wanted level: %d" % s.wanted, 22, InterfaceTheme.GOLD)
 	_text("Pirate bounties build your standing. Attacking police creates a wanted level; local security pursues wanted ships.", 16)
-	for faction: String in Universe.FACTIONS:
-		var reputation: int = int(s.reputation.get(faction, 0))
-		_text("%s  /  %s  (%+d)" % [faction, "Trusted" if reputation >= 10 else ("Hostile" if reputation < -5 else "Neutral"), reputation], 19)
 	_button("PAY OUTSTANDING FINES", game.pay_fines, game.pilot.flying or s.wanted <= 0)
+
+	_text("YOUR FACTION", 13, InterfaceTheme.CYAN)
+	if str(s.faction.name).is_empty():
+		_text("Found a human faction, fund its treasury and affiliate your stations. Claims apply to your property, not whole inhabited systems.", 16)
+		var founding := _row()
+		var faction_name := LineEdit.new()
+		faction_name.placeholder_text = "Faction name"
+		faction_name.max_length = 32
+		faction_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		founding.add_child(faction_name)
+		founding.add_child(InterfaceTheme.button("FOUND / 10,000 CR", func():
+			_act(s.found_faction.bind(faction_name.text), "Faction charter registered.")))
+		for faction: String in Universe.FACTIONS:
+			_text("%s / Reputation %+d" % [faction, int(s.reputation.get(faction, 0))], 17)
+		return
+	_text("%s  /  Treasury %d CR  /  %d affiliated stations" % [s.faction.name, s.faction.treasury, s.faction.claimed_stations.size()], 21)
+	var funds := _row()
+	funds.add_child(InterfaceTheme.button("DEPOSIT 1,000 CR", _act.bind(s.faction_deposit.bind(1000), "Treasury funded.")))
+	funds.add_child(InterfaceTheme.button("WITHDRAW 1,000 CR", _act.bind(s.faction_withdraw.bind(1000), "Treasury withdrawal completed.")))
+	_text("Diplomatic changes cost 500 treasury CR. Friendly relations improve personal commodity terms; hostility worsens terms and makes local police hostile. Criminal fines remain separate.", 15, InterfaceTheme.MUTED)
+	for faction: String in Universe.FACTIONS:
+		var diplomacy := _row()
+		var label := InterfaceTheme.label("%s / %s / Standing %+d" % [faction, s.diplomatic_stance(faction).capitalize(), int(s.reputation.get(faction, 0))], 16)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		diplomacy.add_child(label)
+		for stance: String in ["friendly", "neutral", "hostile"]:
+			var button := InterfaceTheme.button(stance.capitalize(), _act.bind(s.set_diplomatic_stance.bind(faction, stance), "Diplomatic stance updated."))
+			button.disabled = stance == s.diplomatic_stance(faction)
+			diplomacy.add_child(button)
 
 func _stations() -> void:
 	heading.text = "STATION WORKS"
@@ -360,6 +386,12 @@ func _stations() -> void:
 	if s.stations.is_empty(): _text("No owned stations yet. Trade and complete contracts to fund your first outpost.", 16, InterfaceTheme.MUTED)
 	for index in s.stations.size():
 		var station: Dictionary = s.stations[index]
+		var affiliation: String = s.station_affiliation(index)
+		if index in s.faction.claimed_stations: _text("Affiliation / " + affiliation, 15, InterfaceTheme.CYAN)
+		var access := _row()
+		access.add_child(InterfaceTheme.button("APPROACH DOCK", game.approach_owned_station.bind(index)))
+		if not str(s.faction.name).is_empty() and index not in s.faction.claimed_stations:
+			access.add_child(InterfaceTheme.button("AFFILIATE / 1,000 TREASURY CR", _act.bind(s.claim_station_faction.bind(index), "Station affiliated with your faction.")))
 		_button("%s  /  SYSTEM %d  /  LEVEL %d  /  EXPAND" % [station.name, station.get("system", station.get("system_index", 0)), station.level], func():
 			_act(s.upgrade_station.bind(index), "Station expanded.")
 			game.rebuild_owned_stations())

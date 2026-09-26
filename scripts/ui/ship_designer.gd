@@ -124,7 +124,7 @@ func _ready() -> void:
 	refresh(modules)
 
 func _update_selection() -> void:
-	selection.text = "CELL  %d : %d : %d   /   Bow faces ↑" % [selected_cell.x, selected_cell.y, selected_cell.z]
+	selection.text = "CELL  %d : %d : %d   /   Bow faces up" % [selected_cell.x, selected_cell.y, selected_cell.z]
 
 func refresh(values: Array) -> void:
 	modules = values.duplicate(true)

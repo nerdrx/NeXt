@@ -33,6 +33,7 @@ var _network_clock: float = 0.0
 var wreck_root: Node3D
 var _rescuing: bool = false
 var pending_steam_lobby: int = 0
+var docked_station: int = -1
 
 func _ready() -> void:
 	automation = "--smoke" in OS.get_cmdline_user_args() or "--visual-tour" in OS.get_cmdline_user_args() or "--capture-only" in OS.get_cmdline_user_args()
@@ -96,6 +97,7 @@ func _build_system() -> void:
 	if aboard: exit_interior()
 	_clear_actors()
 	surface_index = -1
+	docked_station = -1
 	world.build(state.system_index)
 	pilot.set_flight(false)
 	pilot.teleport(world.spawn_position)
@@ -138,7 +140,7 @@ func _spawn_actors() -> void:
 				actor.free()
 				continue
 			actor.faction = "police"
-			actor.hostile = state.wanted > 0
+			actor.hostile = PlayerFaction.police_hostile(state.faction, str(world.data.faction), state.wanted)
 			actor.target = pilot
 			actor.position = Vector3(-230 + i * 460, 45, -400)
 			actor.destroyed.connect(_actor_destroyed)
@@ -197,7 +199,7 @@ func rebuild_player_ship() -> void:
 		high = high.max(cell)
 	var center := (low + high) * 0.5 * ShipVisual.CELL_SIZE
 	var bottom := (high.y - low.y) * 0.5 * ShipVisual.CELL_SIZE + 1.28
-	ship_display.position = Vector3(0, bottom + 0.7, -22)
+	ship_display.position = _ship_pad() + Vector3(0, bottom + 0.7, 0)
 	for module: Dictionary in state.ship_modules:
 		if float(module.y) != low.y: continue
 		var cell := Vector3(module.x, module.y, module.z) * ShipVisual.CELL_SIZE - center
@@ -223,34 +225,49 @@ func rebuild_owned_stations() -> void:
 	add_child(owned_root)
 	if surface_index >= 0: return
 	var count: int = 0
-	for station: Dictionary in state.stations:
+	for station_index: int in state.stations.size():
+		var station: Dictionary = state.stations[station_index]
 		if int(station.get("system", station.get("system_index", -1))) != state.system_index: continue
-		var base := Node3D.new()
+		var base := OwnedStation.new()
 		owned_root.add_child(base)
-		base.position = Vector3(600 + count * 450, 60, -500)
-		var level: int = int(station.level)
-		for ring_index in range(level):
-			var ring := MeshInstance3D.new()
-			var mesh := TorusMesh.new()
-			mesh.inner_radius = 44
-			mesh.outer_radius = 50
-			ring.mesh = mesh
-			ring.rotation.x = PI / 2
-			ring.position.z = ring_index * 18
-			ring.material_override = _material(Color("405967"), false)
-			base.add_child(ring)
-		_box(base, Vector3.ZERO, Vector3(12, 12, 120), Color("264453"))
-		for i in range(8):
-			var angle: float = i * TAU / 8
-			_box(base, Vector3(cos(angle) * 45, sin(angle) * 45, 0), Vector3(8, 8, 24), Color("75d7d0"))
-		var label := Label3D.new()
-		label.text = str(station.name).to_upper() + "\nOWNED OUTPOST  /  LEVEL " + str(level)
-		label.position.y = 65
-		label.font_size = 48
-		label.pixel_size = 0.05
-		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		base.add_child(label)
+		base.position = Vector3(600 + (count % 25) * 650, 60, -500 - (count / 25) * 500)
+		base.set_meta("station_index", station_index)
+		base.build(station)
 		count += 1
+
+func _station_node(index: int) -> Node3D:
+	if index < 0 or not is_instance_valid(owned_root): return null
+	for node in owned_root.get_children():
+		if int(node.get_meta("station_index", -1)) == index: return node
+	return null
+
+func _ship_pad() -> Vector3:
+	var station := _station_node(docked_station)
+	return station.to_global(station.dock_position) if station != null else Vector3(0, 0, -22)
+
+func approach_owned_station(index: int) -> void:
+	var station := _station_node(index)
+	if station == null:
+		notify("That station is in another system.")
+		return
+	cruise_to(station.to_global(station.launch_position))
+
+func _dock_owned_station() -> bool:
+	if surface_index >= 0 or not is_instance_valid(owned_root): return false
+	for station in owned_root.get_children():
+		if pilot.position.distance_to(station.to_global(station.dock_position)) > 65: continue
+		if pilot.velocity.length() > 35:
+			notify("Reduce speed below 35 m/s to engage docking clamps.")
+			return true
+		docked_station = int(station.get_meta("station_index"))
+		pilot.set_flight(false)
+		pilot.teleport(station.to_global(station.stand_position))
+		pilot.reset_view()
+		rebuild_player_ship()
+		save_commander(false)
+		notify("Docked at %s. Walk the deck; Tab opens station services." % state.stations[docked_station].name)
+		return true
+	return false
 
 func _material(color: Color, unshaded: bool) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
@@ -375,7 +392,7 @@ func interaction_hint() -> String:
 	if surface_index >= 0: return "Board ship / return to orbit" if _near_person() == null else "Talk to " + _near_person().display_name
 	var person: Node3D = _near_person()
 	if person != null: return "Talk to " + person.display_name
-	return "Board ship" if pilot.position.distance_to(Vector3(0, 2, -22)) < 20 else "Approach your ship or a service officer"
+	return "Board ship" if pilot.position.distance_to(_ship_pad()) < 20 else "Approach your ship or a service officer"
 
 func _near_person() -> Node3D:
 	for actor in actors:
@@ -388,9 +405,11 @@ func _interact() -> void:
 		return
 	if jump_charge > 0: return
 	if pilot.flying:
+		if _dock_owned_station(): return
 		if pilot.position.distance_to(world.launch_position) > 250:
 			notify("Approach the orbital dock to within 250 m.")
 			return
+		docked_station = -1
 		pilot.set_flight(false)
 		pilot.teleport(world.spawn_position)
 		pilot.reset_view()
@@ -402,13 +421,16 @@ func _interact() -> void:
 	if person != null:
 		open_menu(str(person.get_meta("service")))
 		return
-	if pilot.position.distance_to(Vector3(0, 2, -22)) > 20:
+	if pilot.position.distance_to(_ship_pad()) > 20:
 		notify("Approach your ship on the landing pad to board.")
 		return
 	if surface_index >= 0:
 		_build_system()
+	var station := _station_node(docked_station)
+	var departure: Vector3 = station.to_global(station.launch_position) if station != null else world.launch_position
+	docked_station = -1
 	pilot.set_flight(true)
-	pilot.teleport(world.launch_position)
+	pilot.teleport(departure)
 	pilot.reset_view()
 	ship_display.hide()
 	notify("Docking clamps released. Flight assist online.")
@@ -459,6 +481,7 @@ func land(planet_index: int) -> void:
 		notify("Surface excursions require leaving the current multiplayer visit.")
 		return
 	_clear_actors()
+	docked_station = -1
 	surface_index = planet_index
 	world.build_surface(planet_index)
 	pilot.set_flight(false)
@@ -488,6 +511,7 @@ func pay_fines() -> void:
 func location_title() -> String:
 	if aboard: return "Ship interior / deck %d" % interior_deck
 	if surface_index >= 0 and surface_index < world.planets.size(): return str(world.planets[surface_index].name) + " colony"
+	if not pilot.flying and docked_station >= 0: return str(state.stations[docked_station].name)
 	return "Free flight" if pilot.flying else "Orbital concourse"
 
 func notify(message: String) -> void:
@@ -535,14 +559,19 @@ func _process(delta: float) -> void:
 	for actor in actors:
 		if not is_instance_valid(actor): continue
 		actor.active = not ui_open and jump_charge <= 0 and not aboard
-		if actor.faction == "police": actor.hostile = state.wanted > 0
+		if actor.faction == "police": actor.hostile = PlayerFaction.police_hostile(state.faction, str(world.data.faction), state.wanted)
 	if jump_charge > 0:
 		jump_charge = maxf(0, jump_charge - delta)
 		if jump_charge == 0: _complete_jump()
 	if not ui_open and jump_charge <= 0:
 		shield_delay -= delta
 		if shield_delay <= 0: state.shield = minf(float(_last_stats.get("max_shield", 100)), state.shield + delta * 5)
-		if pilot.position.y < -150 and not pilot.flying: pilot.teleport(world.spawn_position)
+		if not pilot.flying:
+			var safe_spawn: Vector3 = world.spawn_position
+			var dock := _station_node(docked_station)
+			if dock != null: safe_spawn = dock.to_global(dock.stand_position)
+			if aboard: safe_spawn = interior.spawn_on_deck(interior_deck)
+			if pilot.position.y < safe_spawn.y - 150: pilot.teleport(safe_spawn)
 		if pilot.position.length() > 28000:
 			pilot.teleport(world.launch_position)
 			notify("Leaving local flight space. Plot a hyperdrive course to continue.")
@@ -793,6 +822,20 @@ func _integration_check() -> void:
 	var salvage_balance: int = state.credits
 	if not _check(not recover_wreck(wreck_id, true).is_empty() and state.credits == salvage_balance, "duplicate salvage blocked"): return
 	if not _check(save_commander(false) and restored.load_save(save_path).is_empty() and restored.recovery.wrecks[0].salvaged and restored.crew_orders.size() == 1, "operations save round trip"): return
+	state.credits = 50000
+	state.cargo.alloys = 20
+	if not _check(state.build_station("Horizon Anchorage").is_empty(), "owned station construction"): return
+	if not _check(state.found_faction("Horizon League").is_empty() and state.faction_deposit(5000).is_empty() and state.claim_station_faction(0).is_empty(), "faction charter and station affiliation"): return
+	rebuild_owned_stations()
+	var owned_station: Node3D = _station_node(0)
+	pilot.teleport(owned_station.to_global(owned_station.launch_position))
+	close_menu()
+	_interact()
+	if not _check(docked_station == 0 and not pilot.flying, "owned outpost docking"): return
+	await _capture("owned-station")
+	open_menu("factions")
+	await _capture("factions")
+	if not _check(save_commander(false) and restored.load_save(save_path).is_empty() and restored.faction == state.faction, "faction save round trip"): return
 	var money_before_menu: int = state.credits
 	for menu_page in ["overview", "navigation", "market", "shipyard", "contracts", "company", "fleet", "recovery", "factions", "stations", "settings"]:
 		open_menu(menu_page)
@@ -801,7 +844,7 @@ func _integration_check() -> void:
 	DirAccess.remove_absolute(save_path)
 	DirAccess.remove_absolute(save_path + ".bak")
 	await get_tree().create_timer(0.5).timeout
-	print("NEXT_INTEGRATION_OK: trading, stock, construction, persistent combat, save/load, hyperdrive, landing, walkable interior, crew orders, insured wreck recovery, menu safety")
+	print("NEXT_INTEGRATION_OK: trading, stock, construction, persistent combat, save/load, hyperdrive, landing, walkable interior, crew orders, insured wreck recovery, factions, owned docks, menu safety")
 	sound.shutdown()
 	await get_tree().process_frame
 	get_tree().quit()

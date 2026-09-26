@@ -13,12 +13,34 @@ const GUEST_UPDATED_LAYOUT: Dictionary = {"version": 1, "rooms": {}, "panels": {
 const INVALID_HIDDEN_FACE: Dictionary = {"version": 1, "rooms": {}, "panels": {"0,0,0": {"+x": "armored"}}}
 
 var session: NetworkSession
+var acknowledgement: NetworkAcknowledgement
 var travel_received: bool = false
 var joined_indices: Array[int] = []
 var joined_seeds: Array[int] = []
 var joined_world_ids: Array[String] = []
 var saw_both_guests: bool = false
 var saw_one_guest_depart: bool = false
+
+
+class NetworkAcknowledgement extends Node:
+	var session: NetworkSession
+	var remaining_guest_verified: bool = false
+	var departure_acknowledged: bool = false
+
+	@rpc("any_peer", "call_remote", "reliable")
+	func _rpc_departure_verified() -> void:
+		if not session.is_host or session.presence.size() != 2:
+			return
+		var sender: int = multiplayer.get_remote_sender_id()
+		if sender <= 1 or not session.presence.has(sender):
+			return
+		remaining_guest_verified = true
+		_rpc_departure_ack.rpc_id(sender)
+
+	@rpc("authority", "call_remote", "reliable")
+	func _rpc_departure_ack() -> void:
+		if not session.is_host:
+			departure_acknowledged = true
 
 
 func _initialize() -> void:
@@ -28,6 +50,10 @@ func _initialize() -> void:
 func _run() -> void:
 	session = NetworkSession.new()
 	root.add_child(session)
+	acknowledgement = NetworkAcknowledgement.new()
+	acknowledgement.name = "NetworkAcknowledgement"
+	acknowledgement.session = session
+	root.add_child(acknowledgement)
 	var args := OS.get_cmdline_user_args()
 	var role := str(args[0]) if not args.is_empty() else "host"
 	match role:
@@ -83,6 +109,9 @@ func _run_host() -> void:
 		return
 	if not await _wait_for(func() -> bool: return saw_one_guest_depart, 6.0):
 		_fail("leaving guest was not removed from host presence")
+		return
+	if not await _wait_for(func() -> bool: return acknowledgement.remaining_guest_verified, 6.0):
+		_fail("remaining guest did not acknowledge peer departure")
 		return
 	print("NETWORK_TEST_OK: host/join, ship layout validation and sync, world identity, pose sync, shared travel, peer departure")
 	session.leave()
@@ -146,6 +175,10 @@ func _run_client(leaves_after_travel: bool) -> void:
 		return
 	if not session.connected or not session.presence.has(1):
 		_fail("disconnecting another guest ended the session")
+		return
+	acknowledgement._rpc_departure_verified.rpc_id(1)
+	if not await _wait_for(func() -> bool: return acknowledgement.departure_acknowledged, 3.0):
+		_fail("host did not acknowledge peer-departure verification")
 		return
 	session.leave()
 	quit()

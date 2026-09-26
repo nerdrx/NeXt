@@ -37,6 +37,8 @@ Start in the orbital concourse. The ship is on the central pad. Approach it, pre
 - Connected grid-based ship assembly with live 3D preview, power/attachment/cargo checks, calculated mass, speed, weapons, shields and crew capacity.
 - Walkable ship rooms derived from the installed modules when a habitat and sufficient connected hull exist. Rooms have collision, equipment, connecting doors and a deck selector. Grid-selected refits change compatible room fittings and exposed standard/armored/window panels. Room footprints and corridor placement are still derived from the module grid; panel refits currently change appearance rather than combat statistics.
 - Commodity buy/sell, cargo capacity, fuel, repairs, delivery/exploration/bounty contracts, shares, hiring/dismissal, company treasury/dividends and station construction/upgrades.
+- Player-founded factions with treasuries, paid affiliation of owned stations and diplomatic stances. Friendly/hostile relations affect personal commodity quotes and police hostility; criminal wanted status remains separate.
+- Owned outposts have collision-supported docking decks: use Station works to approach, slow below 35 m/s within 65 m and press E to dock. Walk the deck, use Tab for services, and press E near your ship to depart.
 - Named crew with persistent orders: trader captains operate escrow-funded routes on purchased fleet vessels, gunners patrol with wages, bounties and hull risk, and engineers manage owned-station stock production. Fleet cargo, ship condition, work progress and assignments survive saves. Cancelled routes retain cargo; idle cargo can be sold and station output collected through services.
 - Fleet work advances only while its world profile is active. These are strategic, timed orders with simulated encounters; individual fleet ships do not yet physically fly through local combat scenes. Assigned personnel do not also grant passive aboard-ship bonuses.
 - Insurance, meaningful deductibles and recovery debt, persistent cargo wrecks, proximity-limited partial cargo recovery and single-use hull salvage. Medical rescue preserves the docked ship. Salvage settles debt first; insured salvage cannot exceed the claim deductible.
@@ -49,7 +51,7 @@ The complete target is substantially larger than the implemented systems above:
 
 - Planet landing currently changes to a generated surface scene. Continuous planet-scale terrain streaming and seamless surface/orbit travel are **not implemented**.
 - Steam lobby adapter code and lifecycle tests are present, but native Steam build configuration and a production AppID are still required. Real invites/relay, shared authoritative combat/economy, property permissions, consensual PvP and durable transfer transactions are **not verified or complete**. ENet visits are an explicitly limited development feature, not finished Steam co-op.
-- Freeform hull shaping, movable interior walls/furniture, locally simulated autonomous fleet combat and faction sovereignty/diplomacy remain unimplemented. Current room and panel refits are bounded grid choices.
+- Freeform hull shaping, movable interior walls/furniture, locally simulated autonomous fleet combat and territorial sovereignty/negotiated diplomacy remain unimplemented. Current room and panel refits are bounded grid choices.
 - Cities are generated colony districts; they are not complete populated urban simulations. Ship interiors currently pause local threats after requiring a safe flight zone. They do not simulate unattended ships under attack.
 - A system uses compact local coordinates and a 28 km safety boundary. Celestial sizes are presentation scale. This is not a physically scaled or fully streamed galaxy.
 - Menus pause local AI in solo play. Combat/economy state is currently simulated independently during network visits. Saving resumes at the saved system's orbital station, not the exact player position.
@@ -66,6 +68,8 @@ godot --headless --path . -s tests/test_network.gd
 godot --headless --path . -s tests/test_visit.gd -- --capture-only
 godot --headless --path . -s tests/test_controls.gd -- --capture-only
 godot --headless --path . -s tests/test_steam_session.gd
+godot --headless --path . -s tests/test_faction.gd
+godot --headless --path . -s tests/test_station_gameplay.gd -- --capture-only
 godot --headless --path . -s tests/test_crew.gd
 godot --headless --path . -s tests/test_recovery.gd
 godot --headless --path . -s tests/test_ship_layout.gd

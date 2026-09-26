@@ -4,6 +4,7 @@ extends RefCounted
 const SAVE_VERSION: int = 3
 const ShipRecovery = preload("res://scripts/ship_recovery.gd")
 const ShipLayout = preload("res://scripts/ship_layout.gd")
+const PlayerFactionDomain = preload("res://scripts/player_faction.gd")
 const SYSTEM_LIMIT: int = 1_000_000_000
 const MAX_ITEMS: int = 1000
 const MAX_WORLD_FLAGS: int = 10000
@@ -51,6 +52,7 @@ var fleet_ships: Array[Dictionary] = []
 var crew_orders: Dictionary = {}
 var recovery: Dictionary = {}
 var ship_layout: Dictionary = {}
+var faction: Dictionary = {}
 var world_flags: Dictionary = {}
 var company_name: String = ""
 var company_balance: int = 0
@@ -75,6 +77,7 @@ func _init() -> void:
 	contracts = contract_board()
 	recovery = ShipRecovery.empty_data()
 	ship_layout = ShipLayout.empty_data()
+	faction = PlayerFactionDomain.empty_data()
 
 func cargo_total() -> int:
 	var total: int = 0
@@ -103,8 +106,7 @@ func trade(good: String, quantity: int, buy: bool) -> String:
 	var key: String = good.to_lower()
 	if not GOODS.has(key): return "Unknown good."
 	if quantity <= 0 or quantity > 100000: return "Quantity must be between 1 and 100000."
-	var discount: int = mini(15, _paid_crew_count("trader") * 2)
-	var unit: int = maxi(1, int(floor(float(price(key)) * (100 - discount) / 100.0)))
+	var unit: int = trade_quote(key, buy)
 	if buy:
 		if quantity > int(ship_stats().cargo_capacity) - cargo_total(): return "Insufficient cargo capacity."
 		if quantity > credits / unit: return "Insufficient credits."
@@ -113,8 +115,18 @@ func trade(good: String, quantity: int, buy: bool) -> String:
 	else:
 		if int(cargo.get(key, 0)) < quantity: return "Insufficient cargo."
 		cargo[key] = int(cargo.get(key, 0)) - quantity
-		credits += int(floor(float(unit * quantity) * 0.85))
+		credits += unit * quantity
 	return ""
+
+
+func trade_quote(good: String, buy: bool) -> int:
+	var key := good.to_lower()
+	if not GOODS.has(key): return 0
+	var discount: int = mini(15, _paid_crew_count("trader") * 2)
+	var system_faction: String = str(Universe.system_data(system_index).faction)
+	var multiplier: float = PlayerFactionDomain.trade_multiplier(faction, system_faction, buy)
+	var sale_factor: float = 1.0 if buy else 0.85
+	return maxi(1, roundi(float(price(key)) * float(100 - discount) / 100.0 * sale_factor * multiplier))
 
 func add_module(kind: String, cell: Vector3i) -> String:
 	if not MODULES.has(kind) or kind == "core": return "Unknown or unavailable module."
@@ -241,6 +253,43 @@ func withdraw_company(amount: int) -> String:
 	company_balance -= amount
 	credits += amount
 	return ""
+
+
+func found_faction(name: String) -> String:
+	return PlayerFactionDomain.found(self, name)
+
+
+func faction_deposit(amount: int) -> String:
+	return PlayerFactionDomain.deposit(self, amount)
+
+
+func faction_withdraw(amount: int) -> String:
+	return PlayerFactionDomain.withdraw(self, amount)
+
+
+func claim_station_faction(index: int) -> String:
+	return PlayerFactionDomain.claim_station(self, index)
+
+
+func set_diplomatic_stance(faction_name: String, new_stance: String) -> String:
+	return PlayerFactionDomain.set_stance(self, faction_name, new_stance)
+
+
+func diplomatic_stance(faction_name: String) -> String:
+	return PlayerFactionDomain.stance(faction, faction_name)
+
+
+func faction_trade_multiplier(faction_name: String, buy: bool) -> float:
+	return PlayerFactionDomain.trade_multiplier(faction, faction_name, buy)
+
+
+func police_hostile() -> bool:
+	var local_faction := str(Universe.system_data(system_index).faction)
+	return PlayerFactionDomain.police_hostile(faction, local_faction, wanted)
+
+
+func station_affiliation(index: int) -> String:
+	return PlayerFactionDomain.station_affiliation(faction, index)
 
 func build_station(name: String) -> String:
 	var clean: String = name.strip_edges()
@@ -381,11 +430,14 @@ func _load_v1(data: Dictionary) -> String:
 	return ""
 
 func _load_v2(data: Dictionary) -> String:
-	var expected: Array[String] = ["version", "system_index", "world_id", "credits", "cargo", "hull", "shield", "fuel", "kills", "day", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout"]
+	var expected: Array[String] = ["version", "system_index", "world_id", "credits", "cargo", "hull", "shield", "fuel", "kills", "day", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout", "faction"]
 	var missing_world_id: bool = not data.has("world_id")
+	var missing_faction: bool = not data.has("faction")
 	var legacy: bool = int(data.get("version", -1)) == 2
 	if legacy:
 		for extra: String in ["fleet_ships", "crew_orders", "recovery", "ship_layout"]: expected.erase(extra)
+	if missing_faction:
+		expected.erase("faction")
 	if data.size() != expected.size() - (1 if missing_world_id else 0): return "Save fields do not match schema."
 	for key: String in expected:
 		if key == "world_id" and missing_world_id: continue
@@ -455,6 +507,14 @@ func _load_v2(data: Dictionary) -> String:
 			stock[good] = int(stock[good])
 		if value.has("stock"): station.stock = stock.duplicate(true)
 		loaded_stations.append(station)
+	var loaded_faction: Dictionary = PlayerFactionDomain.empty_data()
+	if not missing_faction:
+		if not PlayerFactionDomain.validate_data(data.faction, loaded_stations.size()): return "Invalid player faction state."
+		loaded_faction = data.faction.duplicate(true)
+		loaded_faction.treasury = int(loaded_faction.treasury)
+		var station_claims: Array[int] = []
+		for station_index: Variant in loaded_faction.claimed_stations: station_claims.append(int(station_index))
+		loaded_faction.claimed_stations = station_claims
 	var loaded_crew: Array[Dictionary] = []
 	var crew_ids: Dictionary = {}
 	var names_seen: Dictionary = {}
@@ -542,6 +602,7 @@ func _load_v2(data: Dictionary) -> String:
 	crew_orders = loaded_orders
 	recovery = ShipRecovery.empty_data() if legacy else _normalize_recovery(data.recovery)
 	ship_layout = loaded_layout
+	faction = loaded_faction
 	return ""
 
 func _valid_contract(value: Variant) -> bool:
@@ -604,10 +665,10 @@ func _new_crew_name() -> String:
 	return "Crew %s" % Crypto.new().generate_random_bytes(4).hex_encode()
 
 func _save_data() -> Dictionary:
-	return {"version": SAVE_VERSION, "system_index": system_index, "world_id": world_id, "credits": credits, "cargo": cargo, "hull": hull, "shield": shield, "fuel": fuel, "kills": kills, "day": day, "visited": visited, "reputation": reputation, "wanted": wanted, "ship_modules": ship_modules, "stations": stations, "shares": shares, "crew": crew, "world_flags": world_flags, "company_name": company_name, "company_balance": company_balance, "crew_paid": crew_paid, "contracts": contracts, "fleet_ships": fleet_ships, "crew_orders": crew_orders, "recovery": recovery, "ship_layout": ship_layout}
+	return {"version": SAVE_VERSION, "system_index": system_index, "world_id": world_id, "credits": credits, "cargo": cargo, "hull": hull, "shield": shield, "fuel": fuel, "kills": kills, "day": day, "visited": visited, "reputation": reputation, "wanted": wanted, "ship_modules": ship_modules, "stations": stations, "shares": shares, "crew": crew, "world_flags": world_flags, "company_name": company_name, "company_balance": company_balance, "crew_paid": crew_paid, "contracts": contracts, "fleet_ships": fleet_ships, "crew_orders": crew_orders, "recovery": recovery, "ship_layout": ship_layout, "faction": faction}
 
 func _copy_from(other: GameState) -> void:
-	for key: String in ["system_index", "world_id", "credits", "cargo", "hull", "shield", "fuel", "kills", "day", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout"]:
+	for key: String in ["system_index", "world_id", "credits", "cargo", "hull", "shield", "fuel", "kills", "day", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout", "faction"]:
 		set(key, other.get(key).duplicate(true) if other.get(key) is Array or other.get(key) is Dictionary else other.get(key))
 
 func _pay_crew_and_company() -> void:
