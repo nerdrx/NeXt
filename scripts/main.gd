@@ -485,6 +485,7 @@ func _smoke() -> void:
 	_open_menu("welcome")
 	await get_tree().create_timer(2).timeout
 	if DisplayServer.get_name() != "headless":
-		get_viewport().get_texture().get_image().save_png("res://build/preview.png")
+		var preview_path: String = "res://build/preview.png" if OS.has_feature("editor") else "user://preview.png"
+		get_viewport().get_texture().get_image().save_png(preview_path)
 	print("NEXT_SMOKE_OK: trade, refit, jump, combat, save/load")
 	get_tree().quit()
