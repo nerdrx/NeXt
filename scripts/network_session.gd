@@ -4,6 +4,7 @@ extends Node
 signal world_joined(system_index: int)
 signal peers_changed
 signal session_message(message: String)
+signal steam_invitation_ready(lobby_id: int)
 
 const DEFAULT_PORT: int = 27840
 const MAX_PLAYERS: int = 8
@@ -11,23 +12,31 @@ const MAX_MODULES: int = 100
 const MAX_SYSTEM_INDEX: int = 999999999
 const MAX_WORLD_COORD: float = 30000.0
 const MODULE_KINDS: Array[String] = ["core", "cockpit", "reactor", "engine", "cargo", "weapon", "shield", "habitat"]
+const ShipLayoutScript = preload("res://scripts/ship_layout.gd")
 
 var system_index: int = 0
 var world_id: String = ""
 var world_seed: int = 0
 var ship_modules: Array = []
+var ship_layout: Dictionary = {"version": 1, "rooms": {}, "panels": {}}
 var display_name: String = "Pilot"
 var is_host: bool = false
 var connected: bool = false
 var presence: Dictionary = {}
 
-var _peer: ENetMultiplayerPeer
+var _peer: MultiplayerPeer
+var _steam_session: SteamSession
 var _join_sent: bool = false
 var _last_pose_msec: int = 0
 var _last_remote_pose_msec: Dictionary = {}
 
 
 func _ready() -> void:
+	_steam_session = SteamSession.new()
+	add_child(_steam_session)
+	_steam_session.transport_ready.connect(_on_steam_transport_ready)
+	_steam_session.invitation_ready.connect(_on_steam_invitation_ready)
+	_steam_session.status_changed.connect(func(message: String) -> void: session_message.emit(message))
 	multiplayer.peer_connected.connect(_on_peer_connected)
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
@@ -44,13 +53,54 @@ func host(port: int = DEFAULT_PORT) -> String:
 	var normalized := _normalize_modules(ship_modules)
 	if not normalized.ok:
 		return "Ship design is invalid: %s" % normalized.error
+	var normalized_layout := _normalize_layout(ship_layout, normalized.modules)
+	if not normalized_layout.ok:
+		return "Ship layout is invalid: %s" % normalized_layout.error
 	ship_modules = normalized.modules
+	ship_layout = normalized_layout.layout
 	display_name = _sanitize_name(display_name)
-	_peer = ENetMultiplayerPeer.new()
-	var error := _peer.create_server(port, MAX_PLAYERS - 1)
+	var peer := ENetMultiplayerPeer.new()
+	var error := peer.create_server(port, MAX_PLAYERS - 1)
 	if error != OK:
-		_peer = null
 		return "Could not start ENet host (error %d)." % error
+	_start_host(peer, "LAN session hosted on port %d." % port)
+	return ""
+
+
+func host_steam(app_id: int) -> String:
+	leave()
+	var error := _validate_local_design()
+	if not error.is_empty():
+		return error
+	if not _valid_world_id(world_id):
+		return "A valid world ID is required before hosting."
+	var init_error := _steam_session.initialize(app_id)
+	if not init_error.is_empty():
+		return init_error
+	return _steam_session.host()
+
+
+func join_steam(app_id: int, lobby_id: int) -> String:
+	leave()
+	var error := _validate_local_design()
+	if not error.is_empty():
+		return error
+	var init_error := _steam_session.initialize(app_id)
+	if not init_error.is_empty():
+		return init_error
+	return _steam_session.join(lobby_id)
+
+
+func invite_steam_friends() -> String:
+	return _steam_session.invite_friends() if _steam_session != null else "Steam is unavailable."
+
+
+func enable_steam(app_id: int) -> String:
+	return _steam_session.initialize(app_id) if _steam_session != null else "Steam session is unavailable."
+
+
+func _start_host(peer: MultiplayerPeer, status: String) -> void:
+	_peer = peer
 	multiplayer.multiplayer_peer = _peer
 	is_host = true
 	connected = true
@@ -58,10 +108,9 @@ func host(port: int = DEFAULT_PORT) -> String:
 	world_seed = _seed_for(system_index)
 	var local_id := multiplayer.get_unique_id()
 	presence.clear()
-	presence[local_id] = _make_presence(Vector3.ZERO, Vector3.ZERO, ship_modules, display_name)
+	presence[local_id] = _make_presence(Vector3.ZERO, Vector3.ZERO, ship_modules, ship_layout, display_name)
 	peers_changed.emit()
-	session_message.emit("LAN session hosted on port %d." % port)
-	return ""
+	session_message.emit(status)
 
 
 func join(address: String, port: int = DEFAULT_PORT) -> String:
@@ -74,21 +123,59 @@ func join(address: String, port: int = DEFAULT_PORT) -> String:
 	var normalized := _normalize_modules(ship_modules)
 	if not normalized.ok:
 		return "Ship design is invalid: %s" % normalized.error
+	var normalized_layout := _normalize_layout(ship_layout, normalized.modules)
+	if not normalized_layout.ok:
+		return "Ship layout is invalid: %s" % normalized_layout.error
 	ship_modules = normalized.modules
+	ship_layout = normalized_layout.layout
 	display_name = _sanitize_name(display_name)
-	_peer = ENetMultiplayerPeer.new()
-	var error := _peer.create_client(host_address, port)
+	var peer := ENetMultiplayerPeer.new()
+	var error := peer.create_client(host_address, port)
 	if error != OK:
-		_peer = null
 		return "Could not connect to host (error %d)." % error
+	_start_client(peer, "Connecting to %s:%d…" % [host_address, port])
+	return ""
+
+
+func _start_client(peer: MultiplayerPeer, status: String) -> void:
+	_peer = peer
 	multiplayer.multiplayer_peer = _peer
 	is_host = false
 	connected = false
 	_join_sent = false
 	presence.clear()
 	_last_remote_pose_msec.clear()
-	session_message.emit("Connecting to %s:%d…" % [host_address, port])
+	session_message.emit(status)
+
+
+func _validate_local_design() -> String:
+	var normalized := _normalize_modules(ship_modules)
+	if not normalized.ok:
+		return "Ship design is invalid: %s" % normalized.error
+	var normalized_layout := _normalize_layout(ship_layout, normalized.modules)
+	if not normalized_layout.ok:
+		return "Ship layout is invalid: %s" % normalized_layout.error
+	ship_modules = normalized.modules
+	ship_layout = normalized_layout.layout
+	display_name = _sanitize_name(display_name)
 	return ""
+
+
+
+func _on_steam_transport_ready(candidate: Object, hosting: bool) -> void:
+	if not candidate is MultiplayerPeer:
+		session_message.emit("Steam returned an invalid multiplayer peer.")
+		return
+	var peer := candidate as MultiplayerPeer
+	if hosting:
+		_start_host(peer, "Steam lobby hosted.")
+	else:
+		_start_client(peer, "Connecting to Steam lobby…")
+
+
+func _on_steam_invitation_ready(invited_lobby_id: int) -> void:
+	steam_invitation_ready.emit(invited_lobby_id)
+	session_message.emit("Steam invite ready: lobby %d." % invited_lobby_id)
 
 
 func leave() -> void:
@@ -96,6 +183,8 @@ func leave() -> void:
 	if _peer != null:
 		_peer.close()
 		_peer = null
+	if _steam_session != null:
+		_steam_session.leave()
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	connected = false
 	is_host = false
@@ -106,25 +195,37 @@ func leave() -> void:
 		peers_changed.emit()
 
 
+func _exit_tree() -> void:
+	if _steam_session != null:
+		_steam_session.shutdown()
+
+
 func publish_pose(position: Vector3, rotation: Vector3) -> void:
 	if not connected or not _valid_vector(position, MAX_WORLD_COORD) or not _valid_rotation(rotation):
 		return
+	var normalized := _normalize_modules(ship_modules)
+	if not normalized.ok: return
+	var normalized_layout := _normalize_layout(ship_layout, normalized.modules)
+	if not normalized_layout.ok: return
+	ship_modules = normalized.modules
+	ship_layout = normalized_layout.layout
 	var now := Time.get_ticks_msec()
 	if now - _last_pose_msec < 50:
 		return
 	_last_pose_msec = now
 	var id := multiplayer.get_unique_id()
-	var profile: Dictionary = presence.get(id, _make_presence(Vector3.ZERO, Vector3.ZERO, ship_modules, display_name))
+	var profile: Dictionary = presence.get(id, _make_presence(Vector3.ZERO, Vector3.ZERO, ship_modules, ship_layout, display_name))
 	profile.position = position
 	profile.rotation = rotation
 	profile.ship_modules = ship_modules.duplicate(true)
+	profile.ship_layout = ship_layout.duplicate(true)
 	profile.name = display_name
 	presence[id] = profile
 	if is_host:
-		_rpc_presence.rpc(id, profile)
+		_broadcast_presence(id, profile)
 		peers_changed.emit()
 	else:
-		_rpc_publish_pose.rpc_id(1, position, rotation)
+		_rpc_publish_pose.rpc_id(1, position, rotation, ship_modules.duplicate(true), ship_layout.duplicate(true))
 
 
 func travel(index: int) -> String:
@@ -134,7 +235,8 @@ func travel(index: int) -> String:
 		return "System address is out of range."
 	system_index = index
 	world_seed = _seed_for(index)
-	_rpc_world_joined.rpc(index, world_seed, world_id)
+	for peer_id: int in multiplayer.get_peers():
+		_rpc_world_joined.rpc_id(peer_id, index, world_seed, world_id)
 	world_joined.emit(system_index)
 	session_message.emit("Traveling together to system %d." % system_index)
 	return ""
@@ -149,7 +251,8 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	_last_remote_pose_msec.erase(peer_id)
 	if is_host:
 		if presence.erase(peer_id):
-			_rpc_peer_left.rpc(peer_id)
+			for remote_id: int in multiplayer.get_peers():
+				_rpc_peer_left.rpc_id(remote_id, peer_id)
 			peers_changed.emit()
 	elif peer_id != 1 and presence.erase(peer_id):
 		peers_changed.emit()
@@ -160,7 +263,7 @@ func _on_connected_to_server() -> void:
 	if _join_sent or _peer == null:
 		return
 	_join_sent = true
-	_rpc_join_request.rpc_id(1, _sanitize_name(display_name), ship_modules.duplicate(true))
+	_rpc_join_request.rpc_id(1, _sanitize_name(display_name), ship_modules.duplicate(true), ship_layout.duplicate(true))
 
 
 func _on_connection_failed() -> void:
@@ -179,35 +282,43 @@ func _on_server_disconnected() -> void:
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _rpc_join_request(raw_name: String, raw_modules: Array) -> void:
+func _rpc_join_request(raw_name: String, raw_modules: Array, raw_layout: Variant) -> void:
 	if not is_host or not connected:
 		return
 	var sender := multiplayer.get_remote_sender_id()
 	if sender <= 1 or sender > 0x7fffffff or presence.has(sender) or presence.size() >= MAX_PLAYERS:
 		return
-	if raw_name.length() > 64 or raw_modules.size() > MAX_MODULES:
+	if raw_name.length() > 64 or raw_modules.size() > MAX_MODULES or not raw_layout is Dictionary or raw_layout.size() > 3:
 		_rpc_reject.rpc_id(sender, "Join data is too large.")
 		return
 	var normalized := _normalize_modules(raw_modules)
 	if not normalized.ok:
 		_rpc_reject.rpc_id(sender, "Invalid ship design: %s" % normalized.error)
 		return
+	var normalized_layout := _normalize_layout(raw_layout, normalized.modules)
+	if not normalized_layout.ok:
+		_rpc_reject.rpc_id(sender, "Invalid ship layout: %s" % normalized_layout.error)
+		return
 	var safe_name := _sanitize_name(raw_name)
-	var profile := _make_presence(Vector3.ZERO, Vector3.ZERO, normalized.modules, safe_name)
+	var profile := _make_presence(Vector3.ZERO, Vector3.ZERO, normalized.modules, normalized_layout.layout, safe_name)
 	presence[sender] = profile
 	_rpc_welcome.rpc_id(sender, system_index, world_seed, world_id, presence.duplicate(true))
-	_rpc_presence.rpc(sender, profile)
+	_broadcast_presence(sender, profile)
 	peers_changed.emit()
 	session_message.emit("%s joined." % safe_name)
 
 
 @rpc("any_peer", "call_remote", "unreliable_ordered")
-func _rpc_publish_pose(position: Vector3, rotation: Vector3) -> void:
+func _rpc_publish_pose(position: Vector3, rotation: Vector3, raw_modules: Array, raw_layout: Variant) -> void:
 	if not is_host or not connected:
 		return
 	var sender := multiplayer.get_remote_sender_id()
-	if not presence.has(sender) or not _valid_vector(position, MAX_WORLD_COORD) or not _valid_rotation(rotation):
+	if not presence.has(sender) or not _valid_vector(position, MAX_WORLD_COORD) or not _valid_rotation(rotation) or raw_modules.size() > MAX_MODULES or not raw_layout is Dictionary:
 		return
+	var normalized := _normalize_modules(raw_modules)
+	if not normalized.ok: return
+	var normalized_layout := _normalize_layout(raw_layout, normalized.modules)
+	if not normalized_layout.ok: return
 	var now := Time.get_ticks_msec()
 	if now - int(_last_remote_pose_msec.get(sender, 0)) < 50:
 		return
@@ -215,8 +326,10 @@ func _rpc_publish_pose(position: Vector3, rotation: Vector3) -> void:
 	var profile: Dictionary = presence[sender]
 	profile.position = position
 	profile.rotation = rotation
+	profile.ship_modules = normalized.modules
+	profile.ship_layout = normalized_layout.layout
 	presence[sender] = profile
-	_rpc_presence.rpc(sender, profile)
+	_broadcast_presence(sender, profile)
 	peers_changed.emit()
 
 
@@ -228,16 +341,17 @@ func _rpc_welcome(index: int, seed: int, incoming_world_id: String, players: Dic
 	for key: Variant in players:
 		var id := int(key)
 		var player: Variant = players[key]
-		if id <= 0 or not _valid_presence(player):
+		var normalized_profile := _normalize_presence(player)
+		if id <= 0 or not normalized_profile.ok:
 			return
-		validated[id] = player
+		validated[id] = normalized_profile.profile
 	system_index = index
 	world_id = incoming_world_id
 	world_seed = seed
 	presence = validated
 	connected = true
 	var local_id := multiplayer.get_unique_id()
-	presence[local_id] = _make_presence(Vector3.ZERO, Vector3.ZERO, ship_modules, display_name)
+	presence[local_id] = _make_presence(Vector3.ZERO, Vector3.ZERO, ship_modules, ship_layout, display_name)
 	peers_changed.emit()
 	world_joined.emit(system_index)
 	session_message.emit("Joined system %d." % system_index)
@@ -253,9 +367,11 @@ func _rpc_reject(reason: String) -> void:
 
 @rpc("authority", "call_remote", "unreliable_ordered")
 func _rpc_presence(peer_id: int, profile: Dictionary) -> void:
-	if is_host or not connected or peer_id <= 0 or peer_id > 0x7fffffff or not _valid_presence(profile):
+	if is_host or not connected or peer_id <= 0 or peer_id > 0x7fffffff:
 		return
-	presence[peer_id] = profile
+	var normalized_profile := _normalize_presence(profile)
+	if not normalized_profile.ok: return
+	presence[peer_id] = normalized_profile.profile
 	peers_changed.emit()
 
 
@@ -276,22 +392,63 @@ func _rpc_world_joined(index: int, seed: int, incoming_world_id: String) -> void
 	world_joined.emit(system_index)
 
 
-func _make_presence(pos: Vector3, rot: Vector3, modules: Array, player_name: String) -> Dictionary:
-	return {"position": pos, "rotation": rot, "ship_modules": modules.duplicate(true), "name": _sanitize_name(player_name)}
+func _make_presence(pos: Vector3, rot: Vector3, modules: Array, layout: Dictionary, player_name: String) -> Dictionary:
+	return {"position": pos, "rotation": rot, "ship_modules": modules.duplicate(true), "ship_layout": layout.duplicate(true), "name": _sanitize_name(player_name)}
 
 
 func _valid_presence(value: Variant) -> bool:
-	if not value is Dictionary:
-		return false
-	if not value.get("position") is Vector3 or not value.get("rotation") is Vector3:
-		return false
-	if not _valid_vector(value.position, MAX_WORLD_COORD) or not _valid_rotation(value.rotation):
-		return false
-	if not value.get("name") is String or str(value.name).length() > 20:
-		return false
-	if not value.get("ship_modules") is Array:
-		return false
-	return _normalize_modules(value.ship_modules).ok
+	return _normalize_presence(value).ok
+
+
+func _normalize_presence(value: Variant) -> Dictionary:
+	if not value is Dictionary or value.size() < 4 or value.size() > 5 or not value.has_all(["position", "rotation", "name", "ship_modules"]):
+		return {"ok": false}
+	if value.size() == 5 and not value.has("ship_layout"):
+		return {"ok": false}
+	for key: Variant in value:
+		if not str(key) in ["position", "rotation", "name", "ship_modules", "ship_layout"]: return {"ok": false}
+	if not value.position is Vector3 or not value.rotation is Vector3 or not _valid_vector(value.position, MAX_WORLD_COORD) or not _valid_rotation(value.rotation):
+		return {"ok": false}
+	if not value.name is String or str(value.name).length() > 20 or not value.ship_modules is Array or value.ship_modules.size() > MAX_MODULES:
+		return {"ok": false}
+	var modules := _normalize_modules(value.ship_modules)
+	if not modules.ok: return {"ok": false}
+	var raw_layout: Variant = value.get("ship_layout", ShipLayoutScript.empty_data())
+	var layout := _normalize_layout(raw_layout, modules.modules)
+	if not layout.ok: return {"ok": false}
+	return {"ok": true, "profile": {"position": value.position, "rotation": value.rotation, "name": _sanitize_name(value.name), "ship_modules": modules.modules, "ship_layout": layout.layout}}
+
+
+func _normalize_layout(raw_layout: Variant, modules: Array) -> Dictionary:
+	if not raw_layout is Dictionary or raw_layout.size() != 3 or not raw_layout.has_all(["version", "rooms", "panels"]):
+		return {"ok": false, "error": "layout fields are invalid"}
+	if not raw_layout.version is int and not raw_layout.version is float:
+		return {"ok": false, "error": "layout version is invalid"}
+	if not is_finite(float(raw_layout.version)) or float(raw_layout.version) != 1.0:
+		return {"ok": false, "error": "layout version is invalid"}
+	if not raw_layout.rooms is Dictionary or not raw_layout.panels is Dictionary or raw_layout.rooms.size() > MAX_MODULES or raw_layout.panels.size() > MAX_MODULES:
+		return {"ok": false, "error": "layout exceeds limits"}
+	for cell: Variant in raw_layout.rooms:
+		if not cell is String or cell.length() > 16 or not raw_layout.rooms[cell] is String or raw_layout.rooms[cell].length() > 24:
+			return {"ok": false, "error": "room cell key exceeds limits"}
+	for cell: Variant in raw_layout.panels:
+		var panels: Variant = raw_layout.panels[cell]
+		if not cell is String or cell.length() > 16 or not panels is Dictionary or panels.size() > 6:
+			return {"ok": false, "error": "panel cell data exceeds limits"}
+		for face: Variant in panels:
+			if not face is String or face.length() > 3 or not panels[face] is String or panels[face].length() > 16:
+				return {"ok": false, "error": "panel value exceeds limits"}
+	var normalized: Dictionary = raw_layout.duplicate(true)
+	if normalized.version is float and is_finite(normalized.version) and floorf(normalized.version) == normalized.version:
+		normalized.version = int(normalized.version)
+	if not ShipLayoutScript.validate_data(normalized, modules):
+		return {"ok": false, "error": "panel or room does not match this hull"}
+	return {"ok": true, "layout": normalized, "error": ""}
+
+
+func _broadcast_presence(peer_id: int, profile: Dictionary) -> void:
+	for remote_id: int in multiplayer.get_peers():
+		_rpc_presence.rpc_id(remote_id, peer_id, profile)
 
 
 func _normalize_modules(raw_modules: Array) -> Dictionary:

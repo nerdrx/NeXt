@@ -12,7 +12,7 @@ The [design decisions and questionnaire](docs/DESIGN_QUESTIONS.md) records the o
 
 ## Running
 
-Open `project.godot` in **Godot 4.7.2** and press F5. Windows build artifacts are available from successful GitHub Actions runs. Extract the entire archive and keep the executable with its `.pck` file. On Linux, add the Windows executable to Steam and select Proton. The project uses Forward+ and Vulkan; `--rendering-method gl_compatibility` is an optional fallback with reduced lighting features.
+Open `project.godot` in **Godot 4.7.2** and press F5 (Run Project). On a Linux development machine with Steam Godot installed, `./run-next.sh` starts the project and `./run-next.sh --editor` opens its editor. Do not launch component `.gd` files with `--script`: files such as `network_session.gd` extend Node and need the main scene. Windows build artifacts are available from successful GitHub Actions runs. Extract the entire archive and keep the executable with its `.pck` file. On Linux, add the Windows executable to Steam and select Proton. The project uses Forward+ and Vulkan; `--rendering-method gl_compatibility` is an optional fallback with reduced lighting features.
 
 | Control | Action |
 | --- | --- |
@@ -35,9 +35,11 @@ Start in the orbital concourse. The ship is on the central pad. Approach it, pre
 - Moving pirate/security ships, ground NPCs, patrol/pursuit/retreat behavior, physics-ray combat, shielding, hull damage and bounties. Destroyed actor IDs persist by location.
 - One billion deterministic system addresses, procedural celestial visuals, station geometry, planet surfaces and colony districts. The generator creates data on demand rather than allocating a billion scenes.
 - Connected grid-based ship assembly with live 3D preview, power/attachment/cargo checks, calculated mass, speed, weapons, shields and crew capacity.
-- Walkable ship rooms derived from the installed modules when a habitat and sufficient connected hull exist. Rooms have collision, equipment, connecting doors and a deck selector. This is not yet an editable room planner.
+- Walkable ship rooms derived from the installed modules when a habitat and sufficient connected hull exist. Rooms have collision, equipment, connecting doors and a deck selector. Grid-selected refits change compatible room fittings and exposed standard/armored/window panels. Room footprints and corridor placement are still derived from the module grid; panel refits currently change appearance rather than combat statistics.
 - Commodity buy/sell, cargo capacity, fuel, repairs, delivery/exploration/bounty contracts, shares, hiring/dismissal, company treasury/dividends and station construction/upgrades.
-- Crew salaries and role effects: engineers repair, gunners improve damage, traders improve commercial outcomes. Named NPCs do not yet independently command fleets.
+- Named crew with persistent orders: trader captains operate escrow-funded routes on purchased fleet vessels, gunners patrol with wages, bounties and hull risk, and engineers manage owned-station stock production. Fleet cargo, ship condition, work progress and assignments survive saves. Cancelled routes retain cargo; idle cargo can be sold and station output collected through services.
+- Fleet work advances only while its world profile is active. These are strategic, timed orders with simulated encounters; individual fleet ships do not yet physically fly through local combat scenes. Assigned personnel do not also grant passive aboard-ship bonuses.
+- Insurance, meaningful deductibles and recovery debt, persistent cargo wrecks, proximity-limited partial cargo recovery and single-use hull salvage. Medical rescue preserves the docked ship. Salvage settles debt first; insured salvage cannot exceed the claim deductible.
 - Versioned validated local saves, legacy migration, persistent world identities and separate visitor economy profiles. Your home finances are preserved when returning with your ship and cargo.
 - Experimental ENet world visits: validated ship exchange, player presence/pose synchronization and host-controlled interstellar travel. [Multiplayer details and limits](docs/MULTIPLAYER.md).
 
@@ -46,8 +48,8 @@ Start in the orbital concourse. The ship is on the central pad. Approach it, pre
 The complete target is substantially larger than the implemented systems above:
 
 - Planet landing currently changes to a generated surface scene. Continuous planet-scale terrain streaming and seamless surface/orbit travel are **not implemented**.
-- Steam invites/relay, shared authoritative combat/economy, property permissions, consensual PvP and durable transfer transactions are **not complete**. ENet visits are an explicitly limited development feature, not finished Steam co-op.
-- Hull panel shaping, editable interior layouts, autonomous NPC fleet orders, faction sovereignty/diplomacy, rescue insurance and recoverable wrecks remain work in progress or unimplemented.
+- Steam lobby adapter code and lifecycle tests are present, but native Steam build configuration and a production AppID are still required. Real invites/relay, shared authoritative combat/economy, property permissions, consensual PvP and durable transfer transactions are **not verified or complete**. ENet visits are an explicitly limited development feature, not finished Steam co-op.
+- Freeform hull shaping, movable interior walls/furniture, locally simulated autonomous fleet combat and faction sovereignty/diplomacy remain unimplemented. Current room and panel refits are bounded grid choices.
 - Cities are generated colony districts; they are not complete populated urban simulations. Ship interiors currently pause local threats after requiring a safe flight zone. They do not simulate unattended ships under attack.
 - A system uses compact local coordinates and a 28 km safety boundary. Celestial sizes are presentation scale. This is not a physically scaled or fully streamed galaxy.
 - Menus pause local AI in solo play. Combat/economy state is currently simulated independently during network visits. Saving resumes at the saved system's orbital station, not the exact player position.
@@ -63,6 +65,12 @@ godot --headless --path . -s tests/test_actors.gd
 godot --headless --path . -s tests/test_network.gd
 godot --headless --path . -s tests/test_visit.gd -- --capture-only
 godot --headless --path . -s tests/test_controls.gd -- --capture-only
+godot --headless --path . -s tests/test_steam_session.gd
+godot --headless --path . -s tests/test_crew.gd
+godot --headless --path . -s tests/test_recovery.gd
+godot --headless --path . -s tests/test_ship_layout.gd
+godot --headless --path . -s tests/test_sector_position.gd
+godot --headless --path . -s tests/test_operations_gameplay.gd -- --capture-only
 godot --headless --path . -- --smoke
 godot --headless --path . --export-release "Windows Desktop" build/windows/NeXt.exe
 ```

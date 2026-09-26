@@ -126,50 +126,150 @@ func _path_blocked(direction: Vector3) -> bool:
 func _build_humanoid() -> void:
 	_visual = Node3D.new()
 	add_child(_visual)
-	var suit_color := Color("743e3d") if faction == "pirate" else (Color("315b83") if faction == "police" else Color("536778"))
-	var trim_color := Color("ff735c") if faction == "pirate" else (Color("8bd9ff") if faction == "police" else Color("66e4d9"))
-	var suit := _mat(suit_color, 0.72, 0.0)
-	var armor := _mat(Color("9babb9") if not hostile else Color("303f50"), 0.52, 0.0)
-	var trim := _mat(trim_color, 0.3, 1.25)
-	var visor := _mat(Color(0.04, 0.68, 0.82, 0.88), 0.16, 1.2)
-	_add_sphere(Vector3(0, 1.49, 0), 0.25, armor)
-	_add_box(Vector3(0, 0.99, 0), Vector3(0.62, 0.7, 0.38), suit)
-	_add_box(Vector3(0, 0.77, 0), Vector3(0.52, 0.22, 0.4), armor)
-	_add_box(Vector3(0, 1.49, -0.19), Vector3(0.33, 0.12, 0.075), visor)
-	_add_box(Vector3(0, 1.28, -0.035), Vector3(0.46, 0.08, 0.44), trim)
-	_left_arm = _limb(Vector3(-0.39, 1.27, 0), suit, 0.15, 0.63)
-	_right_arm = _limb(Vector3(0.39, 1.27, 0), suit, 0.15, 0.63)
-	_left_leg = _limb(Vector3(-0.17, 0.68, 0), armor, 0.18, 0.72)
-	_right_leg = _limb(Vector3(0.17, 0.68, 0), armor, 0.18, 0.72)
-	_add_box(Vector3(-0.39, 1.02, -0.01), Vector3(0.19, 0.17, 0.2), trim)
-	_add_box(Vector3(0.39, 1.02, -0.01), Vector3(0.19, 0.17, 0.2), trim)
-	# Compact sidearm and emitter make the hostile role readable at a glance.
-	_add_box(Vector3(0.5, 0.99, -0.33), Vector3(0.09, 0.09, 0.3), armor)
-	_add_box(Vector3(0.5, 0.99, -0.5), Vector3(0.05, 0.05, 0.06), trim)
+	var suit_color := Color("51433c") if faction == "pirate" else (Color("344958") if faction == "police" else Color("46504e"))
+	var patch_color := Color("bd8052") if faction == "pirate" else (Color("7796a0") if faction == "police" else Color("a28c65"))
+	match role.to_lower():
+		"medic": patch_color = Color("a65d58")
+		"engineer": patch_color = Color("c49a58")
+		"trader": patch_color = Color("738e78")
+	var fabric := _mat(suit_color, 0.86, 0.0, 0.02)
+	var ceramic := _mat(Color("a5aaa4") if not hostile else Color("626b6b"), 0.42, 0.0, 0.16)
+	var dark_ceramic := _mat(Color("293438"), 0.48, 0.0, 0.2)
+	var patch := _mat(patch_color, 0.68, 0.0, 0.05)
+	var visor := _mat(Color("26383a"), 0.16, 0.0, 0.58)
+	var rubber := _mat(Color("202626"), 0.88, 0.0, 0.0)
+
+	# Soft pressure suit silhouette, with armor concentrated at exposed joints.
+	var torso := CylinderMesh.new()
+	torso.top_radius = 0.235
+	torso.bottom_radius = 0.31
+	torso.height = 0.56
+	torso.radial_segments = 20
+	_add_mesh(torso, Vector3(0, 1.18, 0), fabric)
+	var vest := SphereMesh.new()
+	vest.radius = 0.31
+	vest.height = 0.55
+	_add_mesh(vest, Vector3(0, 1.2, -0.075), ceramic, Vector3(0.88, 0.92, 0.38))
+	var pelvis := CapsuleMesh.new()
+	pelvis.radius = 0.23
+	pelvis.height = 0.38
+	_add_mesh(pelvis, Vector3(0, 0.87, 0), fabric, Vector3(1.0, 0.64, 0.92))
+	var belt := CylinderMesh.new()
+	belt.top_radius = 0.25
+	belt.bottom_radius = 0.27
+	belt.height = 0.095
+	belt.radial_segments = 20
+	_add_mesh(belt, Vector3(0, 0.94, 0), dark_ceramic)
+
+	# Rounded helmet shell, recessed curved visor, and sealed neck ring.
+	_add_sphere(Vector3(0, 1.61, 0), 0.235, ceramic)
+	var visor_mesh := SphereMesh.new()
+	visor_mesh.radius = 0.19
+	visor_mesh.height = 0.20
+	_add_mesh(visor_mesh, Vector3(0, 1.635, -0.205), visor, Vector3(1.35, 0.72, 0.34))
+	var neck_ring := CylinderMesh.new()
+	neck_ring.top_radius = 0.155
+	neck_ring.bottom_radius = 0.17
+	neck_ring.height = 0.075
+	neck_ring.radial_segments = 20
+	_add_mesh(neck_ring, Vector3(0, 1.445, 0), dark_ceramic)
+
+	# Chest hardware and restrained role patch provide scale and visual read.
+	_add_box(Vector3(0, 1.28, -0.205), Vector3(0.14, 0.07, 0.035), dark_ceramic)
+	_add_box(Vector3(0.01, 1.28, -0.228), Vector3(0.075, 0.043, 0.016), patch)
+	_add_box(Vector3(-0.19, 1.25, -0.205), Vector3(0.07, 0.045, 0.025), dark_ceramic)
+	var pack := BoxMesh.new()
+	pack.size = Vector3(0.42, 0.38, 0.17)
+	_add_mesh(pack, Vector3(0, 1.18, 0.23), dark_ceramic)
+
+	_left_arm = _arm(Vector3(-0.34, 1.34, 0), fabric, ceramic, dark_ceramic, rubber)
+	_right_arm = _arm(Vector3(0.34, 1.34, 0), fabric, ceramic, dark_ceramic, rubber)
+	_left_leg = _leg(Vector3(-0.145, 0.92, 0), fabric, ceramic, dark_ceramic, rubber)
+	_right_leg = _leg(Vector3(0.145, 0.92, 0), fabric, ceramic, dark_ceramic, rubber)
+
+	# Small shoulder tabs break the suit color without adding glowing trim.
+	_add_box(Vector3(-0.35, 1.38, -0.025), Vector3(0.17, 0.08, 0.19), ceramic)
+	_add_box(Vector3(0.35, 1.38, -0.025), Vector3(0.17, 0.08, 0.19), ceramic)
+	_add_box(Vector3(-0.35, 1.385, -0.13), Vector3(0.09, 0.025, 0.02), patch)
+	_add_box(Vector3(0.35, 1.385, -0.13), Vector3(0.09, 0.025, 0.02), patch)
+	if hostile:
+		# Compact sidearm stays close to the hip and reads as equipment, not a block.
+		_add_box(Vector3(0.43, 0.94, -0.18), Vector3(0.12, 0.2, 0.16), dark_ceramic)
+		_add_box(Vector3(0.43, 0.99, -0.31), Vector3(0.07, 0.07, 0.2), ceramic)
+		_add_box(Vector3(0.43, 0.99, -0.425), Vector3(0.045, 0.045, 0.035), patch)
 
 
-func _limb(pivot_position: Vector3, material: Material, radius: float, length: float) -> Node3D:
+func _arm(pivot_position: Vector3, fabric: Material, ceramic: Material, dark: Material, rubber: Material) -> Node3D:
 	var pivot := Node3D.new()
 	pivot.position = pivot_position
 	_visual.add_child(pivot)
-	var mesh := MeshInstance3D.new()
-	var cylinder := CylinderMesh.new()
-	cylinder.top_radius = radius * 0.8
-	cylinder.bottom_radius = radius
-	cylinder.height = length
-	cylinder.radial_segments = 10
-	mesh.mesh = cylinder
-	mesh.material_override = material
-	pivot.add_child(mesh)
-	mesh.position.y = -length * 0.5
-	var joint := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = radius * 1.15
-	sphere.height = radius * 2.3
-	joint.mesh = sphere
-	joint.material_override = material
-	pivot.add_child(joint)
+	_add_child_capsule(pivot, Vector3(0, -0.2, 0), 0.115, 0.43, fabric)
+	_add_child_sphere(pivot, Vector3(0, -0.42, 0), 0.105, ceramic, Vector3(0.9, 0.9, 0.9))
+	var forearm := CylinderMesh.new()
+	forearm.top_radius = 0.075
+	forearm.bottom_radius = 0.105
+	forearm.height = 0.34
+	forearm.radial_segments = 16
+	_add_child_mesh(pivot, forearm, Vector3(0, -0.59, -0.005), fabric)
+	_add_child_sphere(pivot, Vector3(0, -0.59, -0.005), 0.105, ceramic, Vector3(0.88, 1.55, 0.9))
+	_add_child_capsule(pivot, Vector3(0, -0.81, -0.015), 0.078, 0.19, rubber)
+	var cuff := CylinderMesh.new()
+	cuff.top_radius = 0.09
+	cuff.bottom_radius = 0.09
+	cuff.height = 0.055
+	cuff.radial_segments = 16
+	_add_child_mesh(pivot, cuff, Vector3(0, -0.47, 0), dark)
 	return pivot
+
+
+func _leg(pivot_position: Vector3, fabric: Material, ceramic: Material, dark: Material, rubber: Material) -> Node3D:
+	var pivot := Node3D.new()
+	pivot.position = pivot_position
+	_visual.add_child(pivot)
+	_add_child_capsule(pivot, Vector3(0, -0.22, 0), 0.145, 0.48, fabric)
+	_add_child_sphere(pivot, Vector3(0, -0.46, 0), 0.13, dark, Vector3(0.95, 0.9, 0.95))
+	_add_child_capsule(pivot, Vector3(0, -0.68, 0.015), 0.115, 0.48, fabric)
+	_add_child_sphere(pivot, Vector3(0, -0.65, -0.095), 0.11, ceramic, Vector3(0.72, 1.2, 0.27))
+	var boot := CapsuleMesh.new()
+	boot.radius = 0.12
+	boot.height = 0.36
+	var boot_mesh := _add_child_mesh(pivot, boot, Vector3(0, -0.9, -0.08), rubber)
+	boot_mesh.rotation.x = PI / 2.0
+	return pivot
+
+
+func _add_mesh(mesh: Mesh, pos: Vector3, material: Material, scale: Vector3 = Vector3.ONE) -> MeshInstance3D:
+	return _add_child_mesh(_visual, mesh, pos, material, scale)
+
+
+func _add_child_mesh(parent: Node3D, mesh: Mesh, pos: Vector3, material: Material, scale: Vector3 = Vector3.ONE) -> MeshInstance3D:
+	var instance := MeshInstance3D.new()
+	instance.mesh = mesh
+	instance.material_override = material
+	instance.position = pos
+	instance.scale = scale
+	parent.add_child(instance)
+	return instance
+
+
+func _add_child_box(parent: Node3D, pos: Vector3, size: Vector3, material: Material) -> void:
+	var box := BoxMesh.new()
+	box.size = size
+	_add_child_mesh(parent, box, pos, material)
+
+
+func _add_child_sphere(parent: Node3D, pos: Vector3, radius: float, material: Material, scale: Vector3 = Vector3.ONE) -> void:
+	var sphere := SphereMesh.new()
+	sphere.radius = radius
+	sphere.height = radius * 2.0
+	_add_child_mesh(parent, sphere, pos, material, scale)
+
+
+func _add_child_capsule(parent: Node3D, pos: Vector3, radius: float, height: float, material: Material) -> void:
+	var capsule := CapsuleMesh.new()
+	capsule.radius = radius
+	capsule.height = height
+	_add_child_mesh(parent, capsule, pos, material)
 
 
 func _animate() -> void:
@@ -202,11 +302,11 @@ func _add_sphere(pos: Vector3, radius: float, material: Material) -> void:
 	mesh.position = pos
 
 
-func _mat(color: Color, roughness: float, glow: float) -> StandardMaterial3D:
+func _mat(color: Color, roughness: float, glow: float, metallic: float = 0.0) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
 	material.roughness = roughness
-	material.metallic = 0.3
+	material.metallic = metallic
 	if color.a < 1.0:
 		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	if glow > 0.0:

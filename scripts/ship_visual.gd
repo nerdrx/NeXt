@@ -7,11 +7,12 @@ var _engines: Array[MeshInstance3D] = []
 var _engine_glow: Array[StandardMaterial3D] = []
 
 
-func build(modules: Array, faction: String = "player") -> void:
+func build(modules: Array, faction: String = "player", layout: Dictionary = {}) -> void:
 	for child in get_children():
 		child.queue_free()
 	_engines.clear()
 	_engine_glow.clear()
+	var active_layout: Dictionary = layout if ShipLayout.validate_data(layout, modules) else ShipLayout.empty_data()
 	var accent := Color("46e5da") if faction == "player" else (Color("ff6b58") if faction == "pirate" else Color("65aaff"))
 	var hull_mat := _material(Color("26394c"), 0.5, 0.0)
 	var plate_mat := _material(Color("64788a"), 0.42, 0.0)
@@ -21,6 +22,8 @@ func build(modules: Array, faction: String = "player") -> void:
 	var warm_mat := _material(Color("ffbd74"), 0.25, 2.5)
 	var canopy_mat := _material(Color("168195"), 0.12, 0.15)
 	var glass_trim := _material(Color("9ceeff"), 0.18, 0.7)
+	var armor_panel := _material(Color("86949c"), 0.38, 0.0)
+	var panel_glass := _material(Color(0.06, 0.23, 0.3, 0.8), 0.14, 0.0)
 	var cells: Array[Vector3i] = []
 	var kinds: Dictionary = {}
 	for item in modules:
@@ -60,6 +63,10 @@ func build(modules: Array, faction: String = "player") -> void:
 		_add_box(p + Vector3(0, 0, 1.34), Vector3(1.82, 1.42, 0.035), inset_mat)
 		_add_box(p + Vector3(-1.34, 0, 0), Vector3(0.035, 1.42, 1.82), inset_mat)
 		_add_box(p + Vector3(1.34, 0, 0), Vector3(0.035, 1.42, 1.82), inset_mat)
+		var panel_data: Dictionary = active_layout.panels.get(ShipLayout.cell_key(cell), {})
+		for face: String in ShipLayout.FACES:
+			if panel_data.has(face):
+				_build_hull_panel(p, face, str(panel_data[face]), plate_mat, armor_panel, dark_mat, panel_glass)
 		var coordinate := cell
 		for neighbor: Vector3i in [coordinate + Vector3i.RIGHT, coordinate + Vector3i.UP, coordinate + Vector3i(0, 0, 1)]:
 			if not cells.has(neighbor):
@@ -125,6 +132,50 @@ func build(modules: Array, faction: String = "player") -> void:
 	_add_box(Vector3(-0.52, 0.05, -bounds.z * 0.49), Vector3(0.065, 0.04, 0.13), warm_mat)
 	_add_box(Vector3(0.52, 0.05, -bounds.z * 0.49), Vector3(0.065, 0.04, 0.13), warm_mat)
 	_add_box(Vector3(0, -0.12, bounds.z * 0.49), Vector3(bounds.x * 0.34, 0.09, 0.12), dark_mat)
+
+
+func _build_hull_panel(center: Vector3, face: String, panel_type: String, standard: Material, armor: Material, dark: Material, glass: Material) -> void:
+	var normal: Vector3 = Vector3(ShipLayout.FACE_STEPS[face])
+	var horizontal_size := 2.32
+	var vertical_size := 1.42
+	var position := center + normal * (1.36 if face in ["+x", "-x", "+z", "-z"] else 1.23)
+	var size: Vector3
+	if face in ["+x", "-x"]:
+		size = Vector3(0.045, vertical_size, horizontal_size)
+	elif face in ["+y", "-y"]:
+		size = Vector3(horizontal_size, 0.045, horizontal_size)
+	else:
+		size = Vector3(horizontal_size, vertical_size, 0.045)
+	if panel_type == "armored":
+		_add_box(position, size, armor)
+		if face in ["+x", "-x"]:
+			for z in [-0.68, 0.0, 0.68]:
+				_add_box(position + Vector3(0, 0, z), Vector3(0.055, 1.22, 0.07), dark)
+		elif face in ["+y", "-y"]:
+			for x in [-0.68, 0.0, 0.68]:
+				_add_box(position + Vector3(x, 0, 0), Vector3(0.07, 0.055, 1.22), dark)
+		else:
+			for x in [-0.68, 0.0, 0.68]:
+				_add_box(position + Vector3(x, 0, 0), Vector3(0.07, 1.22, 0.055), dark)
+	elif panel_type == "window":
+		_add_box(position, size, dark)
+		var pane_size := size
+		if face in ["+x", "-x"]:
+			pane_size = Vector3(0.025, 1.08, 1.84)
+		elif face in ["+y", "-y"]:
+			pane_size = Vector3(1.84, 0.025, 1.84)
+		else:
+			pane_size = Vector3(1.84, 1.08, 0.025)
+		_add_box(position + normal * 0.025, pane_size, glass)
+		if face in ["+x", "-x"]:
+			_add_box(position + Vector3(0, 0, -0.98), Vector3(0.07, 1.2, 0.07), standard)
+			_add_box(position + Vector3(0, 0, 0.98), Vector3(0.07, 1.2, 0.07), standard)
+		elif face in ["+y", "-y"]:
+			_add_box(position + Vector3(-0.98, 0, 0), Vector3(0.07, 0.055, 1.95), standard)
+			_add_box(position + Vector3(0.98, 0, 0), Vector3(0.07, 0.055, 1.95), standard)
+		else:
+			_add_box(position + Vector3(-0.98, 0, 0), Vector3(0.07, 1.2, 0.07), standard)
+			_add_box(position + Vector3(0.98, 0, 0), Vector3(0.07, 1.2, 0.07), standard)
 
 
 func set_thrust(amount: float) -> void:

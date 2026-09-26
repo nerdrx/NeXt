@@ -23,3 +23,6 @@ anti_aliasing/quality/use_debanding=true
 
 [environment]
 defaults/default_clear_color=Color(0.003, 0.007, 0.02, 1)
+
+[steam]
+app_id=0

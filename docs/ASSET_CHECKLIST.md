@@ -27,3 +27,10 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Preserve replaceable procedural fallbacks until authored content is validated.
 - [ ] Validate lighting/exposure across space, interiors and surfaces, not only an asset-preview scene.
 - [ ] No AI bitmap art, models or recorded voices are required by the current project.
+
+## New replaceable procedural content
+
+- [ ] Ground crew suit meshes and role patches (`scripts/ground_actor.gd`): replace with rigged human models while preserving collision dimensions and attack origins.
+- [ ] Lounge, medical and workshop fittings (`scripts/ship_interior.gd`): authored room kits within 2.8 m cells; keep doorway clearance.
+- [ ] Standard, armored and glazed face panels (`scripts/ship_visual.gd`): replace materials/meshes without changing exposed-face selection keys.
+- [ ] Damaged wreck visuals and recovery beacon (`scripts/main.gd`): replace current tilted hull presentation with broken hull sections and a restrained beacon.

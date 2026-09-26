@@ -92,6 +92,8 @@ func show_page(value: String = "overview") -> void:
 		"shipyard": _shipyard()
 		"contracts": _contracts()
 		"company": _company()
+		"fleet": _fleet()
+		"recovery": _recovery()
 		"factions": _factions()
 		"stations": _stations()
 		"settings": _settings()
@@ -170,6 +172,7 @@ func _navigation() -> void:
 		chart.destination = int(address.value)
 		chart.queue_redraw()))
 	controls.add_child(InterfaceTheme.button("ENGAGE HYPERDRIVE", func(): game.request_jump(destination)))
+	_button("RECOVERY BEACONS", show_page.bind("recovery"))
 	_text("LOCAL SYSTEM / SURFACE APPROACH", 13, InterfaceTheme.CYAN)
 	_button("CRUISE TO ORBITAL DOCK", game.cruise_to.bind(game.world.launch_position), not game.pilot.flying or game.aboard)
 	for index in game.world.planets.size():
@@ -211,6 +214,7 @@ func _market() -> void:
 	services.add_child(InterfaceTheme.button("REFUEL", _act.bind(s.refuel, "Fuel tanks replenished.")))
 	services.add_child(InterfaceTheme.button("REPAIR", _act.bind(s.repair, "Hull restored.")))
 	for child in services.get_children(): child.disabled = game.pilot.flying or game.aboard
+	_button("INSURANCE & WRECK RECOVERY", show_page.bind("recovery"))
 
 func _shipyard() -> void:
 	heading.text = "SHIP ARCHITECT"
@@ -220,6 +224,7 @@ func _shipyard() -> void:
 	_text("Choose a deck and cell, then install a module. Every module must connect to the ship. Essential systems and cargo capacity are protected.", 15, InterfaceTheme.MUTED)
 	var designer := ShipDesigner.new()
 	designer.modules = s.ship_modules.duplicate(true)
+	designer.layout = s.ship_layout.duplicate(true)
 	content.add_child(designer)
 	designer.requested.connect(func(kind: String, cell: Vector3i, remove: bool):
 		if game.pilot.flying or game.aboard or game.session.connected:
@@ -230,9 +235,48 @@ func _shipyard() -> void:
 			game.apply_ship_stats()
 			game.rebuild_player_ship()
 			var saved: bool = game.save_commander(false)
+			designer.layout = s.ship_layout.duplicate(true)
 			designer.refresh(s.ship_modules)
 			note("Assembly updated." if saved else "Assembly updated but NOT SAVED. Check storage and save again.")
 		else: note(error))
+	_text("ROOM & HULL REFITS", 13, InterfaceTheme.CYAN)
+	_text("Select a module on the grid above. Room fittings preserve module function; hull panels change exposed faces. Armor and glazing are appearance refits in this build.", 15, InterfaceTheme.MUTED)
+	var room_row := _row()
+	var room_choice := OptionButton.new()
+	for room_type: String in ShipLayout.ROOM_TYPES:
+		room_choice.add_item(room_type.capitalize())
+		room_choice.set_item_metadata(room_choice.item_count - 1, room_type)
+	room_row.add_child(room_choice)
+	room_row.add_child(InterfaceTheme.button("REFIT ROOM / %d CR" % ShipLayout.ROOM_REFIT_COST, func():
+		if game.pilot.flying or game.aboard or game.session.connected:
+			note("Dock and leave visits before refitting.")
+			return
+		var result: String = ShipLayout.configure_room(s, designer.selected_cell, str(room_choice.get_selected_metadata()))
+		_refit_result(result, designer)))
+	var panel_row := _row()
+	var face_choice := OptionButton.new()
+	for face: String in ShipLayout.FACES: face_choice.add_item(face)
+	panel_row.add_child(face_choice)
+	var panel_choice := OptionButton.new()
+	for panel_type: String in ShipLayout.PANEL_COSTS:
+		panel_choice.add_item("%s / %d CR" % [panel_type.capitalize(), ShipLayout.PANEL_COSTS[panel_type]])
+		panel_choice.set_item_metadata(panel_choice.item_count - 1, panel_type)
+	panel_row.add_child(panel_choice)
+	panel_row.add_child(InterfaceTheme.button("REFIT HULL FACE", func():
+		if game.pilot.flying or game.aboard or game.session.connected:
+			note("Dock and leave visits before refitting.")
+			return
+		var result: String = ShipLayout.set_panel(s, designer.selected_cell, ShipLayout.FACES[face_choice.selected], str(panel_choice.get_selected_metadata()))
+		_refit_result(result, designer)))
+
+func _refit_result(error: String, designer: ShipDesigner) -> void:
+	if not error.is_empty():
+		note(error)
+		return
+	designer.layout = game.state.ship_layout.duplicate(true)
+	designer.refresh(game.state.ship_modules)
+	game.rebuild_player_ship()
+	note("Refit complete." if game.save_commander(false) else "Refit complete but NOT SAVED. Check storage.")
 
 func _contracts() -> void:
 	heading.text = "CONTRACT EXCHANGE"
@@ -277,6 +321,7 @@ func _company() -> void:
 	else:
 		_text("%s  /  Treasury %d CR" % [s.company_name, s.company_balance], 21)
 		_button("WITHDRAW DIVIDEND", _act.bind(s.withdraw_company.bind(s.company_balance), "Company dividend withdrawn."), s.company_balance <= 0)
+	_button("CREW & FLEET OPERATIONS", show_page.bind("fleet"))
 	_text("CREW ROSTER", 13, InterfaceTheme.CYAN)
 	for index in s.crew.size():
 		var member: Dictionary = s.crew[index]
@@ -318,6 +363,10 @@ func _stations() -> void:
 		_button("%s  /  SYSTEM %d  /  LEVEL %d  /  EXPAND" % [station.name, station.get("system", station.get("system_index", 0)), station.level], func():
 			_act(s.upgrade_station.bind(index), "Station expanded.")
 			game.rebuild_owned_stations())
+		for good: String in station.get("stock", {}):
+			var amount: int = int(station.stock[good])
+			if amount <= 0: continue
+			_button("COLLECT %d %s" % [amount, good.to_upper()], _act.bind(game.collect_station_stock.bind(index, good, amount), "Station stock delivered to your hold."), game.pilot.flying or game.aboard or int(station.system) != s.system_index)
 
 func _settings() -> void:
 	heading.text = "FLIGHT SETTINGS"
@@ -343,9 +392,27 @@ func _settings() -> void:
 	fullscreen.button_pressed = DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
 	fullscreen.toggled.connect(func(value: bool): DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if value else DisplayServer.WINDOW_MODE_WINDOWED))
 	content.add_child(fullscreen)
-	_text("Presentation: cinematic procedural placeholders. Art can be replaced through the asset checklist. Steam friend transport and VR need their platform integrations before they can be enabled.", 16, InterfaceTheme.MUTED)
+	_text("Presentation: cinematic procedural placeholders. Art can be replaced through the asset checklist. Steam sessions require a configured Steam-enabled build. VR controls are not yet available.", 16, InterfaceTheme.MUTED)
+	_text("STEAM FRIENDS", 13, InterfaceTheme.CYAN)
+	var steam_ready: bool = game.steam_available() and game.steam_app_id() > 0
+	_text("Host a friends-only world, then invite friends through the Steam overlay." if steam_ready else "Steam sessions are unavailable in this build. Local network visits remain available below.", 15, InterfaceTheme.MUTED)
+	var steam_buttons := _row()
+	var host_button := InterfaceTheme.button("HOST FRIENDS WORLD", func():
+		var error: String = game.start_steam_host()
+		note(error if not error.is_empty() else "Creating friends-only lobby…"))
+	host_button.disabled = not steam_ready or game.session.connected
+	steam_buttons.add_child(host_button)
+	var invite_button := InterfaceTheme.button("INVITE FRIENDS", func():
+		var error: String = game.session.invite_steam_friends()
+		note(error if not error.is_empty() else "Steam invitation overlay opened."))
+	invite_button.disabled = not steam_ready
+	steam_buttons.add_child(invite_button)
+	if game.pending_steam_lobby > 0:
+		_button("JOIN INVITATION", func():
+			var error: String = game.join_steam_invitation()
+			note(error if not error.is_empty() else "Joining invited world…"), not steam_ready or game.session.connected)
 	_text("WORLD VISITS / LOCAL NETWORK", 13, InterfaceTheme.CYAN)
-	_text("Bring your current ship into a host's system. This connects presence and host travel; economy and combat remain local. Steam friends transport is not installed.", 15, InterfaceTheme.MUTED)
+	_text("Bring your current ship into a host's system. This connects presence and host travel; economy and combat remain local. Steam availability is shown above.", 15, InterfaceTheme.MUTED)
 	var connection := _row()
 	var name_field := LineEdit.new()
 	name_field.placeholder_text = "Pilot callsign"
@@ -359,6 +426,7 @@ func _settings() -> void:
 	var buttons := _row()
 	buttons.add_child(InterfaceTheme.button("HOST VISIT", func():
 		game.session.ship_modules = game.state.ship_modules.duplicate(true)
+		game.session.ship_layout = game.state.ship_layout.duplicate(true)
 		game.session.system_index = game.state.system_index
 		game.session.world_id = game.state.world_id
 		game.session.display_name = name_field.text
@@ -366,9 +434,133 @@ func _settings() -> void:
 		note(error if not error.is_empty() else "Hosting on UDP 27840. Share this machine's LAN address.")))
 	buttons.add_child(InterfaceTheme.button("JOIN HOST", func():
 		game.session.ship_modules = game.state.ship_modules.duplicate(true)
+		game.session.ship_layout = game.state.ship_layout.duplicate(true)
 		game.session.display_name = name_field.text
 		var error: String = game.session.join(address_field.text)
 		note(error if not error.is_empty() else "Connecting to host…")))
 	buttons.add_child(InterfaceTheme.button("LEAVE VISIT", func():
 		game.leave_visit()
 		note("Disconnected from world visit.")))
+
+func _choice(row: HBoxContainer, options: Array, label_key: String, id_key: String) -> OptionButton:
+	var choice := OptionButton.new()
+	choice.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for item: Dictionary in options:
+		choice.add_item(str(item[label_key]))
+		choice.set_item_metadata(choice.item_count - 1, item[id_key])
+	row.add_child(choice)
+	return choice
+
+func _fleet() -> void:
+	heading.text = "CREW OPERATIONS"
+	var s: GameState = game.state
+	_text("Give named crew persistent orders. Trade captains buy and carry goods; patrols risk hull damage; managers operate owned stations. Operations advance while this world is hosted, never while closed.", 17)
+	_text("FLEET REGISTRY", 13, InterfaceTheme.CYAN)
+	var purchase := _row()
+	var ship_name := LineEdit.new()
+	ship_name.placeholder_text = "Fleet vessel name"
+	ship_name.max_length = 32
+	ship_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	purchase.add_child(ship_name)
+	purchase.add_child(InterfaceTheme.button("COMMISSION / %d CR" % CrewOrders.SHIP_PRICE, func(): _act(game.crew_operations().purchase_ship.bind(ship_name.text), "Fleet vessel commissioned.")))
+	for vessel: Dictionary in s.fleet_ships:
+		_text("%s / system %d / hull %.0f%%" % [vessel.name, vessel.system, vessel.hull], 17)
+		_button("REPAIR / %d CR" % ceili((100.0 - float(vessel.hull)) * 4.0), _act.bind(game.crew_operations().repair_fleet_ship.bind(str(vessel.id)), "Fleet repairs arranged."), float(vessel.hull) >= 100)
+		for good: String in vessel.cargo:
+			var amount: int = int(vessel.cargo[good])
+			if amount <= 0: continue
+			_button("SELL %d %s FROM %s" % [amount, good.to_upper(), vessel.name], _act.bind(game.sell_fleet_cargo.bind(str(vessel.id), good, amount), "Fleet cargo sold."), game.pilot.flying or game.aboard or int(vessel.system) != s.system_index)
+	if s.crew.is_empty():
+		_text("Hire crew in Enterprise before assigning orders.", 16, InterfaceTheme.GOLD)
+		_button("RECRUIT CREW", show_page.bind("company"))
+		return
+	_text("CURRENT ORDERS", 13, InterfaceTheme.CYAN)
+	for member: Dictionary in s.crew:
+		var row := _row()
+		var order: Dictionary = s.crew_orders.get(member.id, {})
+		var text := "%s / %s" % [member.name, "Available" if order.is_empty() else str(order.get("kind", "Order")).capitalize() + " / " + ("Paused" if order.get("paused", false) else str(order.get("phase", "Active")))]
+		var label := InterfaceTheme.label(text, 16)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(label)
+		var cancel := InterfaceTheme.button("CANCEL ORDER", _act.bind(game.crew_operations().cancel.bind(str(member.id)), "Order cancelled; unused escrow returned. Fleet cargo retained."))
+		cancel.disabled = order.is_empty()
+		row.add_child(cancel)
+	_text("ISSUE ORDER", 13, InterfaceTheme.CYAN)
+	var assignment := _row()
+	var crew_choice := _choice(assignment, s.crew, "name", "id")
+	var ship_choice := _choice(assignment, s.fleet_ships, "name", "id")
+	var settings := _row()
+	var destination_field := SpinBox.new()
+	destination_field.prefix = "System "
+	destination_field.max_value = Universe.SYSTEM_LIMIT - 1
+	destination_field.value = s.system_index
+	destination_field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	settings.add_child(destination_field)
+	var goods_choice := OptionButton.new()
+	for good: String in GameState.GOODS:
+		goods_choice.add_item(good.capitalize())
+		goods_choice.set_item_metadata(goods_choice.item_count - 1, good)
+	settings.add_child(goods_choice)
+	var quantity := SpinBox.new()
+	quantity.prefix = "Cargo "
+	quantity.custom_minimum_size.x = 155
+	quantity.min_value = 1
+	quantity.max_value = 25
+	quantity.value = 5
+	settings.add_child(quantity)
+	var quote_label := _text("Select a vessel, commodity and destination to quote the route.", 15, InterfaceTheme.GOLD)
+	_button("QUOTE ROUTE", func():
+		var quote: Dictionary = game.crew_operations().route_quote(str(goods_choice.get_selected_metadata()), int(destination_field.value), int(quantity.value), str(ship_choice.get_selected_metadata()) if not s.fleet_ships.is_empty() else "")
+		quote_label.text = ("Reserve %d CR / Estimated gross trading margin %d CR, before wages. Market prices can change." % [quote.escrow, quote.expected_profit]) if quote.ok else str(quote.message))
+	var orders := _row()
+	var trade := InterfaceTheme.button("TRADE ROUTE", func():
+		_act(game.crew_operations().assign_trade_route.bind(str(crew_choice.get_selected_metadata()), str(ship_choice.get_selected_metadata()), str(goods_choice.get_selected_metadata()), int(destination_field.value), int(quantity.value)), "Trade route ordered."))
+	trade.disabled = s.fleet_ships.is_empty()
+	orders.add_child(trade)
+	var patrol := InterfaceTheme.button("PATROL SYSTEM", func():
+		_act(game.crew_operations().assign_patrol.bind(str(crew_choice.get_selected_metadata()), str(ship_choice.get_selected_metadata()), int(destination_field.value)), "Patrol ordered."))
+	patrol.disabled = s.fleet_ships.is_empty()
+	orders.add_child(patrol)
+	if not s.stations.is_empty():
+		var property_row := _row()
+		var station_choice := OptionButton.new()
+		station_choice.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		for station: Dictionary in s.stations: station_choice.add_item(str(station.name))
+		property_row.add_child(station_choice)
+		property_row.add_child(InterfaceTheme.button("MANAGE STATION", func():
+			_act(game.crew_operations().assign_station_manager.bind(str(crew_choice.get_selected_metadata()), station_choice.selected), "Station manager assigned.")))
+	_button("REFRESH REPORTS", refresh)
+	_button("BACK TO ENTERPRISE", show_page.bind("company"))
+
+func _recovery() -> void:
+	heading.text = "RESCUE & RECOVERY"
+	var s: GameState = game.state
+	var recovery: Dictionary = s.recovery
+	_text("Ship destruction leaves recoverable cargo and hull salvage. Insurance retains your design at partial hull; without coverage, rescue restores the same design at lower hull and a higher deductible. Unpaid deductibles remain as debt.", 17)
+	_text("COVERAGE & LIABILITY", 13, InterfaceTheme.CYAN)
+	var covered: bool = int(recovery.get("insurance_until_day", -1)) >= s.day
+	_text("%s / Rescue debt %d CR" % ["Covered through day %d" % recovery.insurance_until_day if covered else "No active insurance", int(recovery.get("debt", 0))], 20)
+	_button("INSURE 30 DAYS / %d CR" % ShipRecovery.insurance_cost(s), _act.bind(game.purchase_insurance, "Insurance coverage purchased."), game.pilot.flying or game.aboard)
+	var debt: int = int(recovery.get("debt", 0))
+	_button("PAY RESCUE DEBT / %d CR" % mini(debt, s.credits), _act.bind(ShipRecovery.repay_debt.bind(s, mini(debt, s.credits)), "Rescue debt payment recorded."), debt <= 0 or s.credits <= 0)
+	_text("WRECK BEACONS", 13, InterfaceTheme.CYAN)
+	var wrecks: Array = recovery.get("wrecks", [])
+	if wrecks.is_empty(): _text("No wreck beacons recorded.", 16, InterfaceTheme.MUTED)
+	for wreck: Dictionary in wrecks:
+		var here: bool = int(wreck.system) == s.system_index and int(wreck.surface) == game.surface_index
+		var distance: float = game.pilot.position.distance_to(game._wreck_position(wreck)) if here else INF
+		var units: int = 0
+		for amount: Variant in wreck.get("cargo", {}).values(): units += int(amount)
+		_text("%s / system %d / %s / %d cargo units / hull salvage %d CR" % [wreck.id, wreck.system, "%.0f m" % distance if here else "Remote beacon", units, 0 if wreck.get("salvaged", false) else int(wreck.get("salvage_value", 0))], 17)
+		var controls := _row()
+		var cruise := InterfaceTheme.button("APPROACH", game.cruise_to.bind(game._wreck_position(wreck) + Vector3(0, 0, 25)))
+		cruise.disabled = not here or not game.pilot.flying or game.aboard
+		controls.add_child(cruise)
+		var recover := InterfaceTheme.button("RECOVER CARGO", _act.bind(game.recover_wreck.bind(str(wreck.id), false), "Available cargo recovered."))
+		recover.disabled = not here or distance > (80.0 if game.pilot.flying else 8.0) or game.aboard or units <= 0
+		controls.add_child(recover)
+		var salvage := InterfaceTheme.button("SALVAGE HULL", _act.bind(game.recover_wreck.bind(str(wreck.id), true), "Wreck salvaged."))
+		salvage.disabled = not here or distance > (80.0 if game.pilot.flying else 8.0) or game.aboard or bool(wreck.get("salvaged", false))
+		controls.add_child(salvage)
+	_button("REFRESH BEACONS", refresh)
+	_button("BACK TO EXCHANGE", show_page.bind("market"))

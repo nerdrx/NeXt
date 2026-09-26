@@ -4,8 +4,9 @@
 
 - First-person walking and ray combat, moving pirates/security, flight and local cruise autopilot.
 - Deterministic galaxy addresses, distinct procedural celestial visuals, station hubs and colony surfaces.
-- Modular ship assembly, live preview and generated walkable module interiors.
-- Commodities, shares, contracts, crew role effects, company treasury and station construction/upgrades.
+- Modular ship assembly, live preview, generated walkable module interiors and compatible room/hull face refits.
+- Commodities, shares, contracts, named crew and timed fleet orders, company treasury and station construction/upgrades.
+- Insurance, recovery debt, persistent wreck cargo and one-time salvage.
 - Versioned saves, persistent destruction, separate visitor finances and experimental ENet presence/travel.
 - Automated state, generation, actor, network, visitor and control checks; Windows export workflow.
 
@@ -21,9 +22,9 @@ These are bounded development systems. README lists their limits. Placeholder vi
 
 ## Deeper simulation
 
-- Named persistent crew with orders, independent piloting/trading/combat and property management.
-- Editable rooms, hull panels, doors, equipment and physically persistent ship interiors.
-- Rescue/insurance, recoverable wrecks, salvage and meaningful loss rules.
+- Replace abstract fleet trip/patrol resolution with physical local flight and combat when vessels enter the loaded scene; add richer named crew behavior.
+- Extend existing compatible room/panel refits to wall placement, equipment movement, doors and physically persistent ship interiors.
+- Expand implemented rescue/insurance and wreck recovery into towing, repairable derelicts and NPC rescue encounters.
 - Player factions, sovereignty, diplomacy, production chains and law enforcement consequences.
 - Populated cities with useful interiors and procedural variation tied to local industry and culture.
 

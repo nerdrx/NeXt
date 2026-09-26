@@ -1,7 +1,9 @@
 class_name GameState
 extends RefCounted
 
-const SAVE_VERSION: int = 2
+const SAVE_VERSION: int = 3
+const ShipRecovery = preload("res://scripts/ship_recovery.gd")
+const ShipLayout = preload("res://scripts/ship_layout.gd")
 const SYSTEM_LIMIT: int = 1_000_000_000
 const MAX_ITEMS: int = 1000
 const MAX_WORLD_FLAGS: int = 10000
@@ -26,6 +28,8 @@ const CREW_ROLES: Dictionary = {
 	"gunner": {"name": "Combat Gunner", "salary": 110, "hire_cost": 500},
 	"trader": {"name": "Trade Specialist", "salary": 75, "hire_cost": 500},
 }
+const CREW_FIRST_NAMES: Array[String] = ["Ari", "Mara", "Jonas", "Leila", "Tomas", "Nia", "Elias", "Rhea", "Sana", "Milo", "Kira", "Dara", "Noah", "Imani", "Luca", "Mei", "Ravi", "Anika", "Omar", "Vera", "Idris", "Lina", "Mateo", "Yara", "Amir", "Talia", "Felix", "Zuri", "Theo", "Esme"]
+const CREW_LAST_NAMES: Array[String] = ["Voss", "Okafor", "Chen", "Navarro", "Petrov", "Haddad", "Kowalski", "Singh", "Sato", "Mensah", "Moreau", "Rossi", "Bauer", "Costa", "Kim", "Nakamura", "Alvarez", "Rahman", "Svensson", "Dlamini", "Ivanov", "Dubois", "Mori", "Khan", "Weber", "Silva", "Bennett", "Tanaka", "Fischer", "Adeyemi"]
 
 var system_index: int = 0
 var world_id: String = ""
@@ -43,6 +47,10 @@ var ship_modules: Array[Dictionary] = []
 var stations: Array[Dictionary] = []
 var shares: Dictionary = {}
 var crew: Array[Dictionary] = []
+var fleet_ships: Array[Dictionary] = []
+var crew_orders: Dictionary = {}
+var recovery: Dictionary = {}
+var ship_layout: Dictionary = {}
 var world_flags: Dictionary = {}
 var company_name: String = ""
 var company_balance: int = 0
@@ -65,6 +73,8 @@ func _init() -> void:
 	hull = float(initial_stats.max_hull)
 	shield = float(initial_stats.max_shield)
 	contracts = contract_board()
+	recovery = ShipRecovery.empty_data()
+	ship_layout = ShipLayout.empty_data()
 
 func cargo_total() -> int:
 	var total: int = 0
@@ -76,12 +86,17 @@ func ship_stats() -> Dictionary:
 	return _stats_for(ship_modules)
 
 func price(good: String) -> int:
+	return price_at(good, system_index, day)
+
+func price_at(good: String, system: int, simulation_day: int = -1) -> int:
 	var key: String = good.to_lower()
 	if not GOODS.has(key): return 0
+	if system < 0 or system >= SYSTEM_LIMIT: return 0
 	var salt: int = 0
 	for byte: int in key.to_ascii_buffer(): salt = (salt * 31 + byte) & 0x7fffffff
 	var rng := RandomNumberGenerator.new()
-	rng.seed = ((system_index * 1103515245 + salt * 12345 + day * 7919) & 0x7fffffff)
+	var price_day: int = day if simulation_day < 0 else simulation_day
+	rng.seed = ((system * 1103515245 + salt * 12345 + price_day * 7919) & 0x7fffffff)
 	return maxi(1, roundi(float(GOODS[key]) * rng.randf_range(0.65, 1.45)))
 
 func trade(good: String, quantity: int, buy: bool) -> String:
@@ -114,6 +129,7 @@ func add_module(kind: String, cell: Vector3i) -> String:
 	if _stats_for(trial).power_balance < 0: return "Ship has insufficient reactor power."
 	credits -= int(spec.cost)
 	ship_modules.append(_module_record(kind, cell))
+	ShipLayout.prune(ship_layout, ship_modules)
 	return ""
 
 func remove_module(cell: Vector3i) -> String:
@@ -126,9 +142,11 @@ func remove_module(cell: Vector3i) -> String:
 	trial.remove_at(index)
 	if not _connected(trial): return "Removal would split the ship."
 	var stats: Dictionary = _stats_for(trial)
+	if crew.size() > int(stats.crew_capacity): return "Ship cannot support its current crew."
 	if cargo_total() > int(stats.cargo_capacity): return "Cargo exceeds the resulting hold capacity."
 	if int(stats.power_balance) < 0: return "Ship would have insufficient power."
 	ship_modules = trial
+	ShipLayout.prune(ship_layout, ship_modules)
 	credits += int(MODULES[removed.kind].cost) / 2
 	hull = minf(hull, float(stats.max_hull))
 	shield = minf(shield, float(stats.max_shield))
@@ -195,12 +213,13 @@ func hire(role: String) -> String:
 	var spec: Dictionary = CREW_ROLES[key]
 	if credits < int(spec.hire_cost): return "Hiring requires %d credits." % int(spec.hire_cost)
 	credits -= int(spec.hire_cost)
-	crew.append({"role": key, "name": spec.name, "salary": int(spec.salary), "id": "crew-%s" % Crypto.new().generate_random_bytes(12).hex_encode()})
+	crew.append({"role": key, "name": _new_crew_name(), "salary": int(spec.salary), "id": "crew-%s" % Crypto.new().generate_random_bytes(12).hex_encode()})
 	crew_paid = false
 	return ""
 
 func dismiss_crew(index: int) -> String:
 	if index < 0 or index >= crew.size(): return "Crew member does not exist."
+	if crew_orders.has(str(crew[index].id)): return "Cancel this crew member's order before ending their contract."
 	crew.remove_at(index)
 	crew_paid = false
 	return ""
@@ -333,7 +352,7 @@ func load_save(path: String) -> String:
 		var error: String = candidate._load_v1(data)
 		if error != "": return error
 	else:
-		if version != SAVE_VERSION: return "Unsupported save version."
+		if version != SAVE_VERSION and version != 2: return "Unsupported save version."
 		var error: String = candidate._load_v2(data)
 		if error != "": return error
 	_copy_from(candidate)
@@ -362,8 +381,11 @@ func _load_v1(data: Dictionary) -> String:
 	return ""
 
 func _load_v2(data: Dictionary) -> String:
-	var expected: Array[String] = ["version", "system_index", "world_id", "credits", "cargo", "hull", "shield", "fuel", "kills", "day", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts"]
+	var expected: Array[String] = ["version", "system_index", "world_id", "credits", "cargo", "hull", "shield", "fuel", "kills", "day", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout"]
 	var missing_world_id: bool = not data.has("world_id")
+	var legacy: bool = int(data.get("version", -1)) == 2
+	if legacy:
+		for extra: String in ["fleet_ships", "crew_orders", "recovery", "ship_layout"]: expected.erase(extra)
 	if data.size() != expected.size() - (1 if missing_world_id else 0): return "Save fields do not match schema."
 	for key: String in expected:
 		if key == "world_id" and missing_world_id: continue
@@ -378,6 +400,7 @@ func _load_v2(data: Dictionary) -> String:
 	if float(data.hull) < 0 or float(data.hull) > 10000 or float(data.shield) < 0 or float(data.shield) > 10000 or float(data.fuel) < 0 or float(data.fuel) > 100: return "Save vitals are out of range."
 	if not data.cargo is Dictionary or not data.reputation is Dictionary or not data.shares is Dictionary or not data.world_flags is Dictionary or not data.visited is Array: return "Invalid collection field."
 	if not data.ship_modules is Array or not data.stations is Array or not data.crew is Array or not data.contracts is Array: return "Invalid collection field."
+	if not legacy and (not data.fleet_ships is Array or not data.crew_orders is Dictionary or not data.ship_layout is Dictionary or not ShipRecovery.validate_data(data.recovery)): return "Invalid fleet, crew orders, layout, or recovery state."
 	if data.cargo.size() > GOODS.size() or data.reputation.size() > 100 or data.shares.size() > COMPANIES.size() or data.world_flags.size() > MAX_WORLD_FLAGS or data.visited.size() > MAX_ITEMS or data.ship_modules.size() > 100 or data.stations.size() > MAX_ITEMS or data.crew.size() > 12 or data.contracts.size() > MAX_ITEMS: return "Save collection exceeds limits."
 	for key: Variant in data.cargo:
 		if not key is String or not GOODS.has(key) or not _is_int(data.cargo[key]) or int(data.cargo[key]) < 0: return "Invalid cargo record."
@@ -405,6 +428,11 @@ func _load_v2(data: Dictionary) -> String:
 		if not value is Dictionary or not _valid_module(value): return "Invalid ship module record."
 		loaded_modules.append(_module_record(value.kind, Vector3i(int(value.x), int(value.y), int(value.z))))
 	if loaded_modules.is_empty() or not _connected(loaded_modules) or not _has_required_modules(loaded_modules): return "Ship layout is invalid."
+	var loaded_layout: Dictionary = ShipLayout.empty_data()
+	if not legacy:
+		loaded_layout = data.ship_layout.duplicate(true)
+		if _is_int(loaded_layout.get("version")): loaded_layout.version = int(loaded_layout.version)
+		if not ShipLayout.validate_data(loaded_layout, loaded_modules): return "Invalid ship layout."
 	var loaded_stats: Dictionary = _stats_for(loaded_modules)
 	if int(loaded_stats.power_balance) < 0 or _module_cells_duplicate(loaded_modules): return "Ship layout is invalid."
 	if float(data.hull) > float(loaded_stats.max_hull) or float(data.shield) > float(loaded_stats.max_shield): return "Save vitals exceed ship capacity."
@@ -418,12 +446,63 @@ func _load_v2(data: Dictionary) -> String:
 	if over_capacity: return "Cargo exceeds hold capacity."
 	var loaded_stations: Array[Dictionary] = []
 	for value: Variant in data.stations:
-		if not value is Dictionary or value.size() != 3 or not value.has_all(["name", "system", "level"]) or not value.name is String or value.name.length() < 2 or value.name.length() > 40 or not _is_int(value.system) or not _is_int(value.level) or int(value.system) < 0 or int(value.system) >= SYSTEM_LIMIT or int(value.level) < 1 or int(value.level) > 100: return "Invalid station record."
-		loaded_stations.append({"name": value.name, "system": int(value.system), "level": int(value.level)})
+		if not value is Dictionary or not value.has_all(["name", "system", "level"]) or value.size() > 4 or not value.name is String or value.name.length() < 2 or value.name.length() > 40 or not _is_int(value.system) or not _is_int(value.level) or int(value.system) < 0 or int(value.system) >= SYSTEM_LIMIT or int(value.level) < 1 or int(value.level) > 100: return "Invalid station record."
+		var station: Dictionary = {"name": value.name, "system": int(value.system), "level": int(value.level)}
+		var stock: Dictionary = value.get("stock", {})
+		if not stock is Dictionary or stock.size() > GOODS.size(): return "Invalid station stock."
+		for good: Variant in stock:
+			if not good is String or not GOODS.has(good) or not _is_int(stock[good]) or int(stock[good]) < 0 or int(stock[good]) > 10000: return "Invalid station stock."
+			stock[good] = int(stock[good])
+		if value.has("stock"): station.stock = stock.duplicate(true)
+		loaded_stations.append(station)
 	var loaded_crew: Array[Dictionary] = []
+	var crew_ids: Dictionary = {}
+	var names_seen: Dictionary = {}
 	for value: Variant in data.crew:
-		if not value is Dictionary or value.size() != 4 or not value.has_all(["id", "role", "name", "salary"]) or not value.id is String or value.id.length() > 64 or not CREW_ROLES.has(value.role) or not value.name is String or value.name != str(CREW_ROLES[value.role].name) or not _is_int(value.salary) or int(value.salary) != int(CREW_ROLES[value.role].salary): return "Invalid crew record."
+		if not value is Dictionary or value.size() != 4 or not value.has_all(["id", "role", "name", "salary"]) or not value.id is String or value.id.length() < 4 or value.id.length() > 64 or crew_ids.has(value.id) or not CREW_ROLES.has(value.role) or not value.name is String or value.name.strip_edges().length() < 2 or value.name.length() > 64 or names_seen.has(value.name) or not _is_int(value.salary) or int(value.salary) != int(CREW_ROLES[value.role].salary): return "Invalid crew record."
+		crew_ids[value.id] = true
+		names_seen[value.name] = true
 		loaded_crew.append({"id": value.id, "role": value.role, "name": value.name, "salary": int(value.salary)})
+	var loaded_fleet: Array[Dictionary] = []
+	var loaded_orders: Dictionary = {}
+	if not legacy:
+		if data.fleet_ships.size() > 50 or data.crew_orders.size() > 12: return "Fleet or crew order limit exceeded."
+		var ship_ids: Dictionary = {}
+		for value: Variant in data.fleet_ships:
+			if not value is Dictionary or value.size() != 6 or not value.has_all(["id", "name", "system", "hull", "cargo", "capacity"]): return "Invalid fleet ship record."
+			if not value.id is String or value.id.length() < 4 or value.id.length() > 64 or ship_ids.has(value.id) or not value.name is String or value.name.length() < 2 or value.name.length() > 32 or not _is_int(value.system) or int(value.system) < 0 or int(value.system) >= SYSTEM_LIMIT or not _is_number(value.hull) or not is_finite(float(value.hull)) or float(value.hull) < 0 or float(value.hull) > 100 or not _is_int(value.capacity) or int(value.capacity) < 1 or int(value.capacity) > 100 or not value.cargo is Dictionary: return "Invalid fleet ship values."
+			var ship_cargo: Dictionary = {}
+			for good: Variant in value.cargo:
+				if not good is String or not GOODS.has(good) or not _is_int(value.cargo[good]) or int(value.cargo[good]) < 0: return "Invalid fleet cargo."
+				ship_cargo[good] = int(value.cargo[good])
+			var loaded_ship: Dictionary = {"id": value.id, "name": value.name, "system": int(value.system), "hull": float(value.hull), "cargo": ship_cargo, "capacity": int(value.capacity)}
+			if _fleet_cargo_total(loaded_ship) > int(value.capacity): return "Fleet cargo exceeds capacity."
+			ship_ids[value.id] = true
+			loaded_fleet.append(loaded_ship)
+		var assigned_ships: Dictionary = {}
+		var assigned_stations: Dictionary = {}
+		for key: Variant in data.crew_orders:
+			if not key is String or not crew_ids.has(key) or not _valid_order(data.crew_orders[key], key, ship_ids, loaded_stations.size()): return "Invalid crew order."
+			var order: Dictionary = data.crew_orders[key].duplicate(true)
+			var expected_role: String = "trader" if order.kind == "trade" else ("gunner" if order.kind == "patrol" else "engineer")
+			if _crew_role(loaded_crew, key) != expected_role: return "Crew role does not match assigned order."
+			if order.has("ship_id"):
+				if assigned_ships.has(order.ship_id): return "A fleet ship has duplicate orders."
+				assigned_ships[order.ship_id] = true
+			if order.kind == "station":
+				if assigned_stations.has(order.station_index): return "A station has duplicate managers."
+				assigned_stations[order.station_index] = true
+			order.progress = float(order.progress)
+			match str(order.kind):
+				"trade":
+					for numeric: String in ["origin", "destination", "quantity", "escrow", "escrow_limit", "earned"]: order[numeric] = int(order[numeric])
+				"patrol":
+					order.system = int(order.system)
+					order.encounters = int(order.encounters)
+				"station":
+					order.station_index = int(order.station_index)
+					order.produced = int(order.produced)
+			loaded_orders[key] = order
 	var loaded_contracts: Array[Dictionary] = []
 	for value: Variant in data.contracts:
 		if not _valid_contract(value): return "Invalid contract record."
@@ -459,6 +538,10 @@ func _load_v2(data: Dictionary) -> String:
 	company_balance = int(data.company_balance)
 	crew_paid = data.crew_paid
 	contracts = loaded_contracts
+	fleet_ships = loaded_fleet
+	crew_orders = loaded_orders
+	recovery = ShipRecovery.empty_data() if legacy else _normalize_recovery(data.recovery)
+	ship_layout = loaded_layout
 	return ""
 
 func _valid_contract(value: Variant) -> bool:
@@ -473,17 +556,68 @@ func _valid_contract(value: Variant) -> bool:
 	if not value.accepted is bool or not value.completed is bool: return false
 	return int(value.origin) >= 0 and int(value.origin) < SYSTEM_LIMIT and int(value.destination) >= 0 and int(value.destination) < SYSTEM_LIMIT and int(value.quantity) >= 0 and int(value.reward) >= 0 and int(value.baseline_kills) >= 0
 
+func _valid_order(value: Variant, crew_id: String, ship_ids: Dictionary, station_count: int) -> bool:
+	if not value is Dictionary or str(value.get("crew_id", "")) != crew_id or not _is_number(value.get("progress")) or not is_finite(float(value.progress)) or float(value.progress) < 0 or float(value.progress) > 31536000.0 or not value.get("paused", false) is bool: return false
+	var kind: String = str(value.get("kind", ""))
+	if kind == "trade":
+		if value.size() != 13 or not value.has_all(["kind", "crew_id", "ship_id", "good", "origin", "destination", "quantity", "escrow", "escrow_limit", "progress", "phase", "earned", "paused"]): return false
+		return ship_ids.has(value.ship_id) and GOODS.has(value.good) and _is_int(value.origin) and _is_int(value.destination) and int(value.origin) >= 0 and int(value.origin) < SYSTEM_LIMIT and int(value.destination) >= 0 and int(value.destination) < SYSTEM_LIMIT and int(value.origin) != int(value.destination) and _is_int(value.quantity) and int(value.quantity) > 0 and int(value.quantity) <= 100 and _is_int(value.escrow) and int(value.escrow) >= 0 and _is_int(value.escrow_limit) and int(value.escrow_limit) >= int(value.escrow) and int(value.escrow_limit) <= int(value.quantity) * ceili(float(GOODS[value.good]) * 1.45) and value.phase in ["outbound", "inbound"] and _is_int(value.earned)
+	if kind == "patrol":
+		if value.size() != 7 or not value.has_all(["kind", "crew_id", "ship_id", "system", "progress", "encounters", "paused"]): return false
+		return ship_ids.has(value.ship_id) and _is_int(value.system) and int(value.system) >= 0 and int(value.system) < SYSTEM_LIMIT and _is_int(value.encounters) and int(value.encounters) >= 0
+	if kind == "station":
+		if value.size() != 6 or not value.has_all(["kind", "crew_id", "station_index", "progress", "produced", "paused"]): return false
+		return _is_int(value.station_index) and int(value.station_index) >= 0 and int(value.station_index) < station_count and _is_int(value.produced) and int(value.produced) >= 0
+	return false
+
+func _fleet_cargo_total(ship: Dictionary) -> int:
+	var total: int = 0
+	for quantity: Variant in ship.cargo.values(): total += int(quantity)
+	return total
+
+func _crew_role(members: Array[Dictionary], crew_id: String) -> String:
+	for member: Dictionary in members:
+		if str(member.id) == crew_id: return str(member.role)
+	return ""
+
+func _normalize_recovery(value: Dictionary) -> Dictionary:
+	var result: Dictionary = value.duplicate(true)
+	for key: String in ["next_id", "insurance_until_day", "debt"]: result[key] = int(result[key])
+	for wreck: Dictionary in result.wrecks:
+		for key: String in ["system", "surface", "salvage_value"]: wreck[key] = int(wreck[key])
+		for good: String in wreck.cargo: wreck.cargo[good] = int(wreck.cargo[good])
+		for module: Dictionary in wreck.modules:
+			for key: String in ["x", "y", "z"]: module[key] = int(module[key])
+	return result
+
+func _new_crew_name() -> String:
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	for attempt: int in range(64):
+		var candidate: String = "%s %s" % [CREW_FIRST_NAMES[rng.randi_range(0, CREW_FIRST_NAMES.size() - 1)], CREW_LAST_NAMES[rng.randi_range(0, CREW_LAST_NAMES.size() - 1)]]
+		var used: bool = false
+		for member: Dictionary in crew:
+			if str(member.name) == candidate:
+				used = true
+				break
+		if not used: return candidate
+	return "Crew %s" % Crypto.new().generate_random_bytes(4).hex_encode()
+
 func _save_data() -> Dictionary:
-	return {"version": SAVE_VERSION, "system_index": system_index, "world_id": world_id, "credits": credits, "cargo": cargo, "hull": hull, "shield": shield, "fuel": fuel, "kills": kills, "day": day, "visited": visited, "reputation": reputation, "wanted": wanted, "ship_modules": ship_modules, "stations": stations, "shares": shares, "crew": crew, "world_flags": world_flags, "company_name": company_name, "company_balance": company_balance, "crew_paid": crew_paid, "contracts": contracts}
+	return {"version": SAVE_VERSION, "system_index": system_index, "world_id": world_id, "credits": credits, "cargo": cargo, "hull": hull, "shield": shield, "fuel": fuel, "kills": kills, "day": day, "visited": visited, "reputation": reputation, "wanted": wanted, "ship_modules": ship_modules, "stations": stations, "shares": shares, "crew": crew, "world_flags": world_flags, "company_name": company_name, "company_balance": company_balance, "crew_paid": crew_paid, "contracts": contracts, "fleet_ships": fleet_ships, "crew_orders": crew_orders, "recovery": recovery, "ship_layout": ship_layout}
 
 func _copy_from(other: GameState) -> void:
-	for key: String in ["system_index", "world_id", "credits", "cargo", "hull", "shield", "fuel", "kills", "day", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts"]:
+	for key: String in ["system_index", "world_id", "credits", "cargo", "hull", "shield", "fuel", "kills", "day", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout"]:
 		set(key, other.get(key).duplicate(true) if other.get(key) is Array or other.get(key) is Dictionary else other.get(key))
 
 func _pay_crew_and_company() -> void:
 	var wages: int = 0
-	for member: Dictionary in crew: wages += int(member.salary)
-	crew_paid = not crew.is_empty() and credits >= wages
+	var passive_count: int = 0
+	for member: Dictionary in crew:
+		if _is_crew_assigned(str(member.id)): continue
+		passive_count += 1
+		wages += int(member.salary)
+	crew_paid = passive_count > 0 and credits >= wages
 	if crew_paid:
 		credits -= wages
 		hull = minf(float(ship_stats().max_hull), hull + 8.0 * _paid_crew_count("engineer"))
@@ -593,8 +727,11 @@ func _paid_crew_count(role: String) -> int:
 	if not crew_paid: return 0
 	var count: int = 0
 	for member: Dictionary in crew:
-		if str(member.get("role", "")) == role: count += 1
+		if str(member.get("role", "")) == role and not _is_crew_assigned(str(member.get("id", ""))): count += 1
 	return count
+
+func _is_crew_assigned(crew_id: String) -> bool:
+	return crew_orders.has(crew_id)
 
 func _is_int(value: Variant) -> bool:
 	return value is int or (value is float and is_finite(value) and floorf(value) == value)

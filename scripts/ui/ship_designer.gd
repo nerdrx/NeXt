@@ -3,6 +3,7 @@ extends HBoxContainer
 
 signal requested(kind: String, cell: Vector3i, remove: bool)
 var modules: Array = []
+var layout: Dictionary = {}
 var selected_cell := Vector3i(0, 0, 0)
 var selected_kind: String = "cargo"
 var preview: ShipVisual
@@ -86,7 +87,7 @@ func _ready() -> void:
 	camera.position = Vector3(19, 15, 24)
 	camera.look_at(Vector3.ZERO)
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 16
+	camera.size = 10
 	camera.current = true
 	left.add_child(InterfaceTheme.label("LIVE ASSEMBLY  /  All modules affect your ship", 14, InterfaceTheme.MUTED))
 	var right := VBoxContainer.new()
@@ -128,14 +129,14 @@ func _update_selection() -> void:
 func refresh(values: Array) -> void:
 	modules = values.duplicate(true)
 	if preview != null:
-		preview.build(modules, "player")
+		preview.build(modules, "player", layout)
 		var low := Vector3.ZERO
 		var high := Vector3.ZERO
 		for item: Dictionary in modules:
 			var cell := Vector3(item.x, item.y, item.z)
 			low = low.min(cell)
 			high = high.max(cell)
-		preview_camera.size = maxf(16.0, (high - low + Vector3.ONE).length() * ShipVisual.CELL_SIZE * 1.25)
+		preview_camera.size = maxf(9.5, (high - low + Vector3.ONE).length() * ShipVisual.CELL_SIZE * 0.85)
 		grid.modules = modules
 		grid.queue_redraw()
 

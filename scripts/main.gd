@@ -30,6 +30,9 @@ var save_path: String = "user://commander.json"
 var enemy_clock: float = 0.0
 var _last_stats: Dictionary = {}
 var _network_clock: float = 0.0
+var wreck_root: Node3D
+var _rescuing: bool = false
+var pending_steam_lobby: int = 0
 
 func _ready() -> void:
 	automation = "--smoke" in OS.get_cmdline_user_args() or "--visual-tour" in OS.get_cmdline_user_args() or "--capture-only" in OS.get_cmdline_user_args()
@@ -60,13 +63,21 @@ func _ready() -> void:
 	session = NetworkSession.new()
 	session.system_index = state.system_index
 	session.ship_modules = state.ship_modules.duplicate(true)
+	session.ship_layout = state.ship_layout.duplicate(true)
 	add_child(session)
 	session.world_joined.connect(_visit_host)
 	session.peers_changed.connect(_sync_visitors)
 	session.session_message.connect(notify)
+	session.steam_invitation_ready.connect(func(lobby_id: int):
+		pending_steam_lobby = lobby_id
+		open_menu("settings")
+		notify("Steam invitation received. Choose Join Invitation to travel with your ship."))
 	_build_system()
 	apply_ship_stats()
 	deck.show_page("overview")
+	if not automation and steam_app_id() > 0 and steam_available():
+		var steam_error: String = session.enable_steam(steam_app_id())
+		if not steam_error.is_empty(): notify(steam_error)
 	if automation and "--capture-only" not in OS.get_cmdline_user_args(): _integration_check.call_deferred()
 
 func _input_actions() -> void:
@@ -92,6 +103,7 @@ func _build_system() -> void:
 	_spawn_actors()
 	rebuild_player_ship()
 	rebuild_owned_stations()
+	rebuild_wrecks()
 
 func _clear_actors() -> void:
 	for actor in actors:
@@ -176,7 +188,7 @@ func rebuild_player_ship() -> void:
 		ship_display.queue_free()
 	ship_display = ShipVisual.new()
 	add_child(ship_display)
-	ship_display.build(state.ship_modules, "player")
+	ship_display.build(state.ship_modules, "player", state.ship_layout)
 	var low := Vector3(16, 16, 16)
 	var high := Vector3(-16, -16, -16)
 	for module: Dictionary in state.ship_modules:
@@ -199,7 +211,9 @@ func apply_ship_stats() -> void:
 	pilot.flight_speed = float(_last_stats.speed)
 	state.hull = minf(state.hull, float(_last_stats.max_hull))
 	state.shield = minf(state.shield, float(_last_stats.max_shield))
-	if session != null: session.ship_modules = state.ship_modules.duplicate(true)
+	if session != null:
+		session.ship_modules = state.ship_modules.duplicate(true)
+		session.ship_layout = state.ship_layout.duplicate(true)
 
 func rebuild_owned_stations() -> void:
 	if is_instance_valid(owned_root):
@@ -333,13 +347,28 @@ func _explosion(position: Vector3, radius: float) -> void:
 	tween.tween_callback(mesh.queue_free)
 
 func _rescue() -> void:
-	state.hull = float(_last_stats.max_hull)
-	state.shield = float(_last_stats.max_shield)
+	if _rescuing or (state.hull > 0 and suit_health > 0): return
+	_rescuing = true
+	var message: String
+	if pilot.flying and state.hull <= 0:
+		var report: Dictionary = ShipRecovery.destroy_ship(state, pilot.position, surface_index)
+		if not bool(report.get("ok", false)):
+			_rescuing = false
+			open_menu("recovery")
+			notify(str(report.get("message", "Recovery failed; no assets changed.")))
+			return
+		message = str(report.get("message", "Rescue completed. Wreck beacon recorded in Navigation."))
+	else:
+		var fee := mini(state.credits, 250)
+		state.credits -= fee
+		message = "Medical rescue complete. %d CR paid; your docked ship remains intact." % fee
 	suit_health = 100
-	state.credits = maxi(0, state.credits - 1000)
+	apply_ship_stats()
 	_build_system()
 	close_menu()
-	notify("Rescue completed. Recovery fee: up to 1,000 CR.")
+	var saved: bool = save_commander(false)
+	notify(message if saved else message + " Recovery is NOT SAVED. Check storage.")
+	_rescuing = false
 
 func interaction_hint() -> String:
 	if aboard: return "Return to helm  /  PgUp/PgDn change deck"
@@ -439,6 +468,7 @@ func land(planet_index: int) -> void:
 	_spawn_actors()
 	rebuild_player_ship()
 	rebuild_owned_stations()
+	rebuild_wrecks()
 	close_menu()
 	save_commander(false)
 	notify("Landing complete. Explore the colony; return to your ship to depart.")
@@ -499,6 +529,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if pilot == null or state == null: return
 	if home_state != null and not session.connected: _return_home()
+	var reports: Array = crew_operations().tick(delta)
+	if not reports.is_empty():
+		notify("Crew / %s: %s" % [reports.back().get("kind", "operation"), reports.back().get("status", "updated")])
 	for actor in actors:
 		if not is_instance_valid(actor): continue
 		actor.active = not ui_open and jump_charge <= 0 and not aboard
@@ -590,9 +623,14 @@ func _visit_host(index: int) -> void:
 				session.leave()
 				notify("Visitor profile could not load: " + error)
 				return
+		if visitor.crew.size() > int(state.ship_stats().crew_capacity):
+			session.leave()
+			notify("This world's crew requires more quarters than your incoming ship has. Bring a larger ship.")
+			return
 		home_state = state
 		home_save_path = save_path
 		visitor.ship_modules = state.ship_modules.duplicate(true)
+		visitor.ship_layout = state.ship_layout.duplicate(true)
 		visitor.cargo = state.cargo.duplicate(true)
 		visitor.hull = state.hull
 		visitor.shield = state.shield
@@ -617,11 +655,17 @@ func _sync_visitors() -> void:
 			remote_ships[peer_id].queue_free()
 			remote_ships.erase(peer_id)
 	for peer_id: int in session.presence:
-		if peer_id == multiplayer.get_unique_id() or remote_ships.has(peer_id): continue
-		var visual := ShipVisual.new()
-		add_child(visual)
-		visual.build(session.presence[peer_id].ship_modules, "player")
-		remote_ships[peer_id] = visual
+		if peer_id == multiplayer.get_unique_id(): continue
+		var profile: Dictionary = session.presence[peer_id]
+		if not remote_ships.has(peer_id):
+			var visual := ShipVisual.new()
+			add_child(visual)
+			remote_ships[peer_id] = visual
+		var design_hash: int = hash([profile.ship_modules, profile.get("ship_layout", {})])
+		var visual: ShipVisual = remote_ships[peer_id]
+		if not visual.has_meta("design_hash") or visual.get_meta("design_hash") != design_hash:
+			visual.build(profile.ship_modules, "player", profile.get("ship_layout", {}))
+			visual.set_meta("design_hash", design_hash)
 
 func _update_remote_positions() -> void:
 	for peer_id: int in remote_ships:
@@ -720,15 +764,44 @@ func _integration_check() -> void:
 	await _capture("interior")
 	exit_interior()
 	if not _check(not aboard and not pilot.flying, "return from interior"): return
+	# Exercise new systems through the exported main scene as well as standalone tests.
+	state.credits = 50000
+	if not _check(state.hire("trader").is_empty(), "hire named captain"): return
+	if not _check(crew_operations().purchase_ship("Integration Courier").is_empty(), "commission fleet vessel"): return
+	var member_id: String = state.crew.back().id
+	var fleet_id: String = state.fleet_ships.back().id
+	if not _check(crew_operations().assign_trade_route(member_id, fleet_id, "food", state.system_index + 1, 5).is_empty(), "assign fleet route"): return
+	crew_operations().tick(CrewOrders.TRIP_SECONDS * 2.0)
+	if not _check(int(state.fleet_ships.back().cargo.get("food", 0)) == 5, "fleet purchases actual cargo"): return
+	open_menu("fleet")
+	await _capture("fleet")
+	_build_system()
+	if not _check(purchase_insurance().is_empty(), "insurance service"): return
+	state.cargo.food = 5
+	pilot.set_flight(true)
+	pilot.teleport(Vector3(100, 80, -300))
+	state.hull = 0
+	_rescue()
+	if not _check(state.recovery.wrecks.size() == 1 and state.cargo_total() == 0 and state.hull > 0, "insured rescue and wreck creation"): return
+	open_menu("recovery")
+	await _capture("recovery")
+	var wreck_id: String = state.recovery.wrecks[0].id
+	pilot.set_flight(true)
+	pilot.teleport(_wreck_position(state.recovery.wrecks[0]))
+	if not _check(recover_wreck(wreck_id).is_empty() and state.cargo.food == 5, "cargo recovery at beacon"): return
+	if not _check(recover_wreck(wreck_id, true).is_empty(), "wreck salvage"): return
+	var salvage_balance: int = state.credits
+	if not _check(not recover_wreck(wreck_id, true).is_empty() and state.credits == salvage_balance, "duplicate salvage blocked"): return
+	if not _check(save_commander(false) and restored.load_save(save_path).is_empty() and restored.recovery.wrecks[0].salvaged and restored.crew_orders.size() == 1, "operations save round trip"): return
 	var money_before_menu: int = state.credits
-	for menu_page in ["overview", "navigation", "market", "shipyard", "contracts", "company", "factions", "stations", "settings"]:
+	for menu_page in ["overview", "navigation", "market", "shipyard", "contracts", "company", "fleet", "recovery", "factions", "stations", "settings"]:
 		open_menu(menu_page)
 		await get_tree().process_frame
 	if not _check(state.credits == money_before_menu, "menu browsing must not change finances"): return
 	DirAccess.remove_absolute(save_path)
 	DirAccess.remove_absolute(save_path + ".bak")
 	await get_tree().create_timer(0.5).timeout
-	print("NEXT_INTEGRATION_OK: trading, stock, construction, persistent combat, save/load, hyperdrive, landing, walkable interior, menu safety")
+	print("NEXT_INTEGRATION_OK: trading, stock, construction, persistent combat, save/load, hyperdrive, landing, walkable interior, crew orders, insured wreck recovery, menu safety")
 	sound.shutdown()
 	await get_tree().process_frame
 	get_tree().quit()
@@ -759,7 +832,7 @@ func enter_interior() -> void:
 	interior = ShipInterior.new()
 	add_child(interior)
 	interior.position = Vector3(0, 6000, 0)
-	interior.build(state.ship_modules)
+	interior.build(state.ship_modules, state.ship_layout)
 	aboard = true
 	interior_deck = 0 if 0 in interior.decks else interior.decks[0]
 	pilot.set_flight(false)
@@ -780,6 +853,7 @@ func exit_interior() -> void:
 
 func _copy_carried_ship(source: GameState, destination: GameState) -> void:
 	destination.ship_modules = source.ship_modules.duplicate(true)
+	destination.ship_layout = source.ship_layout.duplicate(true)
 	destination.cargo = source.cargo.duplicate(true)
 	destination.hull = source.hull
 	destination.shield = source.shield
@@ -816,3 +890,79 @@ func approach_planet(index: int) -> void:
 	var body: Dictionary = world.planets[index]
 	var radial: Vector3 = (pilot.position - Vector3(body.position)).normalized()
 	cruise_to(Vector3(body.position) + radial * (float(body.visual_radius) + 160.0))
+
+func crew_operations() -> RefCounted:
+	return CrewOrders.new(state)
+
+func rebuild_wrecks() -> void:
+	if is_instance_valid(wreck_root):
+		remove_child(wreck_root)
+		wreck_root.queue_free()
+	wreck_root = Node3D.new()
+	add_child(wreck_root)
+	for wreck: Dictionary in state.recovery.get("wrecks", []):
+		if int(wreck.system) != state.system_index or int(wreck.surface) != surface_index: continue
+		if bool(wreck.get("salvaged", false)) and bool(wreck.get("cargo_recovered", false)): continue
+		var position := _wreck_position(wreck)
+		var hull := ShipVisual.new()
+		wreck_root.add_child(hull)
+		hull.build(wreck.get("modules", state.ship_modules), "wreck")
+		hull.position = position
+		hull.rotation = Vector3(0.25, 0.7, -0.35)
+		hull.scale = Vector3.ONE * 0.85
+		var beacon := Label3D.new()
+		beacon.text = "RECOVERY BEACON / " + str(wreck.id)
+		beacon.font_size = 32
+		beacon.pixel_size = 0.025
+		beacon.position = position + Vector3(0, 6, 0)
+		beacon.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		beacon.modulate = Color("e0b96e")
+		wreck_root.add_child(beacon)
+
+func _wreck_position(wreck: Dictionary) -> Vector3:
+	var p: Variant = wreck.get("position", [0, 0, 0])
+	if p is Array: return Vector3(p[0], p[1], p[2])
+	if p is Dictionary: return Vector3(p.x, p.y, p.z)
+	return Vector3.ZERO
+
+func recover_wreck(id: String, salvage: bool = false) -> String:
+	if aboard: return "Return to the helm or approach the wreck on foot."
+	var error: String = ShipRecovery.salvage_wreck(state, id, surface_index, pilot.position, 80.0 if pilot.flying else 8.0) if salvage else ShipRecovery.recover_cargo(state, id, surface_index, pilot.position, 80.0 if pilot.flying else 8.0)
+	if error.is_empty(): rebuild_wrecks()
+	return error
+
+func purchase_insurance() -> String:
+	if pilot.flying or aboard: return "Dock at a station to arrange insurance."
+	return ShipRecovery.buy_insurance(state)
+
+func sell_fleet_cargo(ship_id: String, good: String, amount: int) -> String:
+	if pilot.flying or aboard: return "Dock to arrange fleet cargo clearance."
+	return crew_operations().unload_fleet_cargo(ship_id, good, amount)
+
+func collect_station_stock(station_index: int, good: String, amount: int) -> String:
+	if pilot.flying or aboard: return "Dock to request a station cargo delivery."
+	return crew_operations().withdraw_station_stock(station_index, good, amount)
+
+func steam_app_id() -> int:
+	return int(ProjectSettings.get_setting("steam/app_id", 0))
+
+func steam_available() -> bool:
+	return Engine.has_singleton("Steam") and ClassDB.class_exists("SteamMultiplayerPeer")
+
+func start_steam_host() -> String:
+	if session.connected: return "Leave your current session before hosting another world."
+	session.ship_modules = state.ship_modules.duplicate(true)
+	session.ship_layout = state.ship_layout.duplicate(true)
+	session.system_index = state.system_index
+	session.world_id = state.world_id
+	return session.host_steam(steam_app_id())
+
+func join_steam_invitation() -> String:
+	if pending_steam_lobby <= 0: return "No Steam invitation is pending."
+	if session.connected: return "Leave your current session before joining the invitation."
+	if not save_commander(false): return "Save failed; invitation was not joined."
+	session.ship_modules = state.ship_modules.duplicate(true)
+	session.ship_layout = state.ship_layout.duplicate(true)
+	var error: String = session.join_steam(steam_app_id(), pending_steam_lobby)
+	if error.is_empty(): pending_steam_lobby = 0
+	return error

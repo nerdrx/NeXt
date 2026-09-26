@@ -42,11 +42,13 @@ unavailable amounts.
 
 This currently uses Godot's built-in ENet transport. A LAN host is reachable
 only when the guest can route to its address and UDP port (default `27840`);
-internet play may require router port forwarding. Steam friends invites and
-Steam Datagram Relay are not implemented. The project does not currently ship
-GodotSteam or a Steam multiplayer peer, so there is no claimed Steam transport
-or invite support. Reliable combat/economy authority and anti-cheat validation
-remain future work.
+internet play may require router port forwarding. A dynamic GodotSteam lobby adapter now uses the same validated game protocol.
+It supports friend-only eight-member lobby creation, joining accepted invitations,
+overlay invitation UI and launch invitations. The standard export still uses vanilla
+Godot, so native Steam support and a production AppID are not configured. Real
+Steam connectivity and relay have not been tested; fake-facade tests establish
+callback/lifecycle behavior only. Reliable combat/economy authority remains work
+in progress.
 
 ## Visitor finances
 
@@ -63,3 +65,23 @@ Run `godot --headless --path . -s res://tests/test_network.gd`. The script start
 a host and two guest processes, joins over loopback, checks the welcome
 system/seed/world ID and player design, publishes a pose, tests host-controlled
 travel, then confirms one guest can leave while the other stays connected.
+
+## Steam build configuration
+
+`steam/app_id` in project.godot is intentionally zero until a NeXt Steamworks AppID
+is configured. The adapter rejects missing IDs and never silently uses Spacewar.
+Use a GodotSteam build containing the `Steam` singleton and `SteamMultiplayerPeer`;
+vanilla Godot remains supported for editing and LAN testing. The official
+[GodotSteam v4.22.1 release](https://codeberg.org/godotsteam/godotsteam/releases/tag/v4.22.1)
+lists Godot 4.7.2 variants and matching export templates.
+
+`NetworkSession.enable_steam(app_id)` starts the application-wide invite listener.
+`host_steam(app_id)` and `join_steam(app_id, lobby_id)` establish the transport;
+`invite_steam_friends()` opens the overlay. Leaving a lobby preserves the listener;
+application exit shuts it down. Invitations are shown for the player to accept,
+so an incoming invite cannot silently replace the active world.
+
+`tests/test_steam_session.gd` checks explicit IDs, the eight-person limit, both host
+callback orders, canceled/failed/timed-out joins, late callbacks, idle invitations
+and clean shutdown using a fake Steam facade. It does not prove real Steamworks
+API success, ownership, NAT traversal, overlay support or cross-machine play.
