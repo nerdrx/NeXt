@@ -1,0 +1,49 @@
+name: Windows export
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  export-windows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Godot 4.7.2 and export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/godot" "$HOME/.local/share/godot/export_templates/4.7.2.stable"
+          curl -fsSL -o "$RUNNER_TEMP/godot/editor.zip" \
+            https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
+          curl -fsSL -o "$RUNNER_TEMP/godot/templates.tpz" \
+            https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_export_templates.tpz
+          unzip -q "$RUNNER_TEMP/godot/editor.zip" -d "$RUNNER_TEMP/godot/editor"
+          mkdir -p "$RUNNER_TEMP/godot/template-archive"
+          unzip -q "$RUNNER_TEMP/godot/templates.tpz" -d "$RUNNER_TEMP/godot/template-archive"
+          cp -a "$RUNNER_TEMP/godot/template-archive/templates/." "$HOME/.local/share/godot/export_templates/4.7.2.stable/"
+          GODOT_BIN="$(find "$RUNNER_TEMP/godot/editor" -type f -name 'Godot_*_linux.x86_64' -print -quit)"
+          test -n "$GODOT_BIN"
+          chmod +x "$GODOT_BIN"
+          echo "GODOT_BIN=$GODOT_BIN" >> "$GITHUB_ENV"
+          "$GODOT_BIN" --version
+
+      - name: Import project resources
+        run: '"$GODOT_BIN" --headless --editor --path . --import'
+
+      - name: Test deterministic universe generation
+        run: '"$GODOT_BIN" --headless --path . -s tests/test_universe.gd'
+
+      - name: Smoke test prototype gameplay
+        run: 'timeout 30s "$GODOT_BIN" --headless --path . -- --smoke'
+
+      - name: Export Windows build
+        run: 'mkdir -p build/windows && "$GODOT_BIN" --headless --path . --export-release "Windows Desktop" build/windows/NeXt.exe'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NeXt-Windows
+          path: build/windows/
+          if-no-files-found: error
