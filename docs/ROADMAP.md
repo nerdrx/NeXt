@@ -1,43 +1,39 @@
 # NeXt: Roadmap
 
-## Current prototype
+## Implemented development build
 
-The prototype provides solo first-person movement and shooting, a small station and ship, practice and stationary pirate targets, deterministic system data, basic commodity trading, cargo refits, repairs, hyperdrive address changes, and local save/load. Graphics use code-built primitives. Black holes are generic colored spheres. There is no NPC combat AI, stock market, ship or station construction, multiplayer, Steam integration, or final authored art.
+- First-person walking and ray combat, moving pirates/security, flight and local cruise autopilot.
+- Deterministic galaxy addresses, distinct procedural celestial visuals, station hubs and colony surfaces.
+- Modular ship assembly, live preview and generated walkable module interiors.
+- Commodities, shares, contracts, crew role effects, company treasury and station construction/upgrades.
+- Versioned saves, persistent destruction, separate visitor finances and experimental ENet presence/travel.
+- Automated state, generation, actor, network, visitor and control checks; Windows export workflow.
 
-## 1. Strengthen the playable slice
+These are bounded development systems. README lists their limits. Placeholder visuals do not yet meet the agreed art target.
 
-- Improve walking and flight handling, interaction, onboarding, and combat feedback.
-- Replace stationary target behavior with understandable pirate and police behavior.
-- Expand the station into a useful hub while keeping scope small.
-- Version local saves and test recovery and migration before changing save data.
+## Next: continuous space and complete visits
 
-## 2. Build the single-player simulation
+- Introduce origin rebasing and streamed spatial sectors before increasing physical scale.
+- Replace surface scene transitions with planetary terrain streaming, atmosphere descent and manual hangar approaches.
+- Move combat, property and economic decisions to host authority; implement owner permissions and agreed PvP.
+- Add durable ship/cargo transfer transactions, reconnect recovery and duplicate prevention.
+- Integrate and validate Steam friends, invitations and relay using configured Steamworks credentials.
 
-- Add explorable stations, planetary surfaces, atmospheres, and cities.
-- Give star types, nebulae, and black holes distinct environments and gameplay.
-- Add factions, pirate and police behavior, trading companies, and stock markets.
-- Add NPC hires and ship and station customization from craftable components.
-- Keep galaxy generation deterministic and test stable results for saved addresses.
+## Deeper simulation
 
-## 3. Prepare a Windows release
+- Named persistent crew with orders, independent piloting/trading/combat and property management.
+- Editable rooms, hull panels, doors, equipment and physically persistent ship interiors.
+- Rescue/insurance, recoverable wrecks, salvage and meaningful loss rules.
+- Player factions, sovereignty, diplomacy, production chains and law enforcement consequences.
+- Populated cities with useful interiors and procedural variation tied to local industry and culture.
 
-- Keep reproducible Windows exports and packaged-build checks in CI.
-- Add Steamworks only when a real Steamworks application ID and integration are configured.
-- Verify Steam features in packaged builds before claiming support.
+## Presentation and release
 
-## 4. Add multiplayer safely
-
-- Establish an authoritative host for gameplay and economy state.
-- Add Steam friend sessions and hyperdrive travel with friends.
-- Prevent duplicated ships, items, and currency during reconnects, transfers, and host changes.
-- Define ownership, transfer, and recovery rules before enabling persistent cross-session transfers.
-
-## 5. Evaluate Linux and VR
-
-- Test the Windows build under Proton before claiming Linux support.
-- Consider a native Linux build if it is practical to maintain.
-- Evaluate VR after desktop movement, interaction, performance, and comfort options are stable.
+- Replace assets using the asset checklist; establish authored material and lighting references.
+- Measure GPU/CPU budgets at 1440p, then validate high-end 60 FPS target under realistic loads.
+- Validate Windows hardware and Proton separately; automate packaged smoke and save compatibility checks.
+- Add controller accessibility and later VR input/comfort after desktop interaction is stable.
 
 ## Release gates
 
-Do not claim Steam integration, multiplayer authority, anti-duplication, safe transfers, or save migration until their failure and reconnect cases are tested. Do not claim Proton or VR support from editor-only checks.
+Do not claim seamless travel, Steam integration, authoritative co-op, secure transfers, NPC autonomy or near-photoreal art from the current build. Headless tests establish specific logic checks; short GPU/Proton smoke runs do not establish performance or full playability. Final acceptance includes owner art review and playtesting.

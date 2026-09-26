@@ -1,0 +1,134 @@
+extends SceneTree
+
+const GameStateScript = preload("res://scripts/game_state.gd")
+
+func _initialize() -> void:
+	var state = GameStateScript.new()
+	assert(state.credits == 18000 and state.system_index == 0)
+	assert(state.hull == state.ship_stats().max_hull and state.shield == state.ship_stats().max_shield, "starter ship begins fully restored")
+	assert(state.ship_stats().speed >= 135.0 and state.ship_stats().speed <= 145.0, "starter ship cruises at roughly 140 m/s")
+	assert(state.ship_stats().cargo_capacity == 35 and state.ship_stats().power_balance >= 0)
+	assert(state.ship_stats().crew_capacity == 2 and not state.ship_stats().walkable)
+	assert(state._connected(state.ship_modules), "starter ship is connected")
+	assert(state.world_id.length() == 32 and state._valid_world_id(state.world_id))
+	state.cargo.ore = 35
+	assert(state.trade("ore", 1, true) != "", "hold capacity is enforced")
+	state.cargo.ore = 0
+	var old_credits: int = state.credits
+	assert(state.trade("ore", 2, true) == "")
+	assert(state.cargo.ore == 2 and state.credits < old_credits)
+	assert(state.trade("ore", 99, false) != "" and state.cargo.ore == 2)
+	assert(state.trade("ore", 2, false) == "" and state.cargo.ore == 0)
+	assert(state.trade("ore", -1, true) != "" and state.credits >= 0)
+	assert(state.add_module("habitat", Vector3i(0, 0, 1)) == "That ship cell is occupied.")
+	assert(state.add_module("cargo", Vector3i(-1, 0, 2)) == "")
+	assert(state.remove_module(Vector3i(-1, 0, 2)) == "")
+	assert(state.remove_module(Vector3i(0, 0, 1)) != "", "ship connectivity is preserved")
+	assert(state.remove_module(Vector3i(1, 0, 0)) != "", "reactor is required")
+	assert(state.add_module("habitat", Vector3i(5, 0, 0)) != "", "construction bounds match designer grid")
+	assert(state.hire("engineer") == "")
+	assert(state.hire("trader") == "")
+	assert(state.dismiss_crew(0) == "" and state.crew.size() == 1)
+	assert(state.hire("engineer") == "" and state.crew[0].id != state.crew[1].id)
+	assert(state.dismiss_crew(99) != "")
+	assert(state.hire("gunner") != "", "crew cap follows available rooms")
+	assert(state.add_module("habitat", Vector3i(0, 0, 3)) == "")
+	assert(state.ship_stats().walkable and state.ship_stats().crew_capacity == 6)
+	assert(state.hire("gunner") == "")
+	assert(state.jump(7919) == "" and state.day == 1 and state.visited.has(7919))
+	assert(state.crew_paid and state.ship_stats().damage == 30, "paid gunner improves ship damage")
+	var before_fuel: float = state.fuel
+	state.fuel = 5
+	assert(state.jump(1) != "" and state.system_index == 7919)
+	state.fuel = before_fuel
+	assert(state.refuel() == "")
+	state.record_kill("pirate")
+	assert(state.kills == 1)
+	var police_kills: int = state.kills
+	state.record_kill("police")
+	assert(state.kills == police_kills and state.wanted == 1, "police kills never satisfy bounties")
+	var bounty: Dictionary = {}
+	for offer: Dictionary in state.contracts:
+		if offer.kind == "bounty": bounty = offer
+	assert(not bounty.is_empty())
+	assert(state.accept_contract(bounty.id) == "")
+	assert(state.claim_contract(bounty.id) != "", "police kill does not satisfy bounty")
+	state.record_kill("pirate")
+	assert(state.claim_contract(bounty.id) == "")
+	assert(state.accept_contract(bounty.id) != "", "completed contract cannot be reaccepted")
+	assert(state.trade_stock("nova", 2, true) == "")
+	assert(state.trade_stock("NOVA", 2, false) == "")
+	assert(state.found_company("Wayfarer") == "")
+	assert(state.build_station("Farpoint") != "", "station requires alloys")
+	state.cargo.alloys = 30
+	assert(state.build_station("Farpoint") == "")
+	assert(state.upgrade_station(0) == "")
+	state.hull = 50
+	assert(state.repair() == "")
+	state.hull = 100
+	var prior_treasury: int = state.company_balance
+	assert(state.jump(8000) == "")
+	assert(state.hull == 108.0 and state.company_balance > prior_treasury and state.credits > 0, "paid crew, company and station settle on travel")
+	var company_funds: int = state.company_balance
+	var personal_funds: int = state.credits
+	assert(state.withdraw_company(company_funds + 1) != "" and state.company_balance == company_funds)
+	assert(state.withdraw_company(0) != "")
+	assert(state.withdraw_company(25) == "" and state.company_balance == company_funds - 25 and state.credits == personal_funds + 25)
+	state.hull = 100
+	var unpaid_treasury: int = state.company_balance
+	state.credits = 0
+	assert(state.jump(8001) == "")
+	assert(not state.crew_paid and state.hull == 100.0 and state.company_balance == unpaid_treasury + 100, "unpaid crew have no role benefits")
+	var path: String = "user://state-test-%d.json" % OS.get_process_id()
+	state.shield = 72.5
+	state.reputation["Solar Union"] = 12
+	state.world_flags["7919"] = ["pirate-1", "pirate-2"]
+	state.world_flags["8000:4"] = ["surface-actor"]
+	assert(state.save(path) == "")
+	state.credits += 1
+	assert(state.save(path) == "", "existing save is atomically replaced")
+	var loaded = GameStateScript.new()
+	var load_error: String = loaded.load_save(path)
+	assert(load_error == "", load_error)
+	assert(loaded._save_data() == state._save_data(), "all persistent fields round-trip: %s | %s" % [loaded._save_data(), state._save_data()])
+	var old_v2: Dictionary = state._save_data().duplicate(true)
+	old_v2.erase("world_id")
+	var bad := FileAccess.open(path, FileAccess.WRITE)
+	bad.store_string(JSON.stringify(old_v2))
+	bad.close()
+	assert(loaded.load_save(path) == "" and loaded._valid_world_id(loaded.world_id) and loaded.world_id != state.world_id, "v2 saves without an identity migrate to a fresh world")
+	var invalid_world: Dictionary = state._save_data().duplicate(true)
+	invalid_world.world_id = "NOT-A-VALID-WORLD-ID"
+	bad = FileAccess.open(path, FileAccess.WRITE)
+	bad.store_string(JSON.stringify(invalid_world))
+	bad.close()
+	var migrated_world_id: String = loaded.world_id
+	assert(loaded.load_save(path) != "" and loaded.world_id == migrated_world_id, "invalid world identity is rejected without mutation")
+	var prior_credits: int = loaded.credits
+	bad = FileAccess.open(path, FileAccess.WRITE)
+	bad.store_string("{\"version\":2,\"credits\":\"bad\"}")
+	bad.close()
+	assert(loaded.load_save(path) != "" and loaded.credits == prior_credits, "malformed load is transactional")
+	var invalid_key_data: Dictionary = state._save_data().duplicate(true)
+	invalid_key_data.world_flags["8001:9"] = ["invalid-surface"]
+	bad = FileAccess.open(path, FileAccess.WRITE)
+	bad.store_string(JSON.stringify(invalid_key_data))
+	bad.close()
+	assert(loaded.load_save(path) != "" and loaded.credits == prior_credits, "invalid world key does not mutate state")
+	var legacy_path: String = "user://state-test-v1-%d.json" % OS.get_process_id()
+	var legacy := FileAccess.open(legacy_path, FileAccess.WRITE)
+	legacy.store_string(JSON.stringify({"version": 1, "system": 42, "credits": 900, "modules": 8, "hull": 75, "kills": 3, "cargo": {"Food": 2}}))
+	legacy.close()
+	var migrated = GameStateScript.new()
+	var migration_error: String = migrated.load_save(legacy_path)
+	assert(migration_error == "", migration_error)
+	assert(migrated.system_index == 42 and migrated.cargo.food == 2 and migrated.visited.has(42) and migrated.ship_modules.size() == 15 and migrated._valid_world_id(migrated.world_id))
+	var migrated_v2_path: String = legacy_path + ".v2"
+	assert(migrated.save(migrated_v2_path) == "")
+	var migrated_roundtrip = GameStateScript.new()
+	assert(migrated_roundtrip.load_save(migrated_v2_path) == "" and migrated_roundtrip.ship_modules.size() == 15, "eight legacy modules survive v2 migration")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(legacy_path))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(migrated_v2_path))
+	print("GameState tests passed")
+	quit()

@@ -1,38 +1,29 @@
-# NeXt: Asset checklist
+# NeXt asset replacement checklist
 
-Current visuals are generated at runtime from code-built primitive meshes. The black hole is currently a generic colored sphere. No generated artwork is used. Replace placeholders with authored, license-cleared assets as each feature is built. Keep source files editable and record provenance and licenses.
+Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vistas. All current visual and sound assets are code-generated placeholders. Final authored assets should replace them without changing simulation rules.
 
-## World and environment
+| Asset family | Current source | Replacement requirements |
+| --- | --- | --- |
+| [ ] Ship hull/module library | `scripts/ship_visual.gd` | Metre scale; grid attachment points; cockpit/engine/weapon/utility/habitat variants; closed pressure hulls; collisions; LODs |
+| [ ] Ship interiors | `scripts/ship_interior.gd` | Deck height, door clearance, corridor/room sockets, props, crew spaces, airlocks, bridge; walkable collision |
+| [ ] Cockpit and pilot hands/equipment | `scripts/pilot.gd` | View-space framing; hand/weapon animations; cockpit instruments; eventual VR reachability |
+| [ ] Station exterior modules | `scripts/space_world.gd`, `scripts/main.gd` | Habitation rings, docking collars, radiators, freight modules, silhouette/scale cues |
+| [ ] Station interiors | `scripts/space_world.gd` | Structural kit, floor/wall/ceiling panels, terminals, readable wayfinding, hangar doors, cargo props |
+| [ ] Planet surface/orbit materials | `shaders/planet_surface.gdshader`, `planet_atmosphere.gdshader` | Coherent scale-dependent terrain, clouds, atmosphere, oceans, biome variants, matching ground appearance |
+| [ ] Stars, nebulae, compact objects | `shaders/deep_space_sky.gdshader`, `star_surface.gdshader`, `SpaceWorld` | Distinct phenomena with controlled exposure and convincing scale; black-hole accretion/lensing effects |
+| [ ] Colony/city kit | `scripts/space_world.gd` | Streets, service entrances, urban districts, architecture variants, interiors, vehicles, signs, LODs |
+| [ ] Humans and clothing | `scripts/ground_actor.gd` | Human-only setting; named NPC variation, rigs, gait, interaction/combat animations, factions/jobs |
+| [ ] Weapon/impact/jump effects | `scripts/main.gd`, `scripts/pilot.gd` | VFX tied to actual gameplay events; debris, shielding, propulsion, projectiles, recovery wrecks |
+| [ ] Interface visual assets | `scripts/ui/` | Restrained iconography, fonts/license records, navigation/map symbols, accessibility and input glyphs |
+| [ ] Audio | `scripts/soundscape.gd` | Engines, environmental ambience, weapons, impacts, ship/station machinery, interface cues and music |
 
-- [ ] Distinct star types, nebulae, and black hole visuals
-- [ ] Planet surfaces, terrain, oceans, clouds, and atmosphere effects
-- [ ] Station exteriors, interiors, city blocks, and planetary landmarks
-- [ ] Lighting, skies, weather, and environmental effects
+## Asset handoff
 
-## Ships and combat
-
-- [ ] Player and faction ships, including modular craftable parts
-- [ ] Station construction modules and customization pieces
-- [ ] Weapons, projectiles, impacts, explosions, and damage states
-- [ ] Flight, landing, hyperdrive, and interaction effects
-
-## Characters and interface
-
-- [ ] NPCs, crew, faction characters, and animation sets
-- [ ] First-person hands, equipment, and combat animations
-- [ ] Menus, maps, inventory, markets, stock charts, and HUD icons
-- [ ] Clear faction, company, and item identities
-
-## Audio
-
-- [ ] Ambience for space, stations, cities, planets, and interiors
-- [ ] Ship engines, weapons, impacts, interfaces, and alerts
-- [ ] Music and faction or location themes
-- [ ] Dialogue and NPC vocalization, if used
-
-## Production checks
-
-- [ ] Confirm license and attribution for every external asset.
-- [ ] Keep final art replaceable without changing gameplay data formats.
-- [ ] Check scale, readability, performance, and accessibility in-game.
-- [ ] Use AI for code only; do not present generated images as current project assets.
+- [ ] Keep editable source files and provenance/license records.
+- [ ] Agree metres, axes, origins and named material/attachment slots before large batches.
+- [ ] Supply PBR materials with appropriate roughness, metallic and normal maps.
+- [ ] Provide collision separately from visual detail and validate doors/interactions with the player capsule.
+- [ ] Provide LODs/instancing plans and realistic texture budgets for the 1440p/60 target.
+- [ ] Preserve replaceable procedural fallbacks until authored content is validated.
+- [ ] Validate lighting/exposure across space, interiors and surfaces, not only an asset-preview scene.
+- [ ] No AI bitmap art, models or recorded voices are required by the current project.

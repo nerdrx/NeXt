@@ -1,7 +1,11 @@
 # NeXt: Vision
 
-NeXt aims to be a first-person space immersive sim. Players will explore and fight on foot, then fly customizable ships through arcade space combat. A large deterministic galaxy will connect star systems, planets, stations, atmospheres, and cities. Factions, pirates, police, trade, NPC hires, and craftable ship and station parts should make choices matter. Players should eventually join friends locally and travel together through hyperdrive.
+A human space-age immersive sim about exploration, money, combat and building a faction. Players walk through their ships, stations and cities, fly manually, and use optional autopilot and convenient menus for services. Only ships and stations are craftable; hunger and thirst are excluded.
 
-The current prototype is a small solo slice. It has first-person movement and shooting, a compact station and ship, practice targets and stationary pirate targets, seeded system data, basic commodity trading, cargo refits, repairs, hyperdrive address changes, and local save/load. System addresses are generated deterministically, with star and nebula labels, planet data, atmosphere indicators, and faction names. Planets, stars, the station, and targets are rendered from code-built primitive meshes. A black hole currently appears as a generic colored sphere. There are no cities, hostile NPC behavior, stock market, ship building, multiplayer, or final authored art yet.
+The visual destination combines Star Citizen’s believable interiors and materials with Elite Dangerous’s immense cosmic vistas. Near-photorealism is a production target. The current procedural assets are replaceable placeholders; the owner supplies final art and playtesting.
 
-Windows is the primary target. Proton-based Linux support is a later goal. VR remains a possibility for future evaluation.
+Windows is the shipping platform, with Linux play through Proton. The performance target is a high-end PC at 1440p/60 FPS, not an established benchmark. VR follows desktop controls and interaction design.
+
+Local worlds pause without a host. Sessions target 2–8 friends, carrying ships and cargo between separate world economies. Property owners grant permissions; PvP requires agreement. Defeat should lead to rescue, insurance and recoverable wrecks with meaningful losses. Named hired crew should eventually fly, trade, fight and manage property independently.
+
+Manual seamless planetary travel, editable ship rooms and hull panels, Steam sessions, NPC autonomy and complete multiplayer authority remain major engineering work. See [README](../README.md) for implemented behavior, [roadmap](ROADMAP.md) for remaining work and [confirmed decisions](DESIGN_QUESTIONS.md) for the owner’s answers.

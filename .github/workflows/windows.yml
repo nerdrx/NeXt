@@ -36,7 +36,16 @@ jobs:
       - name: Test deterministic universe generation
         run: '"$GODOT_BIN" --headless --path . -s tests/test_universe.gd'
 
-      - name: Smoke test prototype gameplay
+      - name: Test simulation, actors and loopback visits
+        run: |
+          timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_state.gd
+          timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_actors.gd
+          timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_network.gd
+          timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_visit.gd -- --capture-only
+
+          timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_controls.gd -- --capture-only
+
+      - name: Test integrated gameplay
         run: 'timeout 30s "$GODOT_BIN" --headless --path . -- --smoke'
 
       - name: Export Windows build
