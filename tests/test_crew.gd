@@ -50,14 +50,33 @@ func _initialize() -> void:
 	var paid_before_cancel: int = state.credits
 	assert(paid_before_cancel > 0)
 	assert(orders.assign_patrol(gunner, ship_id, 7919) == "")
+	var patrol: Dictionary = state.crew_orders[gunner]
+	var patrol_ship: Dictionary = state.fleet_ships[0]
+	patrol_ship.system = state.system_index
+	var local_hull: float = float(patrol_ship.hull)
+	var local_credits: int = state.credits
+	var gunner_wage: int = int(state.crew[1].salary)
+	var local_report: Array[Dictionary] = orders.tick(300, [ship_id])
+	assert(local_report.size() == 1 and local_report[0].status == "local patrol wages paid" and local_report[0].wages == gunner_wage, "local patrol advances with an explicit wage report")
+	assert(int(patrol.encounters) == 0 and float(patrol_ship.hull) == local_hull and state.credits == local_credits - gunner_wage, "local patrol has no duplicate synthetic combat, damage, or bounty")
+	state.credits = 0
+	var unpaid_local: Array[Dictionary] = orders.tick(300, [ship_id])
+	assert(unpaid_local.size() == 1 and unpaid_local[0].status == "paused: wages unpaid" and patrol.paused, "local patrol pauses when wages cannot be paid")
+	assert(int(patrol.encounters) == 0 and float(patrol_ship.hull) == local_hull and state.credits == 0)
+	state.credits = gunner_wage
+	local_report = orders.tick(1, [ship_id])
+	assert(local_report.size() == 1 and local_report[0].status == "local patrol wages paid" and not patrol.paused and state.credits == 0, "local patrol resumes once wages are funded")
+	# A listed local ID is not enough during transit: only matching current-system ships are suppressed.
+	patrol_ship.system = 7918
+	state.credits = 10000
 	var report: Array[Dictionary] = []
 	var hostile_seen: bool = false
 	for i: int in range(10):
-		report = orders.tick(300)
+		report = orders.tick(300, [ship_id])
 		for entry: Dictionary in report:
 			if entry.status == "hostile intercepted": hostile_seen = true
 		if hostile_seen: break
-	assert(hostile_seen and report[0].has("hull"), "patrol report includes a simulated encounter and hull risk")
+	assert(hostile_seen and report[0].has("hull") and int(patrol.encounters) > 0, "transiting patrol still simulates encounters and hull risk")
 	state.fleet_ships[0].hull = 0.0
 	var credits_before_disabled: int = state.credits
 	var disabled_report: Array[Dictionary] = orders.tick(300)

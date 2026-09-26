@@ -116,7 +116,7 @@ func withdraw_station_stock(station_index: int, good: String, quantity: int) -> 
 	return ""
 
 # Call only with elapsed hosted gameplay time. Paused worlds never accrue work.
-func tick(elapsed_seconds: float) -> Array[Dictionary]:
+func tick(elapsed_seconds: float, local_patrol_ship_ids: Array[String] = []) -> Array[Dictionary]:
 	var reports: Array[Dictionary] = []
 	if not is_finite(elapsed_seconds) or elapsed_seconds <= 0: return reports
 	for crew_id: String in state.crew_orders.keys():
@@ -135,13 +135,18 @@ func tick(elapsed_seconds: float) -> Array[Dictionary]:
 			var member: Dictionary = _member(crew_id)
 			var wage: int = int(member.salary)
 			if state.credits < wage:
-				order.progress = minf(float(order.progress), interval - 1.0)
+				order.progress = interval - 1.0
 				if not bool(order.paused):
 					reports.append({"kind": str(order.kind), "status": "paused: wages unpaid", "crew_id": crew_id, "wages_due": wage})
 				order.paused = true
 				break
 			state.credits -= wage
 			order.paused = false
+			if str(order.kind) == "patrol" and str(order.ship_id) in local_patrol_ship_ids:
+				var patrol_ship: Dictionary = _ship(str(order.ship_id))
+				if not patrol_ship.is_empty() and int(patrol_ship.system) == int(order.system) and int(order.system) == state.system_index:
+					reports.append({"kind": "patrol", "status": "local patrol wages paid", "crew_id": crew_id, "ship_id": str(order.ship_id), "system": int(order.system), "wages": wage})
+					continue
 			var report: Dictionary = _complete_order(order)
 			if not report.is_empty(): reports.append(report)
 	return reports

@@ -41,3 +41,8 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Replace dock markings, guide lights, canopy, service terminal and signs; retain the 76 x 80 metre collision-supported apron and unobstructed positive-Z approach.
 - [ ] Preserve `dock_position`, `stand_position` and `launch_position` when swapping assets; rerun the station gameplay test to check standing collision, docking and departure.
 - [ ] Add inhabited interiors beyond the current open docking deck; the present outpost is not a complete city or station interior.
+
+## Local crew patrols
+
+- [ ] Replace the cyan fleet patrol exterior and floating ship/captain labels with authored patrol ship variants and diegetic identification. Preserve the ShipActor damage/fire signals and fleet ID metadata when changing the visual scene.
+- [ ] Author fleet disabled-ship and recovery assets when physical fleet salvage replaces the present service-repair flow.

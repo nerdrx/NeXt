@@ -34,6 +34,7 @@ var wreck_root: Node3D
 var _rescuing: bool = false
 var pending_steam_lobby: int = 0
 var docked_station: int = -1
+var fleet_actors: Dictionary = {}
 
 func _ready() -> void:
 	automation = "--smoke" in OS.get_cmdline_user_args() or "--visual-tour" in OS.get_cmdline_user_args() or "--capture-only" in OS.get_cmdline_user_args()
@@ -114,6 +115,7 @@ func _clear_actors() -> void:
 			remove_child(actor)
 			actor.queue_free()
 	actors.clear()
+	fleet_actors.clear()
 
 func _location_key() -> String:
 	return "%d:%d" % [state.system_index, surface_index]
@@ -148,6 +150,7 @@ func _spawn_actors() -> void:
 			add_child(actor)
 			actors.append(actor)
 	_spawn_people(eliminated)
+	_sync_fleet_actors()
 
 func _spawn_people(eliminated: Array) -> void:
 	var roles: Array[String] = ["Shipwright", "Broker", "Recruiter", "Security"]
@@ -183,6 +186,98 @@ func _spawn_people(eliminated: Array) -> void:
 			person.fired.connect(_enemy_fire)
 			add_child(person)
 			actors.append(person)
+
+func _fleet_record(ship_id: String) -> Dictionary:
+	for ship: Dictionary in state.fleet_ships:
+		if str(ship.id) == ship_id: return ship
+	return {}
+
+func _patrol_order(ship_id: String) -> Dictionary:
+	for order: Dictionary in state.crew_orders.values():
+		if order.kind == "patrol" and str(order.get("ship_id", "")) == ship_id: return order
+	return {}
+
+func _sync_fleet_actors() -> Array[String]:
+	var local_ids: Array[String] = []
+	if surface_index < 0:
+		for ship: Dictionary in state.fleet_ships:
+			var id: String = str(ship.id)
+			var order := _patrol_order(id)
+			if int(ship.system) != state.system_index or float(ship.hull) <= 0 or order.is_empty() or int(order.system) != state.system_index: continue
+			local_ids.append(id)
+			if not fleet_actors.has(id):
+				var actor := ShipActor.new()
+				actor.actor_id = id
+				actor.faction = "player_fleet"
+				actor.set_meta("fleet_ship_id", id)
+				actor.set_meta("contact_name", str(ship.name))
+				actor.hp = float(ship.hull)
+				actor.shields = 0
+				actor.position = Vector3(-420 + (local_ids.size() - 1) * 25, 100, -650)
+				actor.damaged.connect(_persist_fleet_damage)
+				actor.destroyed.connect(_actor_destroyed)
+				actor.fired.connect(_enemy_fire)
+				add_child(actor)
+				actors.append(actor)
+				fleet_actors[id] = actor
+				var label := Label3D.new()
+				label.text = str(ship.name)
+				for member: Dictionary in state.crew:
+					if str(member.id) == str(order.crew_id): label.text += "\n" + str(member.name)
+				label.position.y = 5
+				label.pixel_size = 0.03
+				label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+				label.modulate = Color("68e8db")
+				actor.add_child(label)
+			else:
+				fleet_actors[id].hp = float(ship.hull)
+	for id: String in fleet_actors.keys():
+		if id in local_ids: continue
+		var actor: Node = fleet_actors[id]
+		if is_instance_valid(actor):
+			actors.erase(actor)
+			remove_child(actor)
+			actor.queue_free()
+		fleet_actors.erase(id)
+	return local_ids
+
+func approach_fleet_ship(ship_id: String) -> void:
+	var actor: Node3D = fleet_actors.get(ship_id)
+	if not is_instance_valid(actor):
+		notify("That vessel is not patrolling this local space.")
+		return
+	cruise_to(actor.position + Vector3(0, 20, 60))
+
+func _persist_fleet_damage(actor: ShipActor) -> void:
+	var ship := _fleet_record(str(actor.get_meta("fleet_ship_id", "")))
+	if not ship.is_empty(): ship.hull = actor.hp
+
+func _nearest_ship(origin: ShipActor, faction: String) -> Node3D:
+	var nearest: Node3D = null
+	var distance: float = 2500.0
+	for other in actors:
+		if not is_instance_valid(other) or not other is ShipActor or other == origin or other.faction != faction or other.hp <= 0: continue
+		var candidate: float = origin.position.distance_to(other.position)
+		if candidate < distance:
+			nearest = other
+			distance = candidate
+	return nearest
+
+func _update_combat_targets() -> void:
+	for actor in actors:
+		if not actor is ShipActor: continue
+		if actor.faction == "player_fleet":
+			actor.target = _nearest_ship(actor, "pirate")
+			actor.hostile = actor.target != null
+			var order := _patrol_order(str(actor.get_meta("fleet_ship_id", "")))
+			if bool(order.get("paused", true)):
+				actor.target = null
+				actor.hostile = false
+		elif actor.faction == "pirate":
+			var fleet_target := _nearest_ship(actor, "player_fleet")
+			actor.target = pilot if pilot.flying else null
+			if fleet_target != null and (actor.target == null or actor.position.distance_squared_to(fleet_target.position) < actor.position.distance_squared_to(pilot.position)):
+				actor.target = fleet_target
 
 func rebuild_player_ship() -> void:
 	if is_instance_valid(ship_display):
@@ -315,7 +410,7 @@ func _player_fire(origin: Vector3, direction: Vector3) -> void:
 	if not hit.is_empty():
 		var victim: Object = hit.collider
 		if victim.has_method("take_damage"):
-			if victim.faction != "pirate" and not victim.get_meta("assault_reported", false):
+			if victim.faction not in ["pirate", "player_fleet"] and not victim.get_meta("assault_reported", false):
 				state.wanted += 1
 				victim.set_meta("assault_reported", true)
 				notify("Assault reported. Security alert increased.")
@@ -327,6 +422,11 @@ func _enemy_fire(actor: Node3D, origin: Vector3, direction: Vector3) -> void:
 	var hit: Dictionary = _ray(origin, direction, 2400 if actor is ShipActor else 120, [actor.get_rid()])
 	var endpoint: Vector3 = hit.get("position", origin + direction * 180)
 	_beam(origin, endpoint, Color("ff9673"))
+	var struck: Object = hit.get("collider")
+	if struck is ShipActor and ((actor.faction == "pirate" and struck.faction == "player_fleet") or (actor.faction == "player_fleet" and struck.faction == "pirate")):
+		if actor.has_meta("fleet_ship_id") and struck.faction == "pirate":
+			struck.set_meta("fleet_hit", actor.get_meta("fleet_ship_id"))
+		struck.take_damage(9.0)
 	if hit.get("collider") == pilot:
 		var damage: float = 9 if actor is ShipActor else 12
 		shield_delay = 6
@@ -340,12 +440,25 @@ func _enemy_fire(actor: Node3D, origin: Vector3, direction: Vector3) -> void:
 		if state.hull <= 0 or suit_health <= 0: _rescue()
 
 func _actor_destroyed(actor: Node3D) -> void:
+	if actor.has_meta("fleet_ship_id"):
+		_persist_fleet_damage(actor)
+		fleet_actors.erase(str(actor.get_meta("fleet_ship_id")))
+		actors.erase(actor)
+		_explosion(actor.global_position, 8)
+		var saved: bool = save_commander(false)
+		notify("Fleet ship disabled. Arrange repairs in Crew Operations." if saved else "Fleet ship disabled; damage NOT SAVED. Check storage and save again.")
+		return
 	var eliminated: Array = state.world_flags.get(_location_key(), [])
 	if actor.actor_id not in eliminated: eliminated.append(actor.actor_id)
 	state.world_flags[_location_key()] = eliminated
 	if actor.get_meta("player_hit", false):
 		state.record_kill(actor.faction)
 		notify("Pirate neutralized. Bounty credited." if actor.faction == "pirate" else "Civilian/security casualty recorded. Wanted status updated.")
+	elif actor.faction == "pirate" and actor.has_meta("fleet_hit"):
+		state.credits += 250
+		var order := _patrol_order(str(actor.get_meta("fleet_hit")))
+		if not order.is_empty(): order.encounters = int(order.encounters) + 1
+		notify("Fleet patrol neutralized a pirate. 250 CR bounty credited.")
 	_explosion(actor.global_position, 8 if actor is ShipActor else 1.5)
 	actors.erase(actor)
 
@@ -553,13 +666,15 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if pilot == null or state == null: return
 	if home_state != null and not session.connected: _return_home()
-	var reports: Array = crew_operations().tick(delta)
+	var local_patrols: Array[String] = _sync_fleet_actors()
+	var reports: Array = crew_operations().tick(delta, local_patrols)
 	if not reports.is_empty():
 		notify("Crew / %s: %s" % [reports.back().get("kind", "operation"), reports.back().get("status", "updated")])
 	for actor in actors:
 		if not is_instance_valid(actor): continue
 		actor.active = not ui_open and jump_charge <= 0 and not aboard
 		if actor.faction == "police": actor.hostile = PlayerFaction.police_hostile(state.faction, str(world.data.faction), state.wanted)
+	_update_combat_targets()
 	if jump_charge > 0:
 		jump_charge = maxf(0, jump_charge - delta)
 		if jump_charge == 0: _complete_jump()
@@ -836,6 +951,23 @@ func _integration_check() -> void:
 	open_menu("factions")
 	await _capture("factions")
 	if not _check(save_commander(false) and restored.load_save(save_path).is_empty() and restored.faction == state.faction, "faction save round trip"): return
+	if not _check(state.hire("gunner").is_empty(), "hire patrol pilot"): return
+	if not _check(crew_operations().purchase_ship("Integration Guardian").is_empty(), "commission patrol ship"): return
+	var patrol_id: String = state.fleet_ships.back().id
+	if not _check(crew_operations().assign_patrol(state.crew.back().id, patrol_id, state.system_index).is_empty(), "assign local patrol"): return
+	_sync_fleet_actors()
+	if not _check(fleet_actors.has(patrol_id), "materialized local patrol"): return
+	fleet_actors[patrol_id].active = true
+	fleet_actors[patrol_id].take_damage(9)
+	if not _check(state.fleet_ships.back().hull == 91, "physical fleet damage persists"): return
+	if not _check(save_commander(false) and restored.load_save(save_path).is_empty() and restored.fleet_ships.back().hull == 91, "local fleet damage save round trip"): return
+	close_menu()
+	docked_station = -1
+	pilot.set_flight(true)
+	pilot.teleport(fleet_actors[patrol_id].position + Vector3(20, 8, 50))
+	pilot.reset_view()
+	ship_display.hide()
+	await _capture("local-patrol")
 	var money_before_menu: int = state.credits
 	for menu_page in ["overview", "navigation", "market", "shipyard", "contracts", "company", "fleet", "recovery", "factions", "stations", "settings"]:
 		open_menu(menu_page)
@@ -844,7 +976,7 @@ func _integration_check() -> void:
 	DirAccess.remove_absolute(save_path)
 	DirAccess.remove_absolute(save_path + ".bak")
 	await get_tree().create_timer(0.5).timeout
-	print("NEXT_INTEGRATION_OK: trading, stock, construction, persistent combat, save/load, hyperdrive, landing, walkable interior, crew orders, insured wreck recovery, factions, owned docks, menu safety")
+	print("NEXT_INTEGRATION_OK: trading, stock, construction, persistent combat, save/load, hyperdrive, landing, walkable interior, crew orders, insured wreck recovery, factions, owned docks, local fleet, menu safety")
 	sound.shutdown()
 	await get_tree().process_frame
 	get_tree().quit()

@@ -486,7 +486,7 @@ func _choice(row: HBoxContainer, options: Array, label_key: String, id_key: Stri
 func _fleet() -> void:
 	heading.text = "CREW OPERATIONS"
 	var s: GameState = game.state
-	_text("Give named crew persistent orders. Trade captains buy and carry goods; patrols risk hull damage; managers operate owned stations. Operations advance while this world is hosted, never while closed.", 17)
+	_text("Give named crew persistent orders. Trade captains buy and carry goods; patrols fight pirates in local space and use strategic simulation in distant systems; managers operate owned stations. Unpaid local patrols stop engaging but remain vulnerable. Operations advance while this world is hosted, never while closed.", 17)
 	_text("FLEET REGISTRY", 13, InterfaceTheme.CYAN)
 	var purchase := _row()
 	var ship_name := LineEdit.new()
@@ -497,6 +497,8 @@ func _fleet() -> void:
 	purchase.add_child(InterfaceTheme.button("COMMISSION / %d CR" % CrewOrders.SHIP_PRICE, func(): _act(game.crew_operations().purchase_ship.bind(ship_name.text), "Fleet vessel commissioned.")))
 	for vessel: Dictionary in s.fleet_ships:
 		_text("%s / system %d / hull %.0f%%" % [vessel.name, vessel.system, vessel.hull], 17)
+		if game.fleet_actors.has(str(vessel.id)):
+			_button("APPROACH LOCAL PATROL", game.approach_fleet_ship.bind(str(vessel.id)), not game.pilot.flying or game.aboard)
 		_button("REPAIR / %d CR" % ceili((100.0 - float(vessel.hull)) * 4.0), _act.bind(game.crew_operations().repair_fleet_ship.bind(str(vessel.id)), "Fleet repairs arranged."), float(vessel.hull) >= 100)
 		for good: String in vessel.cargo:
 			var amount: int = int(vessel.cargo[good])

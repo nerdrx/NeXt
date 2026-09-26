@@ -23,7 +23,7 @@ These are bounded development systems. README lists their limits. Placeholder vi
 
 ## Deeper simulation
 
-- Replace abstract fleet trip/patrol resolution with physical local flight and combat when vessels enter the loaded scene; add richer named crew behavior.
+- Local gunner patrols now fly and fight in loaded space. Extend that integration to trader arrivals/docking, persistent fleet positions and physical disabled-ship salvage; add richer named crew behavior.
 - Extend existing compatible room/panel refits to wall placement, equipment movement, doors and physically persistent ship interiors.
 - Expand implemented rescue/insurance and wreck recovery into towing, repairable derelicts and NPC rescue encounters.
 - Extend player factions into membership, territorial sovereignty, negotiated diplomacy and production chains; deepen law enforcement consequences.
@@ -38,4 +38,4 @@ These are bounded development systems. README lists their limits. Placeholder vi
 
 ## Release gates
 
-Do not claim seamless travel, Steam integration, authoritative co-op, secure transfers, NPC autonomy or near-photoreal art from the current build. Headless tests establish specific logic checks; short GPU/Proton smoke runs do not establish performance or full playability. Final acceptance includes owner art review and playtesting.
+Do not claim seamless travel, Steam integration, authoritative co-op, secure transfers, complete NPC autonomy or near-photoreal art from the current build. Headless tests establish specific logic checks; short GPU/Proton smoke runs do not establish performance or full playability. Final acceptance includes owner art review and playtesting.

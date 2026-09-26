@@ -58,7 +58,7 @@ func _draw() -> void:
 		_draw_marker(Vector3(0, 12, -70), "ORBITAL DOCK", InterfaceTheme.CYAN, pilot.camera)
 		for actor: Node3D in game.actors:
 			if is_instance_valid(actor) and actor.position.distance_to(pilot.position) < 2800:
-				_draw_marker(actor.position, str(actor.faction).to_upper(), Color("f08670") if actor.faction == "pirate" else Color("75b9f1"), pilot.camera)
+				_draw_marker(actor.position, str(actor.get_meta("contact_name", actor.faction)).to_upper(), Color("f08670") if actor.faction == "pirate" else Color("75b9f1"), pilot.camera)
 	else:
 		_word(Vector2(w * 0.5 - 180, h - 90), "[E] " + game.interaction_hint(), 17, InterfaceTheme.CYAN)
 	if state.wanted > 0:

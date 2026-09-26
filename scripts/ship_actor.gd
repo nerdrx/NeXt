@@ -20,6 +20,7 @@ var _patrol_phase: float = 0.0
 var _desired_velocity: Vector3 = Vector3.ZERO
 var _home: Vector3
 var _destroyed: bool = false
+var _patrol_center_set: bool = false
 
 
 func _ready() -> void:
@@ -27,7 +28,8 @@ func _ready() -> void:
 	collision_mask = 1
 	if actor_id.is_empty():
 		actor_id = str(get_instance_id())
-	_home = global_position
+	if not _patrol_center_set:
+		_home = global_position
 	var collision := CollisionShape3D.new()
 	var shape := SphereShape3D.new()
 	shape.radius = 2.3
@@ -44,7 +46,7 @@ func _physics_process(delta: float) -> void:
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
 	_patrol_phase += delta
 	var destination := _home + Vector3(sin(_patrol_phase * 0.22) * 26.0, sin(_patrol_phase * 0.31) * 8.0, cos(_patrol_phase * 0.22) * 26.0)
-	var attacking := hostile and is_instance_valid(target) and _target_is_flying()
+	var attacking := hostile and _target_is_active()
 	if attacking:
 		var range := global_position.distance_to(target.global_position)
 		var away := (global_position - target.global_position).normalized()
@@ -57,20 +59,24 @@ func _physics_process(delta: float) -> void:
 		if range < 720.0 and _attack_cooldown <= 0.0 and hp >= 30.0 and not _near_safe_zone():
 			_attack_cooldown = 1.1
 			var origin := global_position + (-global_basis.z * 4.0)
-			fired.emit(self, origin, (target.global_position - origin).normalized())
+			var fire_direction: Vector3 = target.global_position - origin
+			if fire_direction.length_squared() > 0.000001:
+				fired.emit(self, origin, fire_direction.normalized())
 	var offset := destination - global_position
 	var distance := offset.length()
 	var desired_speed := speed * (0.55 if attacking and hp < 30.0 else 1.0)
 	_desired_velocity = _desired_velocity.lerp(offset.normalized() * minf(desired_speed, distance * 2.0), minf(1.0, delta * 1.8))
 	velocity = _desired_velocity
 	if distance > 0.5:
-		look_at(global_position + offset.normalized(), Vector3.UP)
+		var forward: Vector3 = offset.normalized()
+		var up: Vector3 = Vector3.FORWARD if absf(forward.dot(Vector3.UP)) > 0.98 else Vector3.UP
+		look_at(global_position + forward, up)
 	move_and_slide()
 	_visual.set_thrust(clampf(velocity.length() / maxf(speed, 1.0), 0.0, 1.0))
 
 
 func take_damage(amount: float) -> void:
-	if not active or _destroyed or amount <= 0.0:
+	if not active or _destroyed or not is_finite(amount) or amount <= 0.0:
 		return
 	var absorbed := minf(shields, amount)
 	shields -= absorbed
@@ -83,12 +89,20 @@ func take_damage(amount: float) -> void:
 		queue_free()
 
 
-func _target_is_flying() -> bool:
+func set_patrol_center(center: Vector3) -> void:
+	if not center.is_finite():
+		return
+	_home = center
+	_patrol_center_set = true
+
+
+func _target_is_active() -> bool:
 	if not is_instance_valid(target):
 		return false
-	if target.has_method("get"):
-		var flying_value: Variant = target.get("flying")
-		return flying_value is bool and flying_value
+	if target is ShipActor:
+		return target.active and not target._destroyed and target.hp > 0.0
+	if target is Pilot:
+		return target.flying
 	return false
 
 
