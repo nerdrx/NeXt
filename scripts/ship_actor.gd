@@ -25,9 +25,12 @@ var _safe_zone_center: Vector3 = Vector3.ZERO
 var _home: Vector3
 var _destroyed: bool = false
 var _patrol_center_set: bool = false
+var _avoidance_direction := Vector3.ZERO
+var _avoidance_shape := SphereShape3D.new()
 
 
 func _ready() -> void:
+	_avoidance_shape.radius = 2.6
 	collision_layer = 4
 	collision_mask = 1
 	if actor_id.is_empty():
@@ -80,14 +83,51 @@ func _physics_process(delta: float) -> void:
 	var offset := destination - global_position
 	var distance := offset.length()
 	var desired_speed := speed * (0.55 if attacking and hp < 30.0 else 1.0)
-	_desired_velocity = _desired_velocity.lerp(offset.normalized() * minf(desired_speed, distance * 2.0), minf(1.0, delta * 1.8))
+	var command := _avoid_obstacles(offset.normalized() * minf(desired_speed, distance * 2.0))
+	_desired_velocity = _desired_velocity.lerp(command, minf(1.0, delta * 1.8))
 	velocity = _desired_velocity
 	if distance > 0.5:
-		var forward: Vector3 = offset.normalized()
+		var forward: Vector3 = velocity.normalized() if velocity.length_squared() > 0.25 else offset.normalized()
 		var up: Vector3 = Vector3.FORWARD if absf(forward.dot(Vector3.UP)) > 0.98 else Vector3.UP
 		look_at(global_position + forward, up)
 	move_and_slide()
 	_visual.set_thrust(clampf(velocity.length() / maxf(speed, 1.0), 0.0, 1.0))
+
+
+func _avoid_obstacles(desired_velocity: Vector3) -> Vector3:
+	if not desired_velocity.is_finite() or desired_velocity.length_squared() < 0.000001: return Vector3.ZERO
+	var travel_speed := desired_velocity.length()
+	if not is_finite(travel_speed): return Vector3.ZERO
+	var forward := desired_velocity / travel_speed
+	var lookahead := maxf(16.0, travel_speed * 2.0)
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = _avoidance_shape
+	query.transform = Transform3D(Basis.IDENTITY, global_position)
+	query.collision_mask = collision_mask
+	query.exclude = [get_rid()]
+	var space := get_world_3d().direct_space_state
+	if not space.intersect_shape(query, 1).is_empty(): return Vector3.ZERO
+	query.motion = forward * lookahead
+	if space.cast_motion(query)[0] >= 0.999:
+		_avoidance_direction = Vector3.ZERO
+		return desired_velocity
+	var up := Vector3.UP if absf(forward.dot(Vector3.UP)) < 0.95 else Vector3.FORWARD
+	var right := forward.cross(up).normalized()
+	up = right.cross(forward).normalized()
+	var best := Vector3.ZERO
+	var best_score := -INF
+	# Local steering only: a fully blocked fan brakes; global routing is separate.
+	for angle: float in [PI * 0.25, PI * 5.0 / 12.0, PI * 0.5]:
+		for side: Vector3 in [right, -right, up, -up]:
+			var direction := (forward * cos(angle) + side * sin(angle)).normalized()
+			query.motion = direction * lookahead
+			if space.cast_motion(query)[0] < 0.999: continue
+			var score := direction.dot(forward) * 2.0 + direction.dot(_avoidance_direction) * 0.65
+			if score > best_score:
+				best_score = score
+				best = direction
+	_avoidance_direction = best
+	return best * travel_speed
 
 
 func take_damage(amount: float) -> void:

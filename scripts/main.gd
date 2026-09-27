@@ -1722,6 +1722,19 @@ func _integration_check() -> void:
 	search_probe.observe_target(null)
 	contact_probe.position += Vector3(2000, 0, 0)
 	if not _check(search_probe.target == null and search_probe.last_contact_position == Vector3(10000, 6000, 0) and search_probe.search_seconds_remaining == ShipActor.CONTACT_SEARCH_SECONDS, "lost contacts preserve observed position without tracking hidden movement"): return
+	search_probe.position = Vector3(10000, 6000, 100)
+	var avoidance_wall := StaticBody3D.new()
+	add_child(avoidance_wall)
+	avoidance_wall.position = Vector3(10000, 6000, 70)
+	var avoidance_collision := CollisionShape3D.new()
+	var avoidance_box := BoxShape3D.new()
+	avoidance_box.size = Vector3(20, 20, 4)
+	avoidance_collision.shape = avoidance_box
+	avoidance_wall.add_child(avoidance_collision)
+	await get_tree().physics_frame
+	var detour := search_probe._avoid_obstacles(Vector3(0, 0, -65))
+	if not _check(detour.is_finite() and absf(detour.x) + absf(detour.y) > 1.0, "NPC steers around world collision in release build"): return
+	avoidance_wall.queue_free()
 	search_probe.queue_free()
 	contact_probe.queue_free()
 	var physical_sample := CelestialSystem.sample(deck.survey_catalog, 0, 0.0)

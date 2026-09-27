@@ -837,3 +837,11 @@ The actual-scene contact-search test passes for hot acquisition, cold loss, reme
 Native integration and the exported Windows executable under Proton emitted NEXT_INTEGRATION_OK, including a release-safe observed-position check. Windows export succeeded and the ZIP was rebuilt. These checks do not establish obstacle-aware route planning, coordinated search or persisted NPC knowledge; search memory is transient local simulation state.
 
 The search-build Proton wrapper required timeout cleanup after the success marker (exit 137); no script/shader errors were found. The preceding radiator commit f4791e9 passed both CI runs.
+
+## Local NPC obstacle avoidance
+
+The NPC movement fixture passes with a wall wider than the normal patrol wander: a blocked direct command selects a lateral route, the ship clears the wall and continues toward its destination. The enclosed-room check returns a zero velocity command. An earlier graphical fixture passed in hidden Gamescope; the strengthened wide-wall fixture passes headlessly. Actor targeting, fleet combat, aboard combat and last-contact search regressions pass.
+
+Native main-entrypoint integration and the Windows export under Proton emitted NEXT_INTEGRATION_OK, including a release-safe sphere-sweep detour check against a real StaticBody3D. Export succeeded and the Windows ZIP was rebuilt. This validates a finite-wall case and bounded local steering, not global navigation, dense-traffic avoidance or a many-NPC performance target. Thermal detection commit 68dd785 passed both CI runs.
+
+The avoidance-build Gamescope/Proton wrapper required timeout cleanup after success (exit 137). No script/shader errors were found in the integration/export logs.
