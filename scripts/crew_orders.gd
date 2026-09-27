@@ -49,7 +49,7 @@ func assign_trade_route(crew_id: String, ship_id: String, good: String, destinat
 	if state.credits < escrow: return "Insufficient credits for trade escrow (%d required)." % escrow
 	state.credits -= escrow
 	ship.erase("flight")
-	state.crew_orders[crew_id] = {"kind": "trade", "crew_id": crew_id, "ship_id": ship_id, "good": key, "origin": int(ship.system), "destination": destination, "quantity": quantity, "escrow": escrow, "escrow_limit": escrow, "progress": 0.0, "phase": "outbound", "earned": 0, "paused": false}
+	state.crew_orders[crew_id] = {"kind": "trade", "crew_id": crew_id, "ship_id": ship_id, "good": key, "origin": int(ship.system), "destination": destination, "quantity": quantity, "escrow": escrow, "escrow_limit": escrow, "progress": 0.0, "phase": "outbound", "earned": 0, "paused": false, "purchase_cost": 0 if _cargo_total(ship) == 0 else -1}
 	return ""
 
 func assign_patrol(crew_id: String, ship_id: String, system: int) -> String:
@@ -235,14 +235,17 @@ func _trade_leg(order: Dictionary) -> Dictionary:
 		if quantity <= 0: return {"kind": "trade", "status": "escrow exhausted", "crew_id": order.crew_id}
 		var transfer_error: String = state.market_transfer(good, int(order.origin), quantity, true)
 		if not transfer_error.is_empty(): return {"kind": "trade", "status": transfer_error, "crew_id": order.crew_id}
+		var prior_cost: int = int(order.get("purchase_cost", 0 if int(ship.cargo.get(good, 0)) == 0 else -1))
+		order.purchase_cost = prior_cost + cost if prior_cost >= 0 else -1
 		order.escrow = int(order.escrow) - cost
 		ship.cargo[good] = int(ship.cargo.get(good, 0)) + quantity
 		ship.erase("flight")
 		ship.system = int(order.destination)
 		order.phase = "inbound"
-		return {"kind": "trade", "status": "cargo bought", "crew_id": order.crew_id, "ship_id": ship.id, "good": good, "quantity": quantity, "system": ship.system}
+		return {"kind": "trade", "status": "cargo bought", "crew_id": order.crew_id, "ship_id": ship.id, "good": good, "quantity": quantity, "cost": cost, "system": ship.system}
 	var sold: int = int(ship.cargo.get(good, 0))
 	if sold <= 0:
+		order.purchase_cost = 0
 		ship.erase("flight")
 		ship.system = int(order.origin)
 		order.phase = "outbound"
@@ -256,10 +259,13 @@ func _trade_leg(order: Dictionary) -> Dictionary:
 	var refill: int = mini(revenue, int(order.escrow_limit) - int(order.escrow))
 	order.escrow = int(order.escrow) + refill
 	state.credits += revenue - refill
-	order.earned = int(order.earned) + revenue - _price(good, int(order.origin)) * sold
+	var purchase_cost: int = int(order.get("purchase_cost", -1))
+	var profit: Variant = revenue - purchase_cost if purchase_cost >= 0 else null
+	if profit != null: order.earned = int(order.earned) + int(profit)
+	order.purchase_cost = 0
 	ship.system = int(order.origin)
 	order.phase = "outbound"
-	return {"kind": "trade", "status": "cargo sold", "crew_id": order.crew_id, "ship_id": ship.id, "good": good, "quantity": sold, "revenue": revenue, "profit": revenue - _price(good, int(order.origin)) * sold, "system": ship.system}
+	return {"kind": "trade", "status": "cargo sold", "crew_id": order.crew_id, "ship_id": ship.id, "good": good, "quantity": sold, "revenue": revenue, "purchase_cost": purchase_cost if purchase_cost >= 0 else null, "profit": profit, "system": ship.system}
 
 func _patrol_leg(order: Dictionary) -> Dictionary:
 	var ship: Dictionary = _ship(str(order.ship_id))

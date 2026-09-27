@@ -639,6 +639,9 @@ func _fleet() -> void:
 		var row := _row()
 		var order: Dictionary = s.crew_orders.get(member.id, {})
 		var text := "%s / %s" % [member.name, "Available" if order.is_empty() else str(order.get("kind", "Order")).capitalize() + " / " + ("Paused" if order.get("paused", false) else str(order.get("phase", "Active")))]
+		if order.get("kind", "") == "trade":
+			var cost: int = int(order.get("purchase_cost", -1))
+			text += "\nCargo purchase cost: " + (("%d CR" % cost) if cost >= 0 else "unknown / carried or legacy cargo")
 		var label := InterfaceTheme.label(text, 16)
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(label)

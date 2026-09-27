@@ -1499,7 +1499,12 @@ func _process(delta: float) -> void:
 	var reports: Array = crew_operations().tick(delta, local_patrols, _local_trade_status())
 	if not reports.is_empty(): _sync_fleet_actors()
 	if not reports.is_empty():
-		notify("Crew / %s: %s" % [reports.back().get("kind", "operation"), reports.back().get("status", "updated")])
+		var report: Dictionary = reports.back()
+		var message: String = "Crew / %s: %s" % [report.get("kind", "operation"), report.get("status", "updated")]
+		if report.get("status", "") == "cargo sold":
+			message += " / %d CR received / " % int(report.revenue)
+			message += ("margin %+d CR before wages" % int(report.profit)) if report.get("profit") != null else "purchase cost unknown"
+		notify(message)
 	for actor in actors:
 		if not is_instance_valid(actor): continue
 		actor.active = not ui_open and jump_charge <= 0 and (not aboard or actor is ShipActor) and not bool(actor.get_meta("spatial_culled", false))
@@ -1782,6 +1787,18 @@ func _integration_check() -> void:
 	if not _check(industry_orders.deposit_station_stock(0, "ore", 2).is_empty() and industry_orders.deposit_station_stock(0, "fuel", 1).is_empty(), "supply foundry from actual cargo"): return
 	industry_orders.tick(900)
 	if not _check(industry_probe.stations[0].stock.alloys == 1 and industry_probe.stations[0].stock.ore == 0 and industry_probe.stations[0].stock.fuel == 0, "foundry consumes inputs exactly once"): return
+	var invoice_probe := GameState.new()
+	var invoice_orders := CrewOrders.new(invoice_probe)
+	if not _check(invoice_probe.hire("trader").is_empty() and invoice_orders.purchase_ship("Invoice Courier").is_empty(), "commission invoice test courier"): return
+	var invoice_crew: String = invoice_probe.crew[0].id
+	if not _check(invoice_orders.assign_trade_route(invoice_crew, str(invoice_probe.fleet_ships[0].id), "ore", 17, 5).is_empty(), "assign invoice test route"): return
+	var invoice_cost: int = invoice_probe.market_total("ore", 0, 5, true)
+	invoice_orders.tick(600)
+	if not _check(invoice_probe.crew_orders[invoice_crew].purchase_cost == invoice_cost, "trade records actual purchase invoice"): return
+	invoice_probe.day += 3
+	var invoice_revenue: int = invoice_probe.market_total("ore", 17, 5, false, 0.85)
+	var invoice_reports := invoice_orders.tick(600)
+	if not _check(invoice_reports.size() == 1 and invoice_reports[0].profit == invoice_revenue - invoice_cost and invoice_reports[0].purchase_cost == invoice_cost, "price changes cannot rewrite realized trade cost"): return
 	var heat_probe := GameState.new()
 	heat_probe.drive_temperature_k = 699.0
 	var heat_limited_velocity := heat_probe.consume_propulsion(Vector3(100, 0, 0), Vector3.ZERO)

@@ -811,6 +811,7 @@ func _load_v2(data: Dictionary) -> String:
 			match str(order.kind):
 				"trade":
 					for numeric: String in ["origin", "destination", "quantity", "escrow", "escrow_limit", "earned"]: order[numeric] = int(order[numeric])
+					if order.has("purchase_cost"): order.purchase_cost = int(order.purchase_cost)
 				"patrol":
 					order.system = int(order.system)
 					order.encounters = int(order.encounters)
@@ -895,7 +896,8 @@ func _valid_order(value: Variant, crew_id: String, ship_ids: Dictionary, station
 	if not value is Dictionary or str(value.get("crew_id", "")) != crew_id or not _is_number(value.get("progress")) or not is_finite(float(value.progress)) or float(value.progress) < 0 or float(value.progress) > 31536000.0 or not value.get("paused", false) is bool: return false
 	var kind: String = str(value.get("kind", ""))
 	if kind == "trade":
-		if value.size() != 13 or not value.has_all(["kind", "crew_id", "ship_id", "good", "origin", "destination", "quantity", "escrow", "escrow_limit", "progress", "phase", "earned", "paused"]): return false
+		if value.size() != 13 + (1 if value.has("purchase_cost") else 0) or not value.has_all(["kind", "crew_id", "ship_id", "good", "origin", "destination", "quantity", "escrow", "escrow_limit", "progress", "phase", "earned", "paused"]): return false
+		if value.has("purchase_cost") and (not GOODS.has(value.good) or not _is_int(value.purchase_cost) or int(value.purchase_cost) < -1 or int(value.purchase_cost) > 100 * ceili(float(GOODS[value.good]) * 1.45 * MAX_SCARCITY_MULTIPLIER)): return false
 		return ship_ids.has(value.ship_id) and GOODS.has(value.good) and _is_int(value.origin) and _is_int(value.destination) and int(value.origin) >= 0 and int(value.origin) < SYSTEM_LIMIT and int(value.destination) >= 0 and int(value.destination) < SYSTEM_LIMIT and int(value.origin) != int(value.destination) and _is_int(value.quantity) and int(value.quantity) > 0 and int(value.quantity) <= 100 and _is_int(value.escrow) and int(value.escrow) >= 0 and _is_int(value.escrow_limit) and int(value.escrow_limit) >= int(value.escrow) and int(value.escrow_limit) <= int(value.quantity) * ceili(float(GOODS[value.good]) * 1.45 * MAX_SCARCITY_MULTIPLIER) and value.phase in ["outbound", "inbound"] and _is_int(value.earned)
 	if kind == "patrol":
 		if value.size() != 7 or not value.has_all(["kind", "crew_id", "ship_id", "system", "progress", "encounters", "paused"]): return false

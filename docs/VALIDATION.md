@@ -888,3 +888,10 @@ Review identified destination access and counter-overflow gaps. Supply and colle
 Native main-entrypoint integration passes with release-safe foundry shortage, input delivery and one-time consumption checks. No new save schema or art assets were introduced. Raw extraction/farming reserves, industry energy/heat and automated factory freight remain approximations or unfinished.
 
 The final Windows export passed its Proton main-entrypoint integration in hidden Gamescope without script/shader errors. The usual SDR warning remained and the wrapper required timeout cleanup after NEXT_INTEGRATION_OK (exit 137). The Windows ZIP was rebuilt. The preceding finite-market commit completed both public CI runs successfully.
+
+
+## Fleet purchase-cost records
+
+TRADE_COST_BASIS_OK covers exact batch acquisition cost, inbound save/load, a depleted origin and changed day, a full destination delaying sale without changing cargo or cost, and eventual revenue minus the original cost. Its fixture explicitly proves that a current-origin-price estimate differs, so the previous calculation fails this regression. Older 13-field outbound orders establish cost on their next purchase; older inbound and carried/reassigned cargo report unknown cost and no fabricated margin. Negative-beyond-sentinel, fractional, string and excessive costs are rejected transactionally.
+
+Crew, finite-market and local-trader regressions pass. Native and Windows/Proton main-entrypoint integrations pass with a release-safe purchase-invoice and changed-price sale check. The exported fleet capture was inspected and shows the current cargo purchase cost without clipping. No script/shader errors appeared. The usual SDR warning remains; the Proton wrapper required timeout cleanup after NEXT_INTEGRATION_OK (exit 137). The Windows ZIP was rebuilt. This is gross margin before wages, not a complete historical invoice ledger; older cumulative margin estimates remain preserved. No art assets changed.
