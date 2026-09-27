@@ -12,6 +12,8 @@ var hp: float = 100.0 # Hull condition percentage, also used by fleet saves.
 var max_hull: float = 100.0
 var weapon_damage: float = 9.0
 var shields: float = 40.0
+var max_shields: float = 0.0
+var shield_delay: float = 0.0
 var speed: float = 65.0
 var drive_temperature_k: float = 450.0
 var radiator_area_m2: float = 40.0
@@ -63,6 +65,7 @@ func _ready() -> void:
 		model.ship_modules.assign(blueprint.modules)
 		model.ship_layout = hull_layout if ShipLayout.validate_data(hull_layout,blueprint.modules) else blueprint.layout
 		var stats := model.ship_stats()
+		max_shields = float(stats.max_shield)
 		max_hull = float(stats.max_hull)
 		weapon_damage = float(stats.damage)
 		dry_mass_kg = float(stats.dry_mass_kg)
@@ -94,6 +97,7 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if not active or not is_finite(delta) or delta <= 0.0 or delta > 1.0:
 		return
+	_tick_shields(delta)
 	if not hostile: search_seconds_remaining = 0.0
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
 	_patrol_phase += delta
@@ -194,9 +198,17 @@ func _avoid_obstacles(desired_velocity: Vector3, acceleration: float = 30.0) -> 
 	return best * travel_speed
 
 
+func _tick_shields(delta: float) -> void:
+	if not active or hp <= 0.0 or max_shields <= 0.0 or not is_finite(delta) or delta <= 0.0: return
+	var recharge_time := maxf(0.0, delta - shield_delay)
+	shield_delay = maxf(0.0, shield_delay - delta)
+	shields = minf(max_shields, shields + recharge_time * 5.0)
+
+
 func take_damage(amount: float) -> void:
 	if not active or _destroyed or not is_finite(amount) or amount <= 0.0:
 		return
+	if max_shields > 0.0: shield_delay = 6.0
 	var absorbed := minf(shields, amount)
 	shields -= absorbed
 	hp = maxf(0.0, hp - (amount - absorbed) * 100.0 / maxf(1.0, max_hull))

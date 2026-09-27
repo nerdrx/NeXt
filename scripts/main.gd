@@ -748,6 +748,7 @@ func _capture_fleet_flights() -> void:
 		var ship := _fleet_record(id)
 		if not ship.is_empty() and int(ship.system) == state.system_index:
 			ship.drive_temperature_k = actor.drive_temperature_k
+			if not actor.hull_family.is_empty(): ship.defense = {"charge": actor.shields, "delay": actor.shield_delay}
 		if str(actor.get_meta("fleet_order_kind", "")) != "trade": continue
 		var order := _trade_order(id)
 		if ship.is_empty() or order.is_empty() or int(ship.system) != state.system_index or not is_same(actor.get_meta("trade_order", {}), order): continue
@@ -807,7 +808,8 @@ func _sync_fleet_actors() -> Array[String]:
 				actor.set_meta("contact_name", str(ship.name))
 				actor.hp = float(ship.hull)
 				actor.drive_temperature_k = float(ship.get("drive_temperature_k", 450.0))
-				actor.shields = 0
+				actor.shields = float(ship.get("defense", {}).get("charge", 0.0))
+				actor.shield_delay = float(ship.get("defense", {}).get("delay", 0.0))
 				actor.set_meta("trade_phase", trade_phase)
 				if is_trader: actor.set_meta("trade_order", trade_order)
 				actor.position = Vector3(-420 + (local_actor_ids.size() - 1) * 25, 100, -2000 if is_trader and trade_phase == "inbound" else -650)
@@ -875,6 +877,7 @@ func _persist_fleet_damage(actor: ShipActor) -> void:
 	if not ship.is_empty():
 		ship.hull = actor.hp
 		ship.drive_temperature_k = actor.drive_temperature_k
+		if not actor.hull_family.is_empty(): ship.defense = {"charge": actor.shields, "delay": actor.shield_delay}
 
 func _nearest_ship(origin: ShipActor, faction: String) -> Node3D:
 	var nearest: Node3D = null

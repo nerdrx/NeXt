@@ -692,6 +692,8 @@ func _fleet() -> void:
 	for vessel: Dictionary in s.fleet_ships:
 		_text("%s / %s / system %d / hull %.0f%% / drive %.0f K" % [vessel.name, str(vessel.get("hull_family", "utility")).capitalize(), vessel.system, vessel.hull, float(vessel.get("drive_temperature_k", 450.0))], 17)
 		if str(vessel.get("hull_family", "")) in ShipBlueprint.FAMILIES:
+			var defense: Dictionary = vessel.get("defense", {})
+			_text("Shield charge %.0f / recharge delay %.1f s" % [float(defense.get("charge", 0.0)), float(defense.get("delay", 0.0))], 14, InterfaceTheme.MUTED)
 			var layout_button := _button("ROOM & HULL REFITS", func():
 				fleet_layout_id = str(vessel.id)
 				show_page("fleet_layout"))

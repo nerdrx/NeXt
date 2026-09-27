@@ -1022,3 +1022,12 @@ The new integration test passed natively and under hidden Gamescope: actual menu
 Family actors now derive maximum hull strength and weapon damage from their module stats. Actor hp remains a 0–100 condition value for saves, retreat decisions and repair; unabsorbed damage is converted to that percentage using the actual hull capacity. Legacy actors retain 100 hull points and 9 damage. The firing controller uses the actor damage rating for opposing fleet ships, piloted vessels and occupied coasting hulls. Existing base armament remains part of GameState stats; these hull families have no additional weapon modules. Fleet shields remain disabled by the existing spawn path pending durable shield state and recharge integration.
 
 The focused family combat regression passed for both families, shield overflow, preloaded hull condition and legacy behavior. The fleet-family integration verifies damage is stored as 75% condition, survives save reload and respawns at the same condition. Fleet gameplay and aboard-combat regressions passed; the latter now verifies a changed actor damage rating reaches the occupied hull. Hidden Gamescope aboard combat passed and Windows export succeeded. No fresh Proton runtime result is claimed.
+
+
+## Persistent local fleet shields — 2026-09-28
+
+Loaded family actors now use module-derived shield capacity. Hits delay recharge for six seconds, then charge grows by five points per second up to capacity. Crossing the delay boundary grants only the remaining elapsed time. Charge and delay are captured on damage and during fleet/save synchronization, restored on actor spawn, and strictly validated as an optional family-only save record. Older records start empty. Legacy utility vessels retain their previous unshielded fleet behavior.
+
+Recharge currently runs for active loaded actors; docked and remote fleet shield simulation remains incomplete. This does not claim power-aware shields or remote combat parity.
+
+Shield capacity, delayed recharge, clamping, inactive/legacy behavior and malformed-save tests passed. Real fleet integration verifies charge and delay across damage, save reload and actor respawn. Fleet gameplay, layout and family-combat regressions passed; family-combat disables automatic physics to isolate damage assertions from the newly active recharge. Hidden Gamescope integration passed and the registry shield readout was visually inspected. The existing seven-texture shutdown warning remains. Windows export passed; fresh Proton runtime remains unverified.

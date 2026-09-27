@@ -13,6 +13,7 @@ func _run() -> void:
 		actor.hull_family = family_id
 		actor.shields = 0.0
 		root.add_child(actor)
+		actor.set_physics_process(false)
 		await process_frame
 		assert(is_equal_approx(actor.max_hull, float(stats.max_hull)), "%s actor uses family hull capacity" % family_id)
 		assert(is_equal_approx(actor.weapon_damage, float(stats.damage)), "%s actor uses family weapon damage" % family_id)

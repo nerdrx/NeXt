@@ -144,12 +144,20 @@ func _run() -> void:
 	assert(game.save_commander(false))
 	var damaged_save := GameStateScript.new()
 	assert(damaged_save.load_save(path).is_empty() and is_equal_approx(float(damaged_save.fleet_ships[0].hull), 75.0))
+	integrated._tick_shields(7.0)
+	assert(is_equal_approx(integrated.shields, 5.0))
+	integrated.take_damage(2.0)
+	assert(is_equal_approx(float(fleet_ship.defense.charge), 3.0) and float(fleet_ship.defense.delay) == 6.0)
+	assert(game.save_commander(false))
+	var shield_save := GameStateScript.new()
+	assert(shield_save.load_save(path).is_empty() and float(shield_save.fleet_ships[0].defense.charge) == 3.0 and float(shield_save.fleet_ships[0].defense.delay) == 6.0)
 	game._clear_actors()
 	game._sync_fleet_actors()
 	var respawned: ShipActor = game.fleet_actors[str(fleet_ship.id)]
 	assert(respawned.hull_family == "merchant" and respawned._visual.get_node_or_null("FamilyPressureHull") != null
 		and respawned.cargo_mass_kg == 160000.0,
 		"main scene respawn keeps family hull and cargo mass")
+	assert(is_equal_approx(respawned.shields, 3.0) and respawned.shield_delay == 6.0, "actor respawn preserves shield charge and delay")
 	assert(is_equal_approx(respawned.hp, 75.0), "actor respawn preserves damaged family condition")
 	game.deck.show_page("fleet")
 	await process_frame
