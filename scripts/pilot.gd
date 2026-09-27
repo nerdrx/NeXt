@@ -6,6 +6,7 @@ signal autopilot_arrived
 signal autopilot_blocked
 signal flight_impact(closing_speed: float)
 
+var braking: bool = false
 var thrust_g: float = 0.0
 var flying: bool = false
 var enabled: bool = true
@@ -90,7 +91,10 @@ func _physics_process(delta: float) -> void:
 	_shake = move_toward(_shake, 0.0, delta * 5.0)
 	_look_sway = _look_sway.lerp(Vector2.ZERO, minf(1.0, delta * 9.0))
 	if not enabled:
-		velocity = Vector3.ZERO
+		if flying and braking and not _collision_update_pending:
+			_update_module_collision_basis()
+			_fly(delta)
+		else: velocity = Vector3.ZERO
 		return
 	if _collision_update_pending:
 		velocity = Vector3.ZERO
@@ -125,18 +129,19 @@ func _walk(delta: float) -> void:
 
 
 func _fly(delta: float) -> void:
-	var forward_back := Input.get_axis("move_back", "move_forward")
-	var left_right := Input.get_axis("move_left", "move_right")
-	var up_down := Input.get_axis("move_down", "move_up")
+	var forward_back := Input.get_axis("move_back", "move_forward") if enabled else 0.0
+	var left_right := Input.get_axis("move_left", "move_right") if enabled else 0.0
+	var up_down := Input.get_axis("move_down", "move_up") if enabled else 0.0
 	var local_direction := Vector3(left_right, up_down, -forward_back)
 	if local_direction.length_squared() > 1.0:
 		local_direction = local_direction.normalized()
-	var rolling := Input.is_action_pressed("roll_left") or Input.is_action_pressed("roll_right")
+	var rolling := enabled and (Input.is_action_pressed("roll_left") or Input.is_action_pressed("roll_right"))
+	if local_direction.length_squared() > 0.001: braking = false
 	if autopilot_active and (local_direction.length_squared() > 0.001 or rolling):
 		cancel_autopilot()
 	var desired: Vector3
 	var incoming_thrust := _flight_velocity
-	var boosting := Input.is_action_pressed("boost") and not autopilot_active
+	var boosting := enabled and Input.is_action_pressed("boost") and not autopilot_active and not braking
 	if autopilot_active:
 		var offset := autopilot_target - global_position
 		var distance := offset.length()
@@ -152,26 +157,25 @@ func _fly(delta: float) -> void:
 			_pitch = lerpf(_pitch, asin(clampf(direction.y, -1.0, 1.0)), minf(1.0, delta * 0.85))
 			camera.rotation.x = _pitch
 	else:
-		var boost_scale := 3.0 if Input.is_action_pressed("boost") else 1.0
-		desired = camera.global_basis * local_direction * flight_speed * boost_scale
+		var boost_scale := 3.0 if boosting else 1.0
+		desired = Vector3.ZERO if braking else camera.global_basis * local_direction * flight_speed * boost_scale
 	_flight_velocity = FlightDynamics.command_velocity(_flight_velocity, desired, delta, boosting)
 	thrust_g = FlightDynamics.thrust_load(incoming_thrust, _flight_velocity, delta)
 	if not _flight_velocity.is_finite():
 		_flight_velocity = Vector3.ZERO
 	if autopilot_active:
 		_update_module_collision_basis()
-		var remaining := (autopilot_target - global_position).length()
-		var lookahead := minf(maxf(5.0, _flight_velocity.length() * 0.8), remaining)
+		var lookahead := maxf(5.0, FlightDynamics.braking_distance(incoming_thrust.length()) + incoming_thrust.length() * delta + 2.0)
 		if lookahead > 0.0 and _flight_velocity.length_squared() > 0.0 and test_move(global_transform, _flight_velocity.normalized() * lookahead):
-			cancel_autopilot()
-			_flight_velocity = Vector3.ZERO
-			velocity = Vector3.ZERO
+			request_brake()
+			_flight_velocity = FlightDynamics.command_velocity(incoming_thrust, Vector3.ZERO, delta)
+			thrust_g = FlightDynamics.thrust_load(incoming_thrust, _flight_velocity, delta)
 			autopilot_blocked.emit()
-			return
+	if braking and _flight_velocity.is_zero_approx(): braking = false
 	velocity = _flight_velocity
-	if Input.is_action_pressed("roll_left"):
+	if enabled and Input.is_action_pressed("roll_left"):
 		_roll += 1.5 * delta
-	elif Input.is_action_pressed("roll_right"):
+	elif enabled and Input.is_action_pressed("roll_right"):
 		_roll -= 1.5 * delta
 	else:
 		_roll = move_toward(_roll, 0.0, delta * 0.8)
@@ -211,8 +215,14 @@ func kick(amount: float) -> void:
 func autopilot_to(point: Vector3) -> void:
 	if not (is_finite(point.x) and is_finite(point.y) and is_finite(point.z)):
 		return
+	braking = false
 	autopilot_target = point
 	autopilot_active = flying
+
+
+func request_brake() -> void:
+	cancel_autopilot()
+	braking = flying and not _flight_velocity.is_zero_approx()
 
 
 func cancel_autopilot() -> void:
@@ -229,6 +239,7 @@ func reset_view() -> void:
 
 
 func set_flight(value: bool) -> void:
+	braking = false
 	thrust_g = 0.0
 	if value: set_walk_up(Vector3.UP)
 	flying = value
@@ -380,6 +391,7 @@ func restore_flight_velocity(value: Vector3) -> void:
 	velocity = value
 
 func teleport(pos: Vector3) -> void:
+	braking = false
 	global_position = pos
 	cancel_autopilot()
 	velocity = Vector3.ZERO

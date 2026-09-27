@@ -329,16 +329,16 @@ func _cruise_blocked() -> void:
 	aboard_cruise = false
 	cruise_address = null
 	cruise_waypoints.clear()
-	notify("Cruise stopped: obstacle ahead. Reposition manually and retry.")
+	notify("Obstacle ahead. Cruise cancelled; braking. Reposition when stopped.")
 
 func stop_cruise() -> void:
 	cruise_address = null
 	cruise_waypoints.clear()
-	if aboard and is_instance_valid(coasting_hull): coasting_hull.velocity = Vector3.ZERO
+	if aboard and is_instance_valid(coasting_hull): coasting_hull.request_brake()
 	aboard_cruise = false
 	pilot.cancel_autopilot()
-	if pilot.flying: pilot.restore_flight_velocity(Vector3.ZERO)
-	notify("Cruise stopped. Ship holding position.")
+	if pilot.flying: pilot.request_brake()
+	notify("Cruise cancelled. Braking to a stop.")
 
 func _flight_impact(closing_speed: float) -> void:
 	if not pilot.flying or aboard or not is_finite(closing_speed) or closing_speed <= 25.0: return
@@ -1134,7 +1134,7 @@ func interaction_hint() -> String:
 	if not service.is_empty(): return str(service.label)
 	if aboard:
 		var member := _near_ship_crew()
-		return ("F: Talk to %s  /  " % member.display_name if member != null else "") + "E: Return to helm  /  PgUp/PgDn change deck" + (("  /  Cruise %d m/s" if aboard_cruise else "  /  Ship coasting %d m/s") % roundi(coasting_hull.velocity.length()) if is_instance_valid(coasting_hull) else "")
+		return ("F: Talk to %s  /  " % member.display_name if member != null else "") + "E: Return to helm  /  PgUp/PgDn change deck" + (("  /  Braking %d m/s" if coasting_hull.braking else ("  /  Cruise %d m/s" if aboard_cruise else "  /  Ship coasting %d m/s")) % roundi(coasting_hull.velocity.length()) if is_instance_valid(coasting_hull) else "")
 	if surface_index >= 0: return "Board ship / return to orbit" if _near_person() == null else "Talk to " + _near_person().display_name
 	var person: Node3D = _near_person()
 	if person != null: return "Talk to " + person.display_name
@@ -1767,7 +1767,13 @@ func _integration_check() -> void:
 	var helm_basis: Basis = coasting_hull.global_basis
 	exit_interior()
 	if not _check(pilot.autopilot_active and pilot.camera.global_basis.is_equal_approx(helm_basis), "cruise helm handoff"): return
+	var braking_velocity: Vector3 = pilot.flight_velocity()
+	open_menu("overview")
 	stop_cruise()
+	if not _check(pilot.braking and pilot.flight_velocity() == braking_velocity, "stop command preserves momentum"): return
+	await get_tree().create_timer(0.1).timeout
+	if not _check(pilot.flight_velocity().length() < braking_velocity.length(), "braking continues in menu"): return
+	close_menu()
 	_build_system()
 	if not _check(purchase_insurance().is_empty(), "insurance service"): return
 	state.cargo.food = 5
@@ -1952,6 +1958,7 @@ func enter_interior() -> void:
 		coasting_hull.configure(state.ship_modules)
 		coasting_hull.global_transform = hull_transform
 		coasting_hull.velocity = pilot.flight_velocity()
+		coasting_hull.braking = pilot.braking
 		_coasting_deck_bodies.clear()
 		for body: Node in interior.find_children("*", "StaticBody3D", true, false):
 			_coasting_deck_bodies.append(body)
@@ -2031,9 +2038,11 @@ func exit_interior() -> void:
 	_crew_spawn_serial += 1
 	ship_crew.clear()
 	var ship_velocity := Vector3.ZERO
+	var ship_braking := false
 	if is_instance_valid(coasting_hull):
 		return_position = coasting_hull.position
 		ship_velocity = coasting_hull.velocity
+		ship_braking = coasting_hull.braking
 		coasting_hull.queue_free()
 		coasting_hull = null
 	_coasting_deck_bodies.clear()
@@ -2045,7 +2054,9 @@ func exit_interior() -> void:
 	pilot.restore_view(return_view)
 	pilot.set_walk_up(return_up)
 	pilot.basis = return_basis
-	if return_flying: pilot.restore_flight_velocity(ship_velocity)
+	if return_flying:
+		pilot.restore_flight_velocity(ship_velocity)
+		if ship_braking: pilot.request_brake()
 	if return_flying and aboard_cruise: pilot.autopilot_to(aboard_cruise_target)
 	aboard_cruise = false
 	ship_display.visible = not return_flying

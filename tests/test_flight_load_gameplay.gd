@@ -42,6 +42,19 @@ func _run() -> void:
 	await physics_frame
 	await physics_frame
 	assert(game.coasting_hull.thrust_g == 0.0, "free coasting has no thruster load")
+	var moving: Vector3 = game.coasting_hull.velocity
+	assert(moving.length() > 1.0)
+	game.stop_cruise()
+	assert(game.coasting_hull.braking and game.coasting_hull.velocity == moving, "stop command preserves momentum before braking")
+	await create_timer(0.1).timeout
+	assert(game.coasting_hull.velocity.length() < moving.length() and not game.coasting_hull.velocity.is_zero_approx())
+	game.exit_interior()
+	assert(game.pilot.braking, "returning to helm preserves active braking")
+	game.open_menu("overview")
+	Input.action_press("move_forward")
+	await create_timer(0.5).timeout
+	Input.action_release("move_forward")
+	assert(game.pilot.flight_velocity().is_zero_approx() and not game.pilot.braking, "braking completes inside menu and ignores flight input")
 	game.sound.shutdown()
 	game.session.leave()
 	game.queue_free()

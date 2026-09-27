@@ -36,7 +36,9 @@ func _run() -> void:
 	game.pilot.set_physics_process(true)
 	game.set_process(true)
 	Input.action_press("move_right")
-	await create_timer(0.35).timeout
+	for frame in 120:
+		await physics_frame
+		if game.flight_origin.sector.x == 2: break
 	Input.action_release("move_right")
 	game.set_process(false)
 	game.pilot.set_physics_process(false)

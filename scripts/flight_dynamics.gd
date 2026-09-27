@@ -19,3 +19,7 @@ static func approach_speed(distance: float, maximum: float) -> float:
 static func thrust_load(before: Vector3, after: Vector3, delta: float) -> float:
 	if not before.is_finite() or not after.is_finite() or not is_finite(delta) or delta <= 0.0: return 0.0
 	return before.distance_to(after) / (delta * STANDARD_GRAVITY)
+
+static func braking_distance(speed: float) -> float:
+	if not is_finite(speed): return 0.0
+	return maxf(speed, 0.0) * maxf(speed, 0.0) / (2.0 * STANDARD_GRAVITY * CRUISE_G)
