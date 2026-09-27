@@ -531,7 +531,7 @@ This superseded the stationary-only interior restriction with straight coasting.
 The later aboard-cruise increment below adds autopilot and angular frame motion.
 Crew steering, shared multiplayer boarding and movement through physical airlocks
 remain unfinished. At this increment, flight saves did not serialize momentum; the next
-increment below adds it. Nearby NPC combat remains paused while aboard. No target
+increment below adds it. NPC combat was still paused while aboard at this stage. No target
 frame-rate claim is made for large interiors. Texture teardown warnings remain.
 
 The final menu-driven coasting test also passed under hidden Gamescope. The rebuilt
@@ -589,10 +589,40 @@ cancelling cruise, crosses a sector boundary, returns to the turned helm, traver
 two waypoints to arrival, stops via the real menu button and handles a blocked route.
 Existing anchored/coasting interiors and planetary cruise regression tests passed.
 The main release-safe integration smoke now also checks cruise and helm handoff.
-NPC combat is still paused while aboard, and crew piloting/shared boarding remain
-separate unfinished work. No large-interior frame-rate target is established.
+NPC combat was still paused while aboard at this stage; the next increment removes
+that restriction. Crew piloting/shared boarding remain separate unfinished work.
+No large-interior frame-rate target is established.
 
 Windows export and ZIP packaging completed. The Windows release emitted
 `NEXT_INTEGRATION_OK` under Proton/hidden Gamescope with the new cruise-passenger
 and helm-handoff smoke checks. The existing SDR warning remains; native graphical
 teardown still reports seven texture RIDs. These warnings are not claimed fixed.
+
+## Space combat with an occupied interior
+
+Ship actors remain active while the commander walks aboard. Pirates choose between
+the occupied hull and nearby fleet targets; hostile police target the hull too.
+The hull exposes its occupied module shapes on the player collision layer. Ship
+weapon rays exclude cabin geometry and the passenger capsule, but still respect
+external world cover. They damage ship shields/hull, not suit health. Enemy aim
+uses an occupied module center because custom multi-deck or sparse ships can have
+empty space at the overall bounding-box center.
+
+The former nearby-hostile entry restriction is removed. Fatal ship damage first
+returns control from the interior, then uses existing ship destruction, rescue,
+losses and persistent wreck creation at the current hull address. Docked interior
+visits do not create an orbital target. Existing menu combat pauses remain; this
+does not implement NPC boarding, ship interior damage or multiplayer boarding.
+
+The full-scene headless and hidden Gamescope tests verify real pirate firing while
+coasting through an origin rebase, shield damage with intact suit health, external
+cover blocking a shot, and fatal rescue with a saved wreck at the hull address.
+Actor tests cover occupied-module aim on a sparse hull and reject deleted targets.
+Cruise, coasting, fleet combat and the native integrated smoke passed. The smoke
+also ray-fires on its multi-deck occupied ship; these are physical ray tests rather
+than direct damage-only calls.
+
+The rebuilt Windows release emitted `NEXT_INTEGRATION_OK` under Proton in hidden
+Gamescope, including the occupied-hull weapon ray. Windows ZIP packaging completed.
+The SDR white-level warning persists; no renderer-warning fix or frame-rate target
+is claimed by this increment.

@@ -792,6 +792,7 @@ func _nearest_ship(origin: ShipActor, faction: String) -> Node3D:
 	return nearest
 
 func _update_combat_targets() -> void:
+	var player_ship: Node3D = coasting_hull if aboard and is_instance_valid(coasting_hull) else (pilot if pilot.flying else null)
 	for actor in actors:
 		if not actor is ShipActor: continue
 		if actor.faction == "player_fleet":
@@ -803,9 +804,11 @@ func _update_combat_targets() -> void:
 				actor.hostile = false
 		elif actor.faction == "pirate":
 			var fleet_target := _nearest_ship(actor, "player_fleet")
-			actor.target = pilot if pilot.flying else null
-			if fleet_target != null and (actor.target == null or actor.position.distance_squared_to(fleet_target.position) < actor.position.distance_squared_to(pilot.position)):
+			actor.target = player_ship
+			if fleet_target != null and (actor.target == null or actor.position.distance_squared_to(fleet_target.position) < actor.position.distance_squared_to(player_ship.position)):
 				actor.target = fleet_target
+		else:
+			actor.target = player_ship
 
 func rebuild_player_ship() -> void:
 	if is_instance_valid(ship_display):
@@ -1003,10 +1006,18 @@ func _player_fire(origin: Vector3, direction: Vector3) -> void:
 
 func _enemy_fire(actor: Node3D, origin: Vector3, direction: Vector3) -> void:
 	if ui_open or jump_charge > 0: return
-	var hit: Dictionary = _ray(origin, direction, 2400 if actor is ShipActor else 120, [actor.get_rid()])
+	var excluded: Array[RID] = [actor.get_rid()]
+	if actor is ShipActor and aboard and is_instance_valid(coasting_hull):
+		# Space weapons hit the outer vessel, not the passenger or cabin furniture.
+		excluded.append(pilot.get_rid())
+		for body: StaticBody3D in _coasting_deck_bodies: excluded.append(body.get_rid())
+	var hit: Dictionary = _ray(origin, direction, 2400 if actor is ShipActor else 120, excluded)
 	var endpoint: Vector3 = hit.get("position", origin + direction * 180)
 	_beam(origin, endpoint, Color("ff9673"))
 	var struck: Object = hit.get("collider")
+	if actor is ShipActor and is_instance_valid(coasting_hull) and struck == coasting_hull:
+		_apply_ship_hit(9.0, "Ship under attack! Return to the helm or continue your escape route.")
+		return
 	if struck is ShipActor and ((actor.faction == "pirate" and struck.faction == "player_fleet") or (actor.faction == "player_fleet" and struck.faction == "pirate")):
 		if actor.has_meta("fleet_ship_id") and struck.faction == "pirate":
 			struck.set_meta("fleet_hit", actor.get_meta("fleet_ship_id"))
@@ -1063,6 +1074,7 @@ func _explosion(position: Vector3, radius: float) -> void:
 func _rescue() -> void:
 	if _rescuing or (state.hull > 0 and suit_health > 0): return
 	_rescuing = true
+	if aboard and return_flying and state.hull <= 0: exit_interior()
 	var message: String
 	if pilot.flying and state.hull <= 0:
 		var report: Dictionary = ShipRecovery.destroy_ship(state, pilot.position, surface_index, flight_origin.to_save())
@@ -1294,6 +1306,7 @@ func _physics_process(delta: float) -> void:
 		return_view = coasting_hull.global_basis.get_euler()
 		return_basis = Basis(Vector3.UP, return_view.y)
 	_rebase_flight()
+	coasting_hull.force_update_transform()
 	# Flush moving deck transforms before the passenger performs its physics step.
 	for body: StaticBody3D in _coasting_deck_bodies: body.force_update_transform()
 	if bool(result.get("blocked", false)): _cruise_blocked()
@@ -1332,7 +1345,7 @@ func _process(delta: float) -> void:
 		notify("Crew / %s: %s" % [reports.back().get("kind", "operation"), reports.back().get("status", "updated")])
 	for actor in actors:
 		if not is_instance_valid(actor): continue
-		actor.active = not ui_open and jump_charge <= 0 and not aboard and not bool(actor.get_meta("spatial_culled", false))
+		actor.active = not ui_open and jump_charge <= 0 and (not aboard or actor is ShipActor) and not bool(actor.get_meta("spatial_culled", false))
 		if actor.has_meta("colony_index") and actor.position.distance_to(pilot.position) > 250: actor.active = false
 		if actor.faction == "police": actor.hostile = PlayerFaction.police_hostile(state.faction, str(world.data.faction), state.wanted)
 	_update_combat_targets()
@@ -1664,6 +1677,14 @@ func _integration_check() -> void:
 	if not _check(aboard and is_instance_valid(coasting_hull), "leave helm while coasting"): return
 	await get_tree().create_timer(0.3).timeout
 	if not _check(coasting_hull.position.x > coast_start.x + 10 and pilot.is_on_floor(), "moving interior supports passenger"): return
+	var raid_probe := ShipActor.new()
+	add_child(raid_probe)
+	raid_probe.set_physics_process(false)
+	raid_probe.position = coasting_hull.aim_point() + Vector3(0, 0, -100)
+	var shield_before_raid: float = state.shield
+	_enemy_fire(raid_probe, raid_probe.position, Vector3.BACK)
+	raid_probe.queue_free()
+	if not _check(state.shield < shield_before_raid and aboard, "space weapons hit occupied hull"): return
 	if not _check(save_commander(false), "save moving interior"): return
 	exit_interior()
 	if not _check(pilot.flying and pilot.velocity.x == 60, "return to moving helm"): return
@@ -1832,10 +1853,6 @@ func enter_interior() -> void:
 	if session.connected:
 		notify("Leave the current world visit before boarding the interior.")
 		return
-	for actor in actors:
-		if is_instance_valid(actor) and not bool(actor.get_meta("spatial_culled", false)) and actor.hostile and actor.position.distance_to(pilot.position) < 1000 and pilot.flying:
-			notify("Leave the combat zone before leaving the helm.")
-			return
 	if not bool(state.ship_stats().get("walkable", false)):
 		notify("Install a habitat and at least eight connected modules to support walkable decks.")
 		return
@@ -1861,6 +1878,7 @@ func enter_interior() -> void:
 	if return_flying:
 		coasting_hull = CoastingHull.new()
 		add_child(coasting_hull)
+		coasting_hull.collision_layer = 2
 		coasting_hull.configure(state.ship_modules)
 		coasting_hull.global_transform = hull_transform
 		coasting_hull.velocity = pilot.flight_velocity()

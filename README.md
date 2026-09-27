@@ -58,7 +58,7 @@ The complete target is substantially larger than the implemented systems above:
 - Cities are generated colony districts; they are not complete populated urban simulations. Ship interiors currently pause local threats after requiring a safe flight zone. They do not simulate unattended ships under attack.
 - Orbital flight rebases across sectors without the former 28 km snap-back. Existing celestial bodies remain compact and presentation-scale; newly crossed space has no generated content yet. This is not a physically scaled or fully streamed galaxy.
 - Local patrol positions reset when rebuilding a system; hull damage and orders persist. Disabled fleet ships are service-repaired, not yet salvageable wrecks.
-- Menus pause local AI in solo play. NPC combat and economies remain independent during visits. Opted-in ship hits are host-validated, while target health and rescue remain local. Orbital flight saves resume their sector location at rest; manual planet/port saves preserve ground positions, while legacy colony saves resume at the station.
+- Menus pause local AI in solo play. NPC combat and economies remain independent during visits. Opted-in ship hits are host-validated, while target health and rescue remain local. Orbital flight saves resume their sector location and momentum; manual planet/port saves preserve ground positions, while legacy colony saves resume at the station.
 - Current crew, police and company systems provide defined gameplay rules, not unrestricted human behavior. There is no claim that "everything" is implemented.
 
 ## Development checks
@@ -108,5 +108,7 @@ Station Works supports editable service concourses: add up to 16 rooms, refit th
 Walkable ship interiors occupy the ship’s actual position and orientation, with matching 2.8 m module spacing and gravity aligned to its deck. An engaged cruise route continues while you walk, carrying you through ship turns and stopping on arrival or when an obstacle blocks the route. Return to the helm to take control, or use Stop Cruise in the command deck. Without cruise, the ship coasts at its current velocity. Hull contact stops the coast and returns you to the helm, with collision damage and rescue where applicable.
 
 Flight saves preserve ship velocity, including saves made from menus or while aboard. Loading resumes at the helm with that momentum; older saves without velocity start at rest. Closed worlds remain paused.
+
+Space combat continues while you walk aboard: pirates and hostile police target your vessel, incoming fire damages its shields and hull, and destruction triggers rescue with a recoverable wreck. Walking away from the helm no longer freezes nearby ships or makes the vessel untargetable.
 
 Editable floor and ceiling window panels now have transparent apertures with solid collision barriers. You can see outside while walking on the glass; room lights and trim no longer cover the opening.

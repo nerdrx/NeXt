@@ -60,7 +60,10 @@ func _physics_process(delta: float) -> void:
 		if range < 720.0 and _attack_cooldown <= 0.0 and hp >= 30.0 and not _near_safe_zone():
 			_attack_cooldown = 1.1
 			var origin := global_position + (-global_basis.z * 4.0)
-			var fire_direction: Vector3 = target.global_position - origin
+			var aim_position: Vector3 = target.global_position
+			if target is CoastingHull:
+				aim_position = target.aim_point()
+			var fire_direction: Vector3 = aim_position - origin
 			if fire_direction.length_squared() > 0.000001:
 				fired.emit(self, origin, fire_direction.normalized())
 	var offset := destination - global_position
@@ -98,12 +101,14 @@ func set_patrol_center(center: Vector3) -> void:
 
 
 func _target_is_active() -> bool:
-	if not is_instance_valid(target):
+	if not is_instance_valid(target) or target.is_queued_for_deletion():
 		return false
 	if target is ShipActor:
 		return target.active and not target._destroyed and target.hp > 0.0
 	if target is Pilot:
 		return target.flying
+	if target is CoastingHull:
+		return true
 	return false
 
 

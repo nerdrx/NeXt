@@ -67,6 +67,23 @@ func _run() -> void:
 	attacker._attack_cooldown = 0.0
 	await create_timer(0.1).timeout
 	assert(destroyed_count == 3 and fired_count == 1, "destroyed target is not attacked")
+	var hull_target := CoastingHull.new()
+	hull_target.position = Vector3(1000, 330, 0)
+	world.add_child(hull_target)
+	hull_target.configure([Vector3i(-2, 0, 0), Vector3i(2, 0, 0)])
+	var hull_attacker := ShipActor.new()
+	hull_attacker.position = Vector3(1000, 420, 0)
+	hull_attacker.target = hull_target
+	hull_attacker.fired.connect(_track_fired)
+	world.add_child(hull_attacker)
+	await create_timer(0.1).timeout
+	assert(fired_count == 2, "hostile ship fires on an active CoastingHull target")
+	assert(last_fire_direction.dot((hull_target.aim_point() - last_fire_origin).normalized()) > 0.9999, "enemy aims at occupied module rather than empty hull center")
+	assert(hull_target.aim_point().distance_to(hull_target.global_position) > 5.0)
+	hull_target.queue_free()
+	hull_attacker._attack_cooldown = 0.0
+	await create_timer(0.1).timeout
+	assert(fired_count == 2, "queued-for-deletion CoastingHull target is not attacked")
 	var pilot_target := Pilot.new()
 	pilot_target.position = Vector3(500, 300, 0)
 	world.add_child(pilot_target)
@@ -78,7 +95,7 @@ func _run() -> void:
 	pilot_attacker.fired.connect(_track_fired)
 	world.add_child(pilot_attacker)
 	await create_timer(0.1).timeout
-	assert(fired_count == 2, "flying Pilot target behavior remains active")
+	assert(fired_count == 3, "flying Pilot target behavior remains active")
 	var damage_probe := ShipActor.new()
 	damage_probe.hp = 50.0
 	damage_probe.shields = 20.0

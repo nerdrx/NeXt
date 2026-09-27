@@ -50,6 +50,13 @@ func configure(modules: Array) -> void:
 		_navigation_radius = maxf(_navigation_radius, shape.position.length() + box.size.length() * 0.5)
 
 
+func aim_point() -> Vector3:
+	for shape in _module_shapes:
+		if is_instance_valid(shape) and shape.shape != null:
+			return shape.global_position
+	return global_position
+
+
 func navigate(delta: float, target: Vector3, speed: float) -> Dictionary:
 	var result := {"displacement": Vector3.ZERO, "impact_speed": 0.0, "arrived": false, "blocked": false}
 	if not is_finite(delta) or delta < 0.0 or delta > 1.0 or not target.is_finite() or not is_finite(speed) or speed < 0.0 or not velocity.is_finite():
