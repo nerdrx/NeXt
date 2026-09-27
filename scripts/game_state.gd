@@ -9,6 +9,7 @@ const PlayerFactionDomain = preload("res://scripts/player_faction.gd")
 const SYSTEM_LIMIT: int = 1_000_000_000
 const DAY_SECONDS: float = 1200.0
 const MAX_ELAPSED_SECONDS: float = 86400.0
+const MAX_EPHEMERIS_SECONDS: float = 1.0e12
 const MAX_ITEMS: int = 1000
 const SHIP_CELL_LIMIT: int = 16
 const MAX_SHIP_MODULES: int = 100
@@ -48,6 +49,7 @@ var fuel: float = 100.0
 var kills: int = 0
 var day: int = 0
 var day_progress: float = 0.0
+var ephemeris_seconds: float = 0.0
 var visited: Array[int] = [0]
 var reputation: Dictionary = {}
 var wanted: int = 0
@@ -189,6 +191,8 @@ func jump(destination: int) -> String:
 
 func advance_time(elapsed_seconds: float) -> int:
 	if not is_finite(elapsed_seconds) or elapsed_seconds < 0.0 or elapsed_seconds > MAX_ELAPSED_SECONDS: return 0
+	if not is_finite(ephemeris_seconds) or ephemeris_seconds < 0.0 or ephemeris_seconds > MAX_EPHEMERIS_SECONDS - elapsed_seconds: return 0
+	ephemeris_seconds += elapsed_seconds
 	var total: float = day_progress + elapsed_seconds
 	var days_elapsed: int = int(floor(total / DAY_SECONDS))
 	day_progress = fmod(total, DAY_SECONDS)
@@ -469,6 +473,7 @@ func load_save(path: String) -> String:
 func _load_v1(data: Dictionary) -> String:
 	if data.has("day_progress") and (not _is_number(data.day_progress) or not is_finite(float(data.day_progress)) or float(data.day_progress) < 0.0 or float(data.day_progress) >= DAY_SECONDS): return "Invalid day progress."
 	if data.has("day_progress"): day_progress = float(data.day_progress)
+	ephemeris_seconds = day_progress / DAY_SECONDS * 86400.0
 	for key: String in ["system", "credits", "modules", "hull", "kills", "cargo"]:
 		if not data.has(key): return "Legacy save is missing required fields."
 	if not _is_int(data.system) or not _is_int(data.credits) or not _is_int(data.modules) or not _is_number(data.hull) or not _is_int(data.kills) or not data.cargo is Dictionary:
@@ -502,8 +507,9 @@ func _load_v2(data: Dictionary) -> String:
 		expected.erase("faction")
 	if missing_location:
 		expected.erase("location")
+	var has_ephemeris: bool = data.has("ephemeris_seconds")
 	var has_day_progress: bool = data.has("day_progress")
-	if data.size() != expected.size() - (1 if missing_world_id else 0) + (1 if has_day_progress else 0): return "Save fields do not match schema."
+	if data.size() != expected.size() - (1 if missing_world_id else 0) + (1 if has_day_progress else 0) + (1 if has_ephemeris else 0): return "Save fields do not match schema."
 	for key: String in expected:
 		if key == "world_id" and missing_world_id: continue
 		if not data.has(key): return "Save is missing %s." % key
@@ -518,6 +524,11 @@ func _load_v2(data: Dictionary) -> String:
 		if not _is_number(data[key]) or not is_finite(float(data[key])): return "Invalid numeric field: %s." % key
 	if not data.crew_paid is bool: return "Invalid crew payroll status."
 	if int(data.system_index) < 0 or int(data.system_index) >= SYSTEM_LIMIT or int(data.credits) < 0 or int(data.kills) < 0 or int(data.day) < 0 or int(data.wanted) < 0 or int(data.company_balance) < 0: return "Save values are out of range."
+	var loaded_ephemeris: float = (float(data.day) + loaded_day_progress / DAY_SECONDS) * 86400.0
+	if has_ephemeris:
+		if not _is_number(data.ephemeris_seconds): return "Invalid physical simulation time."
+		loaded_ephemeris = float(data.ephemeris_seconds)
+	if not is_finite(loaded_ephemeris) or loaded_ephemeris < 0.0 or loaded_ephemeris > MAX_EPHEMERIS_SECONDS: return "Invalid physical simulation time."
 	if not missing_location and not _valid_location(data.location, int(data.system_index)): return "Invalid saved location."
 	if float(data.hull) < 0 or float(data.hull) > 10000 or float(data.shield) < 0 or float(data.shield) > 10000 or float(data.fuel) < 0 or float(data.fuel) > 100: return "Save vitals are out of range."
 	if not data.cargo is Dictionary or not data.reputation is Dictionary or not data.shares is Dictionary or not data.world_flags is Dictionary or not data.visited is Array: return "Invalid collection field."
@@ -673,6 +684,7 @@ func _load_v2(data: Dictionary) -> String:
 	kills = int(data.kills)
 	day = int(data.day)
 	day_progress = loaded_day_progress
+	ephemeris_seconds = loaded_ephemeris
 	visited = loaded_visited
 	reputation = data.reputation.duplicate(true)
 	wanted = int(data.wanted)
@@ -786,10 +798,10 @@ func _normalize_location(value: Dictionary) -> Dictionary:
 	return result
 
 func _save_data() -> Dictionary:
-	return {"version": SAVE_VERSION, "system_index": system_index, "world_id": world_id, "location": location, "credits": credits, "cargo": cargo, "hull": hull, "shield": shield, "fuel": fuel, "kills": kills, "day": day, "day_progress": day_progress, "visited": visited, "reputation": reputation, "wanted": wanted, "ship_modules": ship_modules, "stations": stations, "shares": shares, "crew": crew, "world_flags": world_flags, "company_name": company_name, "company_balance": company_balance, "crew_paid": crew_paid, "contracts": contracts, "fleet_ships": fleet_ships, "crew_orders": crew_orders, "recovery": recovery, "ship_layout": ship_layout, "faction": faction}
+	return {"version": SAVE_VERSION, "system_index": system_index, "world_id": world_id, "location": location, "credits": credits, "cargo": cargo, "hull": hull, "shield": shield, "fuel": fuel, "kills": kills, "day": day, "day_progress": day_progress, "ephemeris_seconds": ephemeris_seconds, "visited": visited, "reputation": reputation, "wanted": wanted, "ship_modules": ship_modules, "stations": stations, "shares": shares, "crew": crew, "world_flags": world_flags, "company_name": company_name, "company_balance": company_balance, "crew_paid": crew_paid, "contracts": contracts, "fleet_ships": fleet_ships, "crew_orders": crew_orders, "recovery": recovery, "ship_layout": ship_layout, "faction": faction}
 
 func _copy_from(other: GameState) -> void:
-	for key: String in ["system_index", "world_id", "location", "credits", "cargo", "hull", "shield", "fuel", "kills", "day", "day_progress", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout", "faction"]:
+	for key: String in ["system_index", "world_id", "location", "credits", "cargo", "hull", "shield", "fuel", "kills", "day", "day_progress", "ephemeris_seconds", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout", "faction"]:
 		set(key, other.get(key).duplicate(true) if other.get(key) is Array or other.get(key) is Dictionary else other.get(key))
 
 func _pay_crew_and_company() -> void:

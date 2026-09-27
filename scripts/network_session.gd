@@ -2,6 +2,7 @@ class_name NetworkSession
 extends Node
 
 signal world_joined(system_index: int)
+signal ephemeris_received(seconds: float)
 signal peers_changed
 signal session_message(message: String)
 signal steam_invitation_ready(lobby_id: int)
@@ -19,6 +20,7 @@ const ShipLayoutScript = preload("res://scripts/ship_layout.gd")
 var system_index: int = 0
 var world_id: String = ""
 var world_seed: int = 0
+var ephemeris_seconds: float = 0.0
 var ship_modules: Array = []
 var ship_layout: Dictionary = {"version": 1, "rooms": {}, "panels": {}}
 var display_name: String = "Pilot"
@@ -30,6 +32,7 @@ var _peer: MultiplayerPeer
 var _steam_session: SteamSession
 var _join_sent: bool = false
 var _last_pose_msec: int = 0
+var _last_clock_sent_msec: int = -1000
 var _last_remote_pose_msec: Dictionary = {}
 var _last_pvp_shot_msec: Dictionary = {}
 var _pvp_epoch: int = 0
@@ -114,6 +117,7 @@ func _start_host(peer: MultiplayerPeer, status: String) -> void:
 	connected = true
 	system_index = clampi(system_index, 0, MAX_SYSTEM_INDEX)
 	world_seed = _seed_for(system_index)
+	_last_clock_sent_msec = -1000
 	var local_id := multiplayer.get_unique_id()
 	presence.clear()
 	presence[local_id] = _make_presence(Vector3.ZERO, Vector3.ZERO, ship_modules, ship_layout, display_name)
@@ -157,6 +161,7 @@ func _start_client(peer: MultiplayerPeer, status: String) -> void:
 	_local_pvp_allowed = false
 	_local_flying = false
 	_last_pose_msec = -1000
+	_last_clock_sent_msec = -1000
 	session_message.emit(status)
 
 
@@ -207,6 +212,7 @@ func leave() -> void:
 	_local_pvp_allowed = false
 	_local_flying = false
 	_last_pose_msec = -1000
+	_last_clock_sent_msec = -1000
 	if had_session:
 		peers_changed.emit()
 
@@ -267,10 +273,23 @@ func travel(index: int) -> String:
 	_pvp_epoch += 1
 	_reset_pvp()
 	for peer_id: int in multiplayer.get_peers():
-		_rpc_world_joined.rpc_id(peer_id, index, world_seed, world_id, _pvp_epoch)
+		_rpc_world_joined.rpc_id(peer_id, index, world_seed, world_id, _pvp_epoch, ephemeris_seconds)
 	world_joined.emit(system_index)
 	session_message.emit("Traveling together to system %d." % system_index)
 	return ""
+
+
+func publish_clock(seconds: float) -> void:
+	if not _valid_ephemeris(seconds): return
+	if not connected:
+		ephemeris_seconds = seconds
+		return
+	if not is_host: return
+	ephemeris_seconds = seconds
+	var now := Time.get_ticks_msec()
+	if now - _last_clock_sent_msec < 1000: return
+	_last_clock_sent_msec = now
+	_rpc_clock.rpc(seconds)
 
 
 func _on_peer_connected(_peer_id: int) -> void:
@@ -334,7 +353,7 @@ func _rpc_join_request(raw_name: String, raw_modules: Array, raw_layout: Variant
 	var safe_name := _sanitize_name(raw_name)
 	var profile := _make_presence(Vector3.ZERO, Vector3.ZERO, normalized.modules, normalized_layout.layout, safe_name)
 	presence[sender] = profile
-	_rpc_welcome.rpc_id(sender, system_index, world_seed, world_id, presence.duplicate(true), _pvp_epoch)
+	_rpc_welcome.rpc_id(sender, system_index, world_seed, world_id, presence.duplicate(true), _pvp_epoch, ephemeris_seconds)
 	_broadcast_presence(sender, profile)
 	peers_changed.emit()
 	session_message.emit("%s joined." % safe_name)
@@ -369,8 +388,8 @@ func _rpc_publish_pose(position: Vector3, rotation: Vector3, raw_modules: Array,
 
 
 @rpc("authority", "call_remote", "reliable")
-func _rpc_welcome(index: int, seed: int, incoming_world_id: String, players: Dictionary, epoch: int = 0) -> void:
-	if is_host or index < 0 or index > MAX_SYSTEM_INDEX or players.size() > MAX_PLAYERS or not _valid_world_id(incoming_world_id):
+func _rpc_welcome(index: int, seed: int, incoming_world_id: String, players: Dictionary, epoch: int = 0, seconds: float = 0.0) -> void:
+	if is_host or index < 0 or index > MAX_SYSTEM_INDEX or players.size() > MAX_PLAYERS or not _valid_world_id(incoming_world_id) or not _valid_ephemeris(seconds):
 		return
 	var validated: Dictionary = {}
 	for key: Variant in players:
@@ -383,12 +402,14 @@ func _rpc_welcome(index: int, seed: int, incoming_world_id: String, players: Dic
 	system_index = index
 	world_id = incoming_world_id
 	world_seed = seed
+	ephemeris_seconds = seconds
 	_pvp_epoch = epoch
 	presence = validated
 	connected = true
 	var local_id := multiplayer.get_unique_id()
 	presence[local_id] = _make_presence(Vector3.ZERO, Vector3.ZERO, ship_modules, ship_layout, display_name)
 	peers_changed.emit()
+	ephemeris_received.emit(ephemeris_seconds)
 	world_joined.emit(system_index)
 	session_message.emit("Joined system %d." % system_index)
 
@@ -425,14 +446,27 @@ func _rpc_peer_left(peer_id: int) -> void:
 
 
 @rpc("authority", "call_remote", "reliable")
-func _rpc_world_joined(index: int, seed: int, incoming_world_id: String, epoch: int = 0) -> void:
-	if is_host or not connected or index < 0 or index > MAX_SYSTEM_INDEX or not _valid_world_id(incoming_world_id) or incoming_world_id != world_id:
+func _rpc_world_joined(index: int, seed: int, incoming_world_id: String, epoch: int = 0, seconds: float = 0.0) -> void:
+	if is_host or not connected or index < 0 or index > MAX_SYSTEM_INDEX or not _valid_world_id(incoming_world_id) or incoming_world_id != world_id or not _valid_ephemeris(seconds):
 		return
 	system_index = index
 	world_seed = seed
+	ephemeris_seconds = seconds
 	_pvp_epoch = epoch
 	_reset_pvp()
+	ephemeris_received.emit(ephemeris_seconds)
 	world_joined.emit(system_index)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _rpc_clock(seconds: float) -> void:
+	if is_host or not connected or not _valid_ephemeris(seconds): return
+	ephemeris_seconds = seconds
+	ephemeris_received.emit(seconds)
+
+
+func _valid_ephemeris(seconds: float) -> bool:
+	return is_finite(seconds) and seconds >= 0.0 and seconds <= GameState.MAX_EPHEMERIS_SECONDS
 
 
 func _make_presence(pos: Vector3, rot: Vector3, modules: Array, layout: Dictionary, player_name: String, address: Dictionary = {}) -> Dictionary:

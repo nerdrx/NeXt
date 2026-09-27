@@ -98,6 +98,8 @@ func _ready() -> void:
 	session.ship_layout = state.ship_layout.duplicate(true)
 	add_child(session)
 	session.world_joined.connect(_visit_host)
+	session.ephemeris_received.connect(_receive_ephemeris)
+	session.publish_clock(state.ephemeris_seconds)
 	session.peers_changed.connect(_sync_visitors)
 	session.pvp_damage_received.connect(_receive_pvp_damage)
 	session.pvp_hit_confirmed.connect(_receive_pvp_hit)
@@ -1381,6 +1383,7 @@ func _process(delta: float) -> void:
 			cruise_address = null
 			cruise_waypoints.clear()
 	var elapsed_days: int = state.advance_time(delta)
+	if not session.connected or session.is_host: session.publish_clock(state.ephemeris_seconds)
 	if elapsed_days > 0:
 		apply_ship_stats()
 		if ui_open and jump_charge <= 0: deck.show_page(deck.page)
@@ -1477,6 +1480,10 @@ func _load_settings() -> void:
 		pilot.mouse_sensitivity = clampf(float(config.get_value("controls", "sensitivity", 0.0025)), 0.0005, 0.006)
 		pilot.inverted_y = bool(config.get_value("controls", "invert_y", false))
 
+func _receive_ephemeris(seconds: float) -> void:
+	if session.connected and not session.is_host and home_state != null:
+		state.ephemeris_seconds = seconds
+
 func _visit_host(index: int) -> void:
 	if session.is_host: return
 	if home_state == null:
@@ -1508,6 +1515,7 @@ func _visit_host(index: int) -> void:
 		state = visitor
 		save_path = visitor_path
 	state.system_index = index
+	state.ephemeris_seconds = session.ephemeris_seconds
 	if index not in state.visited: state.visited.append(index)
 	while state.visited.size() > GameState.MAX_ITEMS: state.visited.pop_front()
 	_build_system()
@@ -1927,9 +1935,11 @@ func _integration_check() -> void:
 	_interact()
 	if not _check(pilot.flying and manual_planet == -1, "surface port departure"): return
 	var calendar_day: int = state.day
+	var physical_epoch: float = state.ephemeris_seconds
 	state.day_progress = GameState.DAY_SECONDS - 0.01
 	_process(0.02)
 	if not _check(state.day == calendar_day + 1 and state.day_progress < 1, "active world calendar advances without travel"): return
+	if not _check(state.ephemeris_seconds > physical_epoch and state.ephemeris_seconds - physical_epoch < 1.0, "physical time advances independently of economic day settlement"): return
 	DirAccess.remove_absolute(save_path)
 	DirAccess.remove_absolute(save_path + ".bak")
 	await get_tree().create_timer(0.5).timeout

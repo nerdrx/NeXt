@@ -228,8 +228,8 @@ func _survey() -> void:
 	_button("RETURN TO NAVIGATION", show_page.bind("navigation"))
 
 func _update_survey() -> void:
-	# Astronomical time follows the persisted accelerated calendar, never OS/shader time.
-	var seconds: float = (float(game.state.day) + game.state.day_progress / GameState.DAY_SECONDS) * 86400.0
+	# Physical time advances one second per active second, separately from the economy calendar.
+	var seconds: float = game.state.ephemeris_seconds
 	for i in survey_labels.size():
 		var body: Dictionary = survey_catalog.planets[i]
 		var sample := CelestialSystem.sample(survey_catalog, i, seconds)

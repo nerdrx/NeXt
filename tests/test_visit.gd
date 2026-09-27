@@ -28,6 +28,7 @@ func _run() -> void:
 	await process_frame
 	main.save_path = home_path
 	main.state.day_progress = 320.0
+	main.state.ephemeris_seconds = 123.0
 	main.state.credits = 30000
 	if not _check(main.state.found_faction("Home Cooperative") == "", "found home faction"): return
 	if not _check(main.state.faction_deposit(3000) == "", "fund home faction treasury"): return
@@ -45,7 +46,11 @@ func _run() -> void:
 	main.session.world_id = remote_id
 	main.session.connected = true
 	main.session.is_host = false
+	main.session.ephemeris_seconds = 777.0
 	main._visit_host(7919)
+	if not _check(main.state.ephemeris_seconds == 777.0 and main.home_state.ephemeris_seconds == 123.0, "visitor adopts host physical epoch while home is paused"): return
+	main.session._rpc_clock(778.0)
+	if not _check(main.state.ephemeris_seconds == 778.0 and main.home_state.ephemeris_seconds == 123.0, "host clock updates only visiting state"): return
 	if not _check(main.state.world_id == remote_id and main.state.system_index == 7919, "visitor profile gets host identity and location"): return
 	if not _check(main.home_state != null and main.home_state.credits == home_credits and main.home_state.company_balance == 650 and main.home_state.faction == home_faction, "home economy and faction remain active in suspended home profile"): return
 	if not _check(main.state.credits == 18000 and main.state.ship_modules == original_modules and main.state.cargo.ore == 4, "new visitor receives starting wallet plus carried ship and cargo"): return
@@ -72,6 +77,7 @@ func _run() -> void:
 	var visitor_credits: int = main.state.credits
 	var visiting_modules: Array[Dictionary] = main.state.ship_modules.duplicate(true)
 	main.leave_visit()
+	if not _check(main.state.ephemeris_seconds == 123.0, "return preserves home physical epoch"): return
 	if not _check(main.state.day_progress == 320.0, "return restores home calendar without importing visiting time"): return
 	if not _check(main.home_state == null and main.state.world_id == host_state_id, "leaving restores home identity"): return
 	if not _check(main.state.credits == home_credits and main.state.shares == {"NOVA": 7} and main.state.company_name == "Home Cooperative" and main.state.company_balance == 650 and main.state.wanted == 2 and main.state.faction == home_faction, "visitor economics and faction do not leak into home"): return
@@ -82,7 +88,9 @@ func _run() -> void:
 	if not _check(persisted_home.load_save(home_path).is_empty() and persisted_home.credits == home_credits and persisted_home.company_balance == 650 and persisted_home.world_id == host_state_id and persisted_home.faction == home_faction, "home commander save retains its separate economy and faction treasury"): return
 	main.session.connected = true
 	main.session.world_id = remote_id
+	main.session.ephemeris_seconds = 999.0
 	main._visit_host(7919)
+	if not _check(main.state.ephemeris_seconds == 999.0, "rejoining uses current host epoch rather than stale visit save"): return
 	if not _check(main.state.world_id == remote_id and main.state.credits == visitor_credits and main.state.shares == {"HELI": 3} and main.state.company_name == "Visiting Ventures" and main.state.company_balance == 987 and main.state.wanted == 9 and main.state.faction == visitor_faction, "rejoining restores visitor finances, faction treasury and reputation"): return
 	if not _check(main.state.day_progress == 640.0, "visitor calendar resumes saved progress"): return
 	if not _check(main.state.ship_modules == visiting_modules and main.state.cargo.alloys == 6, "rejoining carries the updated home ship"): return

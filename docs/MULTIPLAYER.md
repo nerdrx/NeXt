@@ -121,3 +121,13 @@ predicted beam. The event is cosmetic and cannot apply damage. It means the host
 validated a hull hit, not that the target acknowledged damage. Misses and
 protected/occluded shots currently have no replicated tracer. Stale travel epochs,
 unknown peers, malformed addresses and over-range events are discarded.
+
+Physical ephemeris time is now supplied by the host on welcome and travel, with
+authority-only reliable snapshots at most once per second. Guests predict time
+locally between snapshots and adopt the received epoch; they cannot publish a
+clock to the host. Snapshot delay is not compensated, so this is shared survey
+time rather than precision synchronization for moving-body collision. A visitor
+adopts the host's current epoch even when its local visit save is older; the
+home world's epoch remains paused and is restored on return. Economy calendars
+and the existing isolated visitor finances remain local. Both peers need the
+same build for the extended RPC payloads.

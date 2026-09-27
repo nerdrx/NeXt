@@ -59,7 +59,7 @@ func _initialize() -> void:
 	assert(not CelestialSystem.surface_sample(old, 0, site, 1234.0).is_empty())
 	var state := GameState.new()
 	state.advance_time(1234.0)
-	var seconds := (state.day + state.day_progress / GameState.DAY_SECONDS) * 86400.0
+	var seconds := state.ephemeris_seconds
 	var expected := CelestialSystem.sample(fixture, 0, seconds)
 	var site_before := CelestialSystem.surface_sample(fixture, 0, site, seconds - 0.1)
 	var site_now := CelestialSystem.surface_sample(fixture, 0, site, seconds)
@@ -71,8 +71,8 @@ func _initialize() -> void:
 	assert(state.save(path).is_empty())
 	var restored := GameState.new()
 	assert(restored.load_save(path).is_empty())
-	var restored_seconds := (restored.day + restored.day_progress / GameState.DAY_SECONDS) * 86400.0
-	assert(expected == CelestialSystem.sample(fixture, 0, restored_seconds), "saved calendar restores the same orbital and thermal state")
+	var restored_seconds := restored.ephemeris_seconds
+	assert(expected == CelestialSystem.sample(fixture, 0, restored_seconds), "saved physical epoch restores the same orbital and thermal state")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	print("CELESTIAL_SYSTEM_OK: generation stability, physical profiles, orbit-radiation-temperature coupling, saved epoch")
 	quit()
