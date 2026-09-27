@@ -191,6 +191,11 @@ func _near_safe_zone() -> bool:
 	# Docking or concourse areas use a conservative exclusion bubble around origin.
 	return global_position.distance_to(_safe_zone_center) < 220.0
 
+func restore_flight_velocity(value: Vector3) -> void:
+	if not value.is_finite(): return
+	velocity = value
+	_desired_velocity = value
+
 func apply_origin_shift(delta: Vector3) -> void:
 	_safe_zone_center -= delta
 	_home -= delta

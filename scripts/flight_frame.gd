@@ -25,6 +25,15 @@ func has_node(node: Node3D) -> bool:
 	return is_instance_valid(node) and _tracked.has(node.get_instance_id())
 
 
+func address_for(node: Node3D, origin: SectorPosition) -> SectorPosition:
+	if not is_instance_valid(node) or origin == null: return null
+	var entry: Dictionary = _tracked.get(node.get_instance_id(), {})
+	if entry.is_empty(): return null
+	if bool(entry.get("culled", false)): return (entry.address as SectorPosition).clone()
+	var address := origin.clone()
+	return address if address.move_delta(node.position) else null
+
+
 func rebase(old_origin: SectorPosition, new_origin: SectorPosition) -> void:
 	if old_origin == null or new_origin == null:
 		return

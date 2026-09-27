@@ -855,3 +855,14 @@ The main-entrypoint integration now verifies a local trader cannot settle from i
 This increment does not establish seamless NPC hyperdrive, physical loading, saved NPC flight positions, conserved supplier markets or shared multiplayer logistics. The previous obstacle-avoidance and contact-search commits passed both CI runs.
 
 The final local-trader Windows export and Proton integration passed, with NEXT_INTEGRATION_OK and no script/shader errors. The wrapper required timeout cleanup after completion (exit 137). The Windows ZIP was rebuilt.
+
+
+## Local trader flight persistence
+
+Local trader snapshots preserve system-space position, velocity and trade phase. Native main-entrypoint integration passes with restoration of a displaced, moving trader and its unchanged endpoint. Existing local-trade, fleet-combat, crew-order and separate-world visit checks pass. The preceding local-trader commit also completed both public CI runs successfully.
+
+Snapshots are optional for older saves. Current local snapshots are bounded to 1,000 km from the system origin and 1,000 m/s; this does not establish astronomical fleet trajectories. Patrol motion and distant voyages remain approximations. No art assets changed.
+
+The Windows export completed and its main-entrypoint integration emitted NEXT_INTEGRATION_OK under Proton in hidden Gamescope. No script/shader errors appeared. The usual SDR warning remained and the wrapper required timeout cleanup after completion (exit 137). The Windows ZIP was rebuilt; this is not a performance benchmark.
+
+The focused FLEET_FLIGHT_SAVE_OK check passes for moving-trader save/load, a different nonzero camera origin, fixed endpoint continuity, first-step momentum, cull/address preservation, legacy saves, malformed snapshots, route/phase mismatches and same-frame trade reassignment. Invalid loads preserve the existing state. The deliberately non-finite JSON fixture emits an expected exponent warning. This test is registered in CI.

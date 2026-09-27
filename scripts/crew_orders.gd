@@ -39,6 +39,7 @@ func assign_trade_route(crew_id: String, ship_id: String, good: String, destinat
 	var escrow: int = _price(key, int(ship.system)) * mini(quantity, int(ship.capacity) - _cargo_total(ship))
 	if state.credits < escrow: return "Insufficient credits for trade escrow (%d required)." % escrow
 	state.credits -= escrow
+	ship.erase("flight")
 	state.crew_orders[crew_id] = {"kind": "trade", "crew_id": crew_id, "ship_id": ship_id, "good": key, "origin": int(ship.system), "destination": destination, "quantity": quantity, "escrow": escrow, "escrow_limit": escrow, "progress": 0.0, "phase": "outbound", "earned": 0, "paused": false}
 	return ""
 
@@ -49,6 +50,7 @@ func assign_patrol(crew_id: String, ship_id: String, system: int) -> String:
 	if ship.is_empty(): return "Fleet ship does not exist."
 	if system < 0 or system >= GameState.SYSTEM_LIMIT: return "Patrol system is out of range."
 	if _crew_busy(crew_id) or _ship_busy(ship_id): return "Crew member or ship already has an order."
+	ship.erase("flight")
 	state.crew_orders[crew_id] = {"kind": "patrol", "crew_id": crew_id, "ship_id": ship_id, "system": system, "progress": 0.0, "encounters": 0, "paused": false}
 	return ""
 
@@ -76,6 +78,8 @@ func cancel(crew_id: String) -> String:
 	var order: Dictionary = state.crew_orders[crew_id]
 	if order.kind == "trade":
 		state.credits += int(order.escrow)
+		var ship: Dictionary = _ship(str(order.ship_id))
+		if not ship.is_empty(): ship.erase("flight")
 	state.crew_orders.erase(crew_id)
 	return ""
 
@@ -183,6 +187,7 @@ func _trade_leg(order: Dictionary) -> Dictionary:
 	var good: String = str(order.good)
 	if order.phase == "outbound":
 		if int(ship.system) != int(order.origin):
+			ship.erase("flight")
 			ship.system = int(order.origin)
 			return {"kind": "trade", "status": "returned to origin", "crew_id": order.crew_id, "ship_id": ship.id, "system": ship.system}
 		var unit_price: int = _price(good, int(order.origin))
@@ -192,17 +197,20 @@ func _trade_leg(order: Dictionary) -> Dictionary:
 		var cost: int = unit_price * quantity
 		order.escrow = int(order.escrow) - cost
 		ship.cargo[good] = int(ship.cargo.get(good, 0)) + quantity
+		ship.erase("flight")
 		ship.system = int(order.destination)
 		order.phase = "inbound"
 		return {"kind": "trade", "status": "cargo bought", "crew_id": order.crew_id, "ship_id": ship.id, "good": good, "quantity": quantity, "system": ship.system}
 	var sold: int = int(ship.cargo.get(good, 0))
 	if sold <= 0:
+		ship.erase("flight")
 		ship.system = int(order.origin)
 		order.phase = "outbound"
 		return {"kind": "trade", "status": "no cargo to sell", "crew_id": order.crew_id}
 	var gross: int = _price(good, int(order.destination)) * sold
 	var revenue: int = floori(float(gross) * 0.85)
 	ship.cargo[good] = 0
+	ship.erase("flight")
 	var refill: int = mini(revenue, int(order.escrow_limit) - int(order.escrow))
 	order.escrow = int(order.escrow) + refill
 	state.credits += revenue - refill

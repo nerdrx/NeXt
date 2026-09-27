@@ -734,7 +734,23 @@ func _trade_order(ship_id: String) -> Dictionary:
 		if order.kind == "trade" and str(order.get("ship_id", "")) == ship_id: return order
 	return {}
 
+func _capture_fleet_flights() -> void:
+	for id: String in fleet_actors:
+		var actor: ShipActor = fleet_actors[id]
+		if not is_instance_valid(actor) or str(actor.get_meta("fleet_order_kind", "")) != "trade": continue
+		var ship := _fleet_record(id)
+		var order := _trade_order(id)
+		if ship.is_empty() or order.is_empty() or int(ship.system) != state.system_index or not is_same(actor.get_meta("trade_order", {}), order): continue
+		var phase: String = str(order.get("phase", ""))
+		if str(actor.get_meta("trade_phase", "")) != phase: continue
+		var address: SectorPosition = flight_frame.address_for(actor, flight_origin)
+		if address == null or address.relative_to(SectorPosition.new(), SectorPosition.MAX_RELATIVE_DISTANCE) == null: continue
+		var velocity: Vector3 = actor.velocity
+		if not velocity.is_finite() or velocity.length() > 1000.0: continue
+		ship.flight = {"phase": phase, "address": address.to_save(), "velocity": [velocity.x, velocity.y, velocity.z]}
+
 func _sync_fleet_actors() -> Array[String]:
+	_capture_fleet_flights()
 	var local_patrol_ids: Array[String] = []
 	var local_actor_ids: Array[String] = []
 	if surface_index < 0:
@@ -751,7 +767,7 @@ func _sync_fleet_actors() -> Array[String]:
 			var desired_kind: String = "trade" if is_trader else "patrol"
 			if fleet_actors.has(id):
 				var current: ShipActor = fleet_actors[id]
-				if str(current.get_meta("fleet_order_kind", "")) != desired_kind or str(current.get_meta("trade_phase", "")) != trade_phase:
+				if str(current.get_meta("fleet_order_kind", "")) != desired_kind or str(current.get_meta("trade_phase", "")) != trade_phase or (is_trader and not is_same(current.get_meta("trade_order", {}), trade_order)):
 					actors.erase(current)
 					remove_child(current)
 					current.queue_free()
@@ -767,8 +783,19 @@ func _sync_fleet_actors() -> Array[String]:
 				actor.hp = float(ship.hull)
 				actor.shields = 0
 				actor.set_meta("trade_phase", trade_phase)
+				if is_trader: actor.set_meta("trade_order", trade_order)
 				actor.position = Vector3(-420 + (local_actor_ids.size() - 1) * 25, 100, -2000 if is_trader and trade_phase == "inbound" else -650)
-				if is_trader: actor.set_travel_target(Vector3(-420, 100, -650 if trade_phase == "inbound" else -2000))
+				if is_trader:
+					actor.set_travel_target(Vector3(-420, 100, -650 if trade_phase == "inbound" else -2000))
+					var saved_flight: Dictionary = ship.get("flight", {})
+					if str(saved_flight.get("phase", "")) == trade_phase:
+						var saved_address: Variant = SectorPosition.from_save(saved_flight.get("address"))
+						if saved_address is SectorPosition:
+							var saved_relative: Variant = saved_address.relative_to(SectorPosition.new(), SectorPosition.MAX_RELATIVE_DISTANCE)
+							var saved_velocity: Array = saved_flight.get("velocity", [])
+							if saved_relative != null and saved_velocity.size() == 3:
+								actor.position = saved_relative
+								actor.restore_flight_velocity(Vector3(float(saved_velocity[0]), float(saved_velocity[1]), float(saved_velocity[2])))
 				actor.damaged.connect(_persist_fleet_damage)
 				actor.destroyed.connect(_actor_destroyed)
 				actor.fired.connect(_enemy_fire)
@@ -1183,6 +1210,7 @@ func _explosion(position: Vector3, radius: float) -> void:
 
 func _rescue() -> void:
 	if _rescuing or (state.hull > 0 and suit_health > 0): return
+	_capture_fleet_flights()
 	_rescuing = true
 	if aboard and return_flying and state.hull <= 0: exit_interior()
 	var message: String
@@ -1303,6 +1331,7 @@ func request_jump(destination: int) -> void:
 	sound.play_sound("jump")
 
 func _complete_jump() -> void:
+	_capture_fleet_flights()
 	var error: String = state.jump(jump_destination)
 	if not error.is_empty():
 		notify(error)
@@ -1325,6 +1354,7 @@ func land(planet_index: int) -> void:
 	if session.connected:
 		notify("Surface excursions require leaving the current multiplayer visit.")
 		return
+	_capture_fleet_flights()
 	_clear_actors()
 	_clear_planet_terrain()
 	manual_planet = -1
@@ -1506,6 +1536,7 @@ func _process(delta: float) -> void:
 		_update_remote_positions()
 
 func save_commander(show_message: bool = true) -> bool:
+	_capture_fleet_flights()
 	_capture_flight_location()
 	var error: String = state.save(save_path)
 	if not error.is_empty():
@@ -1596,6 +1627,8 @@ func _visit_host(index: int) -> void:
 		visitor.world_id = session.world_id
 		state = visitor
 		save_path = visitor_path
+	else:
+		_capture_fleet_flights()
 	state.system_index = index
 	state.ephemeris_seconds = session.ephemeris_seconds
 	if index not in state.visited: state.visited.append(index)
@@ -1868,6 +1901,22 @@ func _integration_check() -> void:
 	if not _check(crew_operations().assign_trade_route(member_id, fleet_id, "food", state.system_index + 1, 5).is_empty(), "assign fleet route"): return
 	var local_trade_patrols: Array[String] = _sync_fleet_actors()
 	if not _check(fleet_actors.has(fleet_id) and not bool(_local_trade_status().get(fleet_id, true)), "local trade actor starts en route"): return
+	var persistence_actor: ShipActor = fleet_actors[fleet_id]
+	persistence_actor.set_physics_process(false)
+	persistence_actor.position += Vector3(37, 11, 23)
+	persistence_actor.velocity = Vector3(14, 2, -9)
+	_capture_fleet_flights()
+	var persisted_flight: Dictionary = state.fleet_ships.back().get("flight", {}).duplicate(true)
+	if not _check(persisted_flight.get("phase", "") == "outbound" and persisted_flight.get("velocity", []).size() == 3, "local trader flight captured"): return
+	actors.erase(persistence_actor)
+	remove_child(persistence_actor)
+	persistence_actor.queue_free()
+	fleet_actors.erase(fleet_id)
+	_sync_fleet_actors()
+	var restored_trader: ShipActor = fleet_actors[fleet_id]
+	var persisted_address: SectorPosition = SectorPosition.from_save(persisted_flight.address)
+	var persisted_relative: Vector3 = persisted_address.relative_to(flight_origin, SectorPosition.MAX_RELATIVE_DISTANCE)
+	if not _check(restored_trader.position.distance_to(persisted_relative) < 0.01 and restored_trader.velocity.distance_to(Vector3(14, 2, -9)) < 0.01 and restored_trader.travel_target == Vector3(-420, 100, -2000), "local trader flight restores without shifting destination"): return
 	crew_operations().tick(CrewOrders.TRIP_SECONDS * 2.0, local_trade_patrols, _local_trade_status())
 	if not _check(int(state.fleet_ships.back().cargo.get("food", 0)) == 0, "unready local trader cannot settle from timer alone"): return
 	var trader_actor: ShipActor = fleet_actors[fleet_id]

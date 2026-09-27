@@ -683,13 +683,26 @@ func _load_v2(data: Dictionary) -> String:
 		if data.fleet_ships.size() > 50 or data.crew_orders.size() > 12: return "Fleet or crew order limit exceeded."
 		var ship_ids: Dictionary = {}
 		for value: Variant in data.fleet_ships:
-			if not value is Dictionary or value.size() != 6 or not value.has_all(["id", "name", "system", "hull", "cargo", "capacity"]): return "Invalid fleet ship record."
+			if not value is Dictionary or value.size() not in [6, 7] or not value.has_all(["id", "name", "system", "hull", "cargo", "capacity"]): return "Invalid fleet ship record."
+			for field: Variant in value:
+				if not str(field) in ["id", "name", "system", "hull", "cargo", "capacity", "flight"]: return "Invalid fleet ship field."
 			if not value.id is String or value.id.length() < 4 or value.id.length() > 64 or ship_ids.has(value.id) or not value.name is String or value.name.length() < 2 or value.name.length() > 32 or not _is_int(value.system) or int(value.system) < 0 or int(value.system) >= SYSTEM_LIMIT or not _is_number(value.hull) or not is_finite(float(value.hull)) or float(value.hull) < 0 or float(value.hull) > 100 or not _is_int(value.capacity) or int(value.capacity) < 1 or int(value.capacity) > 100 or not value.cargo is Dictionary: return "Invalid fleet ship values."
 			var ship_cargo: Dictionary = {}
 			for good: Variant in value.cargo:
 				if not good is String or not GOODS.has(good) or not _is_int(value.cargo[good]) or int(value.cargo[good]) < 0: return "Invalid fleet cargo."
 				ship_cargo[good] = int(value.cargo[good])
 			var loaded_ship: Dictionary = {"id": value.id, "name": value.name, "system": int(value.system), "hull": float(value.hull), "cargo": ship_cargo, "capacity": int(value.capacity)}
+			if value.has("flight"):
+				var flight: Variant = value.flight
+				if not flight is Dictionary or flight.size() != 3 or not flight.has_all(["phase", "address", "velocity"]) or not flight.phase is String or not flight.phase in ["outbound", "inbound"] or not flight.velocity is Array or flight.velocity.size() != 3: return "Invalid fleet flight record."
+				var address: Variant = SectorPosition.from_save(flight.address)
+				if not address is SectorPosition or address.relative_to(SectorPosition.new(), SectorPosition.MAX_RELATIVE_DISTANCE) == null: return "Invalid fleet flight address."
+				var velocity: Array[float] = []
+				for component: Variant in flight.velocity:
+					if not _is_number(component) or not is_finite(float(component)) or absf(float(component)) > 1000.0: return "Invalid fleet flight velocity."
+					velocity.append(float(component))
+				if Vector3(velocity[0], velocity[1], velocity[2]).length() > 1000.0: return "Invalid fleet flight velocity."
+				loaded_ship.flight = {"phase": flight.phase, "address": address.to_save(), "velocity": velocity}
 			if _fleet_cargo_total(loaded_ship) > int(value.capacity): return "Fleet cargo exceeds capacity."
 			ship_ids[value.id] = true
 			loaded_fleet.append(loaded_ship)
@@ -722,6 +735,12 @@ func _load_v2(data: Dictionary) -> String:
 					order.produced = int(order.produced)
 				"defend": pass
 			loaded_orders[key] = order
+	for ship: Dictionary in loaded_fleet:
+		if not ship.has("flight"): continue
+		var assigned_trade: Dictionary = {}
+		for order: Dictionary in loaded_orders.values():
+			if order.kind == "trade" and str(order.ship_id) == str(ship.id): assigned_trade = order; break
+		if assigned_trade.is_empty() or str(ship.flight.phase) != str(assigned_trade.phase) or int(ship.system) != int(assigned_trade.origin if assigned_trade.phase == "outbound" else assigned_trade.destination): return "Fleet flight does not match its trade route."
 	var loaded_contracts: Array[Dictionary] = []
 	for value: Variant in data.contracts:
 		if not _valid_contract(value): return "Invalid contract record."
