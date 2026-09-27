@@ -8,6 +8,7 @@ var anchor: Vector3 = Vector3.ZERO
 var normal_at_patch: Vector3:
 	get: return _normal
 var patch_extent: float = 0.0
+var terrain_material: ShaderMaterial
 var terrain_mesh: ArrayMesh
 var terrain_body: StaticBody3D
 var _normal: Vector3 = Vector3.UP
@@ -71,6 +72,7 @@ func build(radius: float, normal: Vector3, seed: int, tint: Color, has_ocean: bo
 	surface.generate_normals()
 	terrain_mesh = surface.commit()
 	var material := ShaderMaterial.new()
+	terrain_material = material
 	material.shader = preload("res://shaders/terrain_rock.gdshader")
 	material.set_shader_parameter("planet_anchor", anchor)
 	var visual := MeshInstance3D.new()

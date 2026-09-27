@@ -498,6 +498,7 @@ func _update_planet_terrain() -> void:
 		planet_terrain = PlanetTerrain.new()
 		add_child(planet_terrain)
 		planet_terrain.build(float(body.visual_radius), radial, _terrain_seed(chosen), Color(body.color).lerp(Color("7d8174"), 0.55), bool(body.get("has_ocean", false)))
+		world.configure_planet_weather(planet_terrain.terrain_material, chosen)
 		world.set_fine_terrain_patch(chosen, planet_terrain.normal_at_patch, float(body.visual_radius), planet_terrain.patch_extent)
 		flight_frame.track(planet_terrain, flight_origin, SectorPosition.new(Vector3i.ZERO, Vector3(body.position) + planet_terrain.anchor))
 

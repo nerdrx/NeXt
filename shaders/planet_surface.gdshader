@@ -1,8 +1,16 @@
 shader_type spatial;
 render_mode ambient_light_disabled, cull_back, diffuse_burley, specular_schlick_ggx;
 
+#include "res://shaders/planet_weather.gdshaderinc"
+
+uniform bool weather_enabled = false;
+uniform float weather_seed = 0.0;
+uniform float weather_shell_radius = 1.0;
+uniform vec3 weather_sun_direction = vec3(-0.5, 0.47, 0.73);
+
 uniform vec4 surface_color : source_color = vec4(0.3, 0.5, 0.32, 1.0);
 uniform vec4 ocean_color : source_color = vec4(0.04, 0.12, 0.22, 1.0);
+uniform float planet_radius = 850.0;
 uniform float seed = 0.0;
 uniform bool has_ocean = true;
 uniform sampler2D height_map : filter_linear, repeat_enable;
@@ -90,6 +98,10 @@ void fragment() {
 	float polar = has_ocean ? smoothstep(0.76, 0.94, abs(direction.y)) : 0.0;
 	ALBEDO = has_ocean ? mix(ocean, terrain, land) : terrain;
 	ALBEDO = mix(ALBEDO, vec3(0.72, 0.76, 0.78), polar * 0.78);
+	if (weather_enabled) {
+		vec3 relative = direction * (planet_radius + (has_ocean ? max(height, sea_level) : height));
+		ALBEDO *= 1.0 - 0.4 * weather_shadow(relative, weather_sun_direction, weather_shell_radius, weather_seed, TIME);
+	}
 	ROUGHNESS = has_ocean ? mix(0.88, 0.58, 1.0 - land) : 0.92;
 	METALLIC = 0.0;
 	SPECULAR = 0.18;

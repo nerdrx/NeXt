@@ -1,6 +1,13 @@
 shader_type spatial;
 render_mode diffuse_burley;
 
+#include "res://shaders/planet_weather.gdshaderinc"
+
+uniform bool weather_enabled = false;
+uniform float weather_seed = 0.0;
+uniform float weather_shell_radius = 1.0;
+uniform vec3 weather_sun_direction = vec3(-0.5, 0.47, 0.73);
+
 uniform vec3 planet_anchor;
 varying vec3 rock_position;
 
@@ -53,6 +60,9 @@ void fragment() {
 	float roughness = clamp(plates * chips + grain * 0.09 + grit * 0.08, 0.62, 0.98);
 
 	ALBEDO = COLOR.rgb * mineral * plates * chips * (0.94 + grain * 0.12 + grit * 0.08);
+	if (weather_enabled) {
+		ALBEDO *= 1.0 - 0.4 * weather_shadow(rock_position, weather_sun_direction, weather_shell_radius, weather_seed, TIME);
+	}
 	ROUGHNESS = roughness;
 	SPECULAR = 0.18;
 

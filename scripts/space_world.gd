@@ -280,6 +280,8 @@ func _build_planets() -> void:
 		mat.shader = PLANET_SHADER
 		var tint: Color = planet.color
 		mat.set_shader_parameter("surface_color", tint)
+		mat.set_shader_parameter("planet_radius", float(planet.visual_radius))
+		configure_planet_weather(mat, i)
 		mat.set_shader_parameter("ocean_color", Color("173747") if i == 0 else Color("102944").lerp(tint, 0.2))
 		mat.set_shader_parameter("seed", float(i * 41 + int(data.station_seed % 997)))
 		mat.set_shader_parameter("has_ocean", bool(planet.has_ocean))
@@ -313,6 +315,14 @@ func _build_planets() -> void:
 			halo.mesh.radial_segments = 128
 			halo.mesh.rings = 64
 			halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+func configure_planet_weather(material: ShaderMaterial, index: int) -> void:
+	if material == null or index < 0 or index >= planets.size(): return
+	var planet: Dictionary = planets[index]
+	material.set_shader_parameter("weather_enabled", bool(planet.atmosphere) and bool(planet.has_ocean))
+	material.set_shader_parameter("weather_seed", float(index * 41 + int(data.station_seed % 997)))
+	material.set_shader_parameter("weather_shell_radius", float(planet.visual_radius) * 1.01 + PlanetHeightField.HEIGHT_SCALE)
+	material.set_shader_parameter("weather_sun_direction", Basis.from_euler(Vector3(deg_to_rad(-28), deg_to_rad(-34), 0)).z)
 
 func set_fine_terrain_patch(index: int, normal: Vector3, radius: float, extent: float) -> void:
 	if index < 0 or index >= _planet_materials.size(): return

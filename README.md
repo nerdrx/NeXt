@@ -117,6 +117,6 @@ Editable floor and ceiling window panels now have transparent apertures with sol
 
 Unassigned hired crew and your assigned ship gunner now appear aboard as named characters, where the layout has clear standing space (up to 12 bodies). Approach and press **F** to select their Crew Operations entry; **E** returns to the helm. Crew stay supported while the ship coasts, turns and crosses sector boundaries. Standing positions spread across available rooms: gunners prefer weapon modules, engineers engineering or workshops, and traders cargo. Clear alternative rooms provide a fallback, and crew face into their rooms. They currently stand at their posts rather than walking schedules. Fatal personal damage removes that crew member and ends their order; ship weapons strike the outer hull instead.
 
-Ocean worlds with atmospheres now have separate, drifting procedural cloud shells with day/night lighting, plus a softer atmosphere limb. Clouds remain cosmetic and non-colliding; volumetric weather and cloud shadows are not implemented.
+Ocean worlds with atmospheres now have separate, drifting procedural cloud shells with day/night lighting, plus a softer atmosphere limb. Clouds remain non-colliding and now dim the orbital and streamed terrain using the same weather pattern. Volumetric weather and cloud shading on buildings or vessels are not implemented.
 
 ![Current in-engine procedural cloud layer; placeholder planet art](docs/planet-weather.png)

@@ -23,6 +23,10 @@ These are bounded development systems. README lists their limits. Placeholder vi
 
 ## Deeper simulation
 
+- Build canonical physical celestial data (mass, radius, luminosity, orbit and spin) separately from render coordinates; migrate current toy-scale body positions without silently invalidating saves.
+- Integrate deterministic hosted-time orbital motion, binary systems, body-relative landing/station frames, gravity, temperature and tidal effects. Validate against reference cases and document model limits.
+- Connect ship acceleration and g-forces to crew and flight-assist controls; add black-hole gravitational effects and lensing with explicit approximations. The current visuals do not establish physical simulation accuracy.
+
 - Local gunner patrols now fly and fight in loaded space. Extend that integration to trader arrivals/docking, persistent fleet positions and physical disabled-ship salvage; add richer named crew behavior.
 - Extend existing compatible room/panel refits to wall placement, equipment movement, doors and physically persistent ship interiors.
 - Expand implemented rescue/insurance and wreck recovery into towing, repairable derelicts and NPC rescue encounters.
