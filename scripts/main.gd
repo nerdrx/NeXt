@@ -790,14 +790,37 @@ func _persist_fleet_damage(actor: ShipActor) -> void:
 
 func _nearest_ship(origin: ShipActor, faction: String) -> Node3D:
 	var nearest: Node3D = null
-	var distance: float = 2500.0
+	var distance: float = 6000.0
 	for other in actors:
 		if not is_instance_valid(other) or bool(other.get_meta("spatial_culled", false)) or not other is ShipActor or other == origin or other.faction != faction or other.hp <= 0: continue
 		var candidate: float = origin.position.distance_to(other.position)
-		if candidate < distance:
+		if candidate < distance and _ship_detectable(origin, other):
 			nearest = other
 			distance = candidate
 	return nearest
+
+func _ship_detectable(observer: Node3D, candidate: Node3D) -> bool:
+	if not is_instance_valid(observer) or not is_instance_valid(candidate) or candidate.is_queued_for_deletion(): return false
+	var emission: float
+	if candidate == pilot or candidate == coasting_hull:
+		emission = ThermalSignature.emitted_power_w(state.drive_temperature_k, state.radiator_area_m2())
+	elif candidate is ShipActor:
+		if candidate.hp <= 0.0 or bool(candidate.get_meta("spatial_culled", false)): return false
+		# NPC propulsion is still abstract: use a fixed warm-drive signature.
+		emission = ThermalSignature.emitted_power_w(450.0, 40.0)
+	else:
+		return false
+	var offset := candidate.global_position - observer.global_position
+	if not offset.is_finite() or offset.length() > ThermalSignature.detection_range_m(emission): return false
+	if offset.length_squared() < 0.000001: return true
+	var excluded: Array[RID] = []
+	if observer is CollisionObject3D: excluded.append(observer.get_rid())
+	if candidate is CollisionObject3D: excluded.append(candidate.get_rid())
+	if candidate == coasting_hull or observer == coasting_hull:
+		for body: StaticBody3D in _coasting_deck_bodies:
+			if is_instance_valid(body): excluded.append(body.get_rid())
+	var query := PhysicsRayQueryParameters3D.create(observer.global_position, candidate.global_position, 1, excluded)
+	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 func _update_combat_targets() -> void:
 	var player_ship: Node3D = coasting_hull if aboard and is_instance_valid(coasting_hull) else (pilot if pilot.flying else null)
@@ -812,11 +835,11 @@ func _update_combat_targets() -> void:
 				actor.hostile = false
 		elif actor.faction == "pirate":
 			var fleet_target := _nearest_ship(actor, "player_fleet")
-			actor.target = player_ship
+			actor.target = player_ship if _ship_detectable(actor, player_ship) else null
 			if fleet_target != null and (actor.target == null or actor.position.distance_squared_to(fleet_target.position) < actor.position.distance_squared_to(player_ship.position)):
 				actor.target = fleet_target
 		else:
-			actor.target = player_ship
+			actor.target = player_ship if _ship_detectable(actor, player_ship) else null
 
 func rebuild_player_ship() -> void:
 	if is_instance_valid(ship_display):
@@ -1683,6 +1706,10 @@ func _integration_check() -> void:
 	heat_probe.drive_temperature_k = 600.0
 	heat_probe.cool_drive(1.0)
 	if not _check(heat_probe.radiator_area_m2() == 65.0 and 600.0 - heat_probe.drive_temperature_k > baseline_cooling, "exposed radiator module improves cooling"): return
+	var signature_probe := GameState.new()
+	var cold_detection: float = signature_probe.ship_stats().thermal_detection_range_m
+	signature_probe.drive_temperature_k = 600.0
+	if not _check(signature_probe.ship_stats().thermal_detection_range_m > cold_detection * 3.9, "drive heat increases thermal detection range"): return
 	var physical_sample := CelestialSystem.sample(deck.survey_catalog, 0, 0.0)
 	if not _check(not physical_sample.is_empty() and physical_sample.irradiance_w_m2 > 0.0, "orbital radiation model in release build"): return
 	await _capture("celestial-survey")

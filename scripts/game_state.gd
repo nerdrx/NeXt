@@ -100,6 +100,8 @@ func cargo_total() -> int:
 func ship_stats() -> Dictionary:
 	var result: Dictionary = _stats_for(ship_modules)
 	result.radiator_area_m2 = radiator_area_m2()
+	result.thermal_emission_w = ThermalSignature.emitted_power_w(drive_temperature_k, result.radiator_area_m2)
+	result.thermal_detection_range_m = ThermalSignature.detection_range_m(result.thermal_emission_w)
 	result.drive_thrust_factor = clampf((700.0 - drive_temperature_k) / 200.0, 0.0, 1.0)
 	result.loaded_mass_kg = int(result.dry_mass_kg) + cargo_total() * 1000
 	result.acceleration_mps2 = minf(3.0 * 9.80665, float(result.thrust_newtons) * float(result.drive_thrust_factor) / maxf(float(result.loaded_mass_kg), 1.0))
@@ -124,7 +126,8 @@ func cool_drive(delta: float) -> void:
 	if not is_finite(drive_temperature_k): return
 	# Tuned shared drive loop: 2.5 MJ/K, layout-dependent area, emissivity 0.8.
 	# 300 K is a regulated floor, not the temperature of space.
-	var watts := 0.8 * 5.670374419e-8 * radiator_area_m2() * (pow(drive_temperature_k, 4) - pow(300.0, 4))
+	var area := radiator_area_m2()
+	var watts := ThermalSignature.emitted_power_w(drive_temperature_k, area) - ThermalSignature.emitted_power_w(300.0, area)
 	drive_temperature_k = maxf(300.0, drive_temperature_k - maxf(0.0, watts) * delta / 2.5e6)
 
 func consume_propulsion(before: Vector3, commanded: Vector3) -> Vector3:

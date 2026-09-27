@@ -821,3 +821,11 @@ Radiator domain checks pass for installation/removal, effective exposed area, co
 This validates immediate-neighbor and panel occlusion only. It does not establish a full radiation view-factor model, performance with a radiator-heavy maximum-size ship, or live Steam interoperability. Matching client builds are required for the new module kind.
 
 The final radiator Windows export succeeded and its Proton run emitted NEXT_INTEGRATION_OK with the new radiator cooling assertion. No script/shader errors were found; the Gamescope/Proton wrapper timed out after completion (exit 137). The Windows ZIP was rebuilt. Both CI runs for the preceding drive-heat commit 43b4d66 completed successfully; radiator CI is pending publication.
+
+## Thermal signature and target acquisition
+
+Thermal signature tests passed for temperature-to-the-fourth emission, area scaling, inverse-square detection range, the range cap and invalid inputs. The actual scene test passed under hidden Gamescope and headlessly: at 1.5 km a pirate ignores a 300 K player ship and acquires a 600 K ship; cooling below the threshold removes its target. World cover blocks acquisition, removal restores it, an occupied walkable hull retains the same signature, and police hostility is unchanged. Reciprocal NPC detection passes inside 1.8 km and fails beyond that range. The HUD capture was inspected and shows nominal 3.2 km visibility at 600 K.
+
+Existing fleet combat, aboard combat, drive thermal and radiator regressions passed. Native integration and the Windows export under Proton emitted NEXT_INTEGRATION_OK, including a release-safe thermal-range check. The export completed without script/shader errors; this is not a benchmark or multiplayer stealth validation. NPC signatures remain fixed approximations and contacts have no search memory.
+
+The thermal-signature Proton wrapper required timeout termination after the success marker (exit 137). The Windows ZIP was rebuilt. Both new thermal tests are included in CI.

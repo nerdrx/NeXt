@@ -57,6 +57,8 @@ func _draw() -> void:
 	_draw_meter(Vector2(35, h - 98), "SHIELD", state.shield / shield_max, InterfaceTheme.CYAN)
 	_draw_meter(Vector2(35, h - 65), "FUEL", state.fuel / 100.0, Color("b9bbf5"))
 	_word(Vector2(35, h - 155), "DRIVE %d K  /  THRUST %d%%" % [roundi(state.drive_temperature_k), roundi(float(stats.drive_thrust_factor) * 100.0)], 13, InterfaceTheme.GOLD if state.drive_temperature_k > 500.0 else InterfaceTheme.MUTED)
+	if pilot.flying or game.aboard:
+		_word(Vector2(35, h - 176), "THERMAL VISIBILITY ~%.1f km" % (float(stats.thermal_detection_range_m) / 1000.0), 13, InterfaceTheme.MUTED)
 	_word(Vector2(w - 250, h - 105), "%03d m/s" % int(pilot.velocity.length()), 30, InterfaceTheme.CYAN)
 	if pilot.flying or (game.aboard and is_instance_valid(game.coasting_hull)):
 		var thrust_g: float = pilot.thrust_g if pilot.flying else game.coasting_hull.thrust_g
@@ -91,6 +93,7 @@ func _draw() -> void:
 			_draw_marker(game.world.to_global(Vector3(0, 12, -70)), "ORBITAL DOCK", InterfaceTheme.CYAN, pilot.camera)
 		for actor: Node3D in game.actors:
 			if is_instance_valid(actor) and not bool(actor.get_meta("spatial_culled", false)) and actor.position.distance_to(pilot.position) < 2800:
+				if actor is ShipActor and not game._ship_detectable(pilot, actor): continue
 				_draw_marker(actor.position, str(actor.get_meta("contact_name", actor.faction)).to_upper(), Color("f08670") if actor.faction == "pirate" else Color("75b9f1"), pilot.camera)
 	else:
 		_word(Vector2(w * 0.5 - 180, h - 90), ("" if game.aboard else "[E] ") + game.interaction_hint(), 17, InterfaceTheme.CYAN)
@@ -137,6 +140,7 @@ func _draw_radar(pos: Vector2) -> void:
 	draw_line(pos - Vector2(0, radius), pos + Vector2(0, radius), Color(0.2, 0.5, 0.55, 0.3))
 	for actor: Node3D in game.actors:
 		if not is_instance_valid(actor) or bool(actor.get_meta("spatial_culled", false)): continue
+		if actor is ShipActor and not game._ship_detectable(game.pilot, actor): continue
 		var relative: Vector3 = game.pilot.global_basis.inverse() * (actor.position - game.pilot.position)
 		var flat := Vector2(relative.x, relative.z) / 20
 		if flat.length() > radius - 5: flat = flat.normalized() * (radius - 5)
