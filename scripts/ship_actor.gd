@@ -23,7 +23,8 @@ var search_seconds_remaining: float = 0.0
 var travel_active: bool = false
 var travel_target := Vector3.ZERO
 
-var _visual: FleetShipVisual
+var hull_family: String = ""
+var _visual: Node3D
 var _attack_cooldown: float = 0.0
 var _patrol_phase: float = 0.0
 var _desired_velocity: Vector3 = Vector3.ZERO
@@ -45,9 +46,17 @@ func _ready() -> void:
 		_home = global_position
 	var collision := CollisionShape3D.new()
 	add_child(collision)
-	_visual = FleetShipVisual.new()
-	add_child(_visual)
-	_visual.build(str(get_meta("fleet_order_kind", "patrol")), faction)
+	var blueprint := ShipBlueprint.family(hull_family)
+	if blueprint.is_empty():
+		var fleet_visual := FleetShipVisual.new()
+		_visual = fleet_visual
+		add_child(_visual)
+		fleet_visual.build(str(get_meta("fleet_order_kind", "patrol")), faction)
+	else:
+		var family_visual := ShipVisual.new()
+		_visual = family_visual
+		add_child(_visual)
+		family_visual.build(blueprint.modules, faction, blueprint.layout)
 	# Convex exterior proxy follows the model; cavities remain an approximation.
 	var hull_points := PackedVector3Array()
 	var radius := 0.0

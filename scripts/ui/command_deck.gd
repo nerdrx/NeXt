@@ -663,9 +663,15 @@ func _fleet() -> void:
 	ship_name.max_length = 32
 	ship_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	purchase.add_child(ship_name)
-	purchase.add_child(InterfaceTheme.button("COMMISSION / %d CR" % CrewOrders.SHIP_PRICE, func(): _act(game.crew_operations().purchase_ship.bind(ship_name.text), "Fleet vessel commissioned.")))
+	var hull_choice := OptionButton.new()
+	for family_id: String in [""] + ShipBlueprint.FAMILIES:
+		var quote := CrewOrders.commission_quote(family_id)
+		hull_choice.add_item("%s / %d CR / %d cargo" % ["Utility" if family_id.is_empty() else family_id.capitalize(), quote.price, quote.capacity])
+		hull_choice.set_item_metadata(hull_choice.item_count - 1, family_id)
+	purchase.add_child(hull_choice)
+	purchase.add_child(InterfaceTheme.button("COMMISSION", func(): _act(game.crew_operations().purchase_ship.bind(ship_name.text, str(hull_choice.get_item_metadata(hull_choice.selected))), "Fleet vessel commissioned.")))
 	for vessel: Dictionary in s.fleet_ships:
-		_text("%s / system %d / hull %.0f%% / drive %.0f K" % [vessel.name, vessel.system, vessel.hull, float(vessel.get("drive_temperature_k", 450.0))], 17)
+		_text("%s / %s / system %d / hull %.0f%% / drive %.0f K" % [vessel.name, str(vessel.get("hull_family", "utility")).capitalize(), vessel.system, vessel.hull, float(vessel.get("drive_temperature_k", 450.0))], 17)
 		if game.fleet_actors.has(str(vessel.id)):
 			_button("APPROACH LOCAL VESSEL", game.approach_fleet_ship.bind(str(vessel.id)), not game.pilot.flying or game.aboard)
 		_button("REPAIR / %d CR" % ceili((100.0 - float(vessel.hull)) * 4.0), _act.bind(game.crew_operations().repair_fleet_ship.bind(str(vessel.id)), "Fleet repairs arranged."), float(vessel.hull) >= 100)

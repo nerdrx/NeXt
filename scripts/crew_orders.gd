@@ -18,15 +18,29 @@ var state: GameState
 func _init(game_state: GameState) -> void:
 	state = game_state
 
-func purchase_ship(name: String) -> String:
+static func commission_quote(family_id: String = "") -> Dictionary:
+	if family_id.is_empty(): return {"error":"", "price":SHIP_PRICE, "capacity":25}
+	var blueprint := ShipBlueprint.family(family_id)
+	if blueprint.is_empty(): return {"error":"Unknown hull family."}
+	var modules: Array[Dictionary] = []
+	modules.assign(blueprint.modules)
+	var price := 0
+	for module: Dictionary in modules: price += int(GameState.MODULES[module.kind].cost)
+	return {"error":"", "price":price, "capacity":GameState.new()._stats_for(modules).cargo_capacity}
+
+func purchase_ship(name: String, family_id: String = "") -> String:
+	var quote := commission_quote(family_id)
+	if not str(quote.error).is_empty(): return str(quote.error)
 	var clean: String = name.strip_edges()
 	if clean.length() < 2 or clean.length() > 32: return "Fleet ship name must be 2 to 32 characters."
 	if state.fleet_ships.size() >= MAX_SHIPS: return "Fleet limit reached."
-	if state.credits < SHIP_PRICE: return "A fleet ship costs %d credits." % SHIP_PRICE
+	if state.credits < int(quote.price): return "This fleet ship costs %d credits." % int(quote.price)
 	for ship: Dictionary in state.fleet_ships:
 		if str(ship.name).to_lower() == clean.to_lower(): return "Fleet ship names must be unique."
-	state.credits -= SHIP_PRICE
-	state.fleet_ships.append({"id": _id("ship"), "name": clean, "system": state.system_index, "hull": 100.0, "cargo": {}, "capacity": 25})
+	state.credits -= int(quote.price)
+	var vessel := {"id": _id("ship"), "name": clean, "system": state.system_index, "hull": 100.0, "cargo": {}, "capacity": int(quote.capacity)}
+	if not family_id.is_empty(): vessel.hull_family = family_id
+	state.fleet_ships.append(vessel)
 	return ""
 
 func assign_trade_route(crew_id: String, ship_id: String, good: String, destination: int, quantity: int = 5, delivery_station: int = -1) -> String:

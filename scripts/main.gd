@@ -792,6 +792,7 @@ func _sync_fleet_actors() -> Array[String]:
 				actor.actor_id = id
 				actor.faction = "player_fleet"
 				actor.hostile = false if is_trader else true
+				actor.hull_family = str(ship.get("hull_family", ""))
 				actor.set_meta("fleet_ship_id", id)
 				actor.set_meta("fleet_order_kind", desired_kind)
 				actor.set_meta("contact_name", str(ship.name))

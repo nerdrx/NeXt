@@ -50,3 +50,6 @@ The user selected a hybrid foundation: a small library of designed hull families
 Larger ships derive occupied cells, internal rooms and collision from a common metre-scale blueprint. The first Pathfinder and Merchant definitions are layout templates; they can be inspected and refitted from the shipyard, while their final exterior family styling remains incomplete. Existing custom modular construction remains supported. A 2.8 m cell pitch is distinct from the overlapping pressure envelope and collision bounds; the shell must contain real interior walls and headroom. Rooms remain limited to compatible module bays.
 
 Do not create a separate cosmetic fleet catalogue that claims boarding support. Fleet ownership, purchased family identity and boarding must eventually use the same blueprint as the player vessel. Current FleetShipVisual silhouettes remain exterior-only placeholders.
+
+
+Fleet commissioning can now choose the Pathfinder or Merchant blueprint. These purchased ships keep their selected family when orders change and render through `ShipVisual`; legacy utility vessels retain their existing exterior placeholders. This establishes shared family geometry for owned traffic, not fleet boarding or editable fleet rooms. Family definitions must retain stable capacity until a deliberate save migration exists.

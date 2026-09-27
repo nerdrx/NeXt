@@ -105,3 +105,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Replace the Pathfinder and Merchant pressure blockouts with designed outer armor, propulsion housings, service access and restrained materials. Preserve the shared room envelope and boarding/collision contract; do not shrink usable interior volume to fit a cosmetic silhouette.
 - [ ] Replace roof module indicators and rectangular inset panels with functional equipment details. The current connected shell and exposed fittings are construction references, not final art.
 - [ ] Inspect replacement families in exterior, rear, cutaway and aboard views using `tests/capture_hull_families.gd` plus gameplay captures.
+
+- [ ] Inspect commissioned Pathfinder/Merchant traffic at gameplay distance and under thrust; they now reuse the same family pressure geometry as the shipyard. Add final family identification markings while retaining persistent registry identity.
