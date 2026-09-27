@@ -113,3 +113,11 @@ actual wall test, then depletes host shields/hull; revocation prevents more dama
 Live Steam, latency compensation, authoritative movement/health, on-foot PvP and
 shared NPC/world damage are not established by these checks. Client-authored
 movement and local saves are not an anti-cheat boundary.
+
+Confirmed hits also broadcast an authority-only `pvp_hit_confirmed` event with
+absolute sector addresses. Other pilots see a short orange tracer and impact;
+the shooter gets an impact and a brief gold crosshair marker, reusing its local
+predicted beam. The event is cosmetic and cannot apply damage. It means the host
+validated a hull hit, not that the target acknowledged damage. Misses and
+protected/occluded shots currently have no replicated tracer. Stale travel epochs,
+unknown peers, malformed addresses and over-range events are discarded.

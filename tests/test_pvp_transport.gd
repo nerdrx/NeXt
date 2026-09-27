@@ -4,6 +4,9 @@ var host: NetworkSession
 var guest: NetworkSession
 var host_hits: int = 0
 var guest_hits: int = 0
+var host_hit_events: int = 0
+var guest_hit_events: int = 0
+var observer_hit_events: int = 0
 var failed: bool = false
 
 func _initialize() -> void:
@@ -30,8 +33,8 @@ func _run() -> void:
 	var child_exit := OS.execute(OS.get_executable_path(), ["--headless", "--path", ProjectSettings.globalize_path("res://"), "-s", "res://tests/test_pvp_transport.gd", "--", "pvp-adversarial"], captured, true)
 	var output := "\n".join(captured)
 	_check(child_exit == 0 and "PVP_AUTHORITY_REJECTION_OK" in output, "adversarial child completed")
-	_check(output.count("is not allowed on node") == 2, "engine rejected both forged damage RPCs")
-	_check(output.count("ERROR:") == 2 and not "SCRIPT ERROR" in output, "only expected authority errors captured")
+	_check(output.count("is not allowed on node") == 4, "engine rejected forged damage and tracer RPCs")
+	_check(output.count("ERROR:") == 4 and not "SCRIPT ERROR" in output, "only expected authority errors captured")
 	if failed:
 		printerr(output)
 		quit(1)
@@ -40,6 +43,8 @@ func _run() -> void:
 	guest = _session("Guest")
 	host.pvp_damage_received.connect(func(_id: int, _damage: float): host_hits += 1)
 	guest.pvp_damage_received.connect(func(_id: int, _damage: float): guest_hits += 1)
+	host.pvp_hit_confirmed.connect(func(_a: int, _t: int, _o: Dictionary, _e: Dictionary): host_hit_events += 1)
+	guest.pvp_hit_confirmed.connect(func(_a: int, _t: int, _o: Dictionary, _e: Dictionary): guest_hit_events += 1)
 	_check(host.host(27859).is_empty(), "host setup")
 	_check(guest.join("127.0.0.1", 27859).is_empty(), "guest setup")
 	for i in 200:
@@ -57,28 +62,33 @@ func _run() -> void:
 	host.request_pvp_shot(Vector3(0, -1.55, -100).normalized())
 	await create_timer(0.05).timeout
 	_check(guest_hits == 0, "default safe")
+	_check(host_hit_events == 0 and guest_hit_events == 0, "no event without consent")
 	host.set_pvp_allowed(true)
 	await _poses()
 	host.request_pvp_shot(Vector3(0, -1.55, -100).normalized())
 	await create_timer(0.2).timeout
 	_check(guest_hits == 0, "bilateral consent required")
+	_check(host_hit_events == 0 and guest_hit_events == 0, "bilateral consent emits no event")
 	guest.set_pvp_allowed(true)
 	await _poses()
 	host.request_pvp_shot(Vector3(0, -1.55, -100).normalized())
 	await create_timer(0.2).timeout
 	_check(guest_hits == 0, "missing occlusion callback fails closed")
+	_check(host_hit_events == 0 and guest_hit_events == 0, "missing occlusion emits no event")
 	host.pvp_occlusion_check = func(_a: int, _b: int, _d: Vector3, _r: float) -> bool: return true
 	await _poses()
 	host.pvp_occlusion_check = func(_a: int, _b: int, _d: Vector3, _r: float) -> bool: return false
 	host.request_pvp_shot(Vector3(0, -1.55, -100).normalized())
 	await create_timer(0.2).timeout
 	_check(guest_hits == 0, "physical occlusion blocks hit")
+	_check(host_hit_events == 0 and guest_hit_events == 0, "blocked hit emits no event")
 	host.pvp_occlusion_check = func(_a: int, _b: int, _d: Vector3, _r: float) -> bool: return true
 	await _poses()
 	host.request_pvp_shot(Vector3(0, -1.55, -100).normalized())
 	host.request_pvp_shot(Vector3(0, -1.55, -100).normalized())
 	await create_timer(0.1).timeout
 	_check(guest_hits == 1 and host_hits == 0, "target-only delivery and cooldown")
+	_check(host_hit_events == 1 and guest_hit_events == 1, "confirmed tracer reaches host and target")
 	await create_timer(0.12).timeout
 	await _poses()
 	host.request_pvp_shot(Vector3.RIGHT)
@@ -123,6 +133,7 @@ func _run() -> void:
 	guest._rpc_pvp_shot.rpc_id(1, Vector3(0, -1.55, 100).normalized(), old_epoch)
 	await create_timer(0.1).timeout
 	_check(host_hits == 1, "stale epoch shot rejected even after renewed consent")
+	_check(host_hit_events == 2 and guest_hit_events == 2, "stale epoch shot emits no event")
 	guest.leave()
 	host.leave()
 	_check(not guest.is_pvp_allowed() and not host.is_pvp_allowed(), "leave clears local consent")
@@ -147,6 +158,12 @@ func _adversarial_rpc() -> void:
 	var observer := _session("Observer")
 	host.pvp_damage_received.connect(func(_id: int, _damage: float): host_hits += 1)
 	observer.pvp_damage_received.connect(func(_id: int, _damage: float): guest_hits += 1)
+	host_hit_events = 0
+	guest_hit_events = 0
+	observer_hit_events = 0
+	host.pvp_hit_confirmed.connect(func(_a: int, _t: int, _o: Dictionary, _e: Dictionary): host_hit_events += 1)
+	guest.pvp_hit_confirmed.connect(func(_a: int, _t: int, _o: Dictionary, _e: Dictionary): guest_hit_events += 1)
+	observer.pvp_hit_confirmed.connect(func(_a: int, _t: int, _o: Dictionary, _e: Dictionary): observer_hit_events += 1)
 	_check(host.host(27858).is_empty(), "adversarial host")
 	_check(guest.join("127.0.0.1", 27858).is_empty(), "adversarial attacker")
 	_check(observer.join("127.0.0.1", 27858).is_empty(), "adversarial observer")
@@ -156,10 +173,16 @@ func _adversarial_rpc() -> void:
 	_check(guest.connected and observer.connected and observer.presence.size() == 3, "three peers admitted")
 	for session: NetworkSession in [host, guest, observer]: session.set_pvp_allowed(true)
 	await create_timer(0.1).timeout
-	for session: NetworkSession in [host, guest, observer]: session.publish_pose(Vector3.ZERO, Vector3.ZERO, {}, true)
+	host.publish_pose(Vector3.ZERO, Vector3.ZERO, {}, true)
+	guest.publish_pose(Vector3(0, 0, -100), Vector3.ZERO, {}, true)
+	observer.publish_pose(Vector3(0, 0, -200), Vector3.ZERO, {}, true)
 	await create_timer(0.1).timeout
 	var attacker := guest.multiplayer.get_unique_id()
 	var observer_id := observer.multiplayer.get_unique_id()
+	host.pvp_occlusion_check = func(_a: int, _b: int, _d: Vector3, _r: float) -> bool: return true
+	host._accept_pvp_shot(1, Vector3(0, -1.55, -100).normalized())
+	await create_timer(0.1).timeout
+	_check(host_hit_events == 1 and guest_hit_events == 1 and observer_hit_events == 1, "accepted hit tracer reaches host, target and spectator")
 	# All gameplay receipt guards are satisfied; only RPC authority must reject these.
 	guest._rpc_pvp_damage.rpc_id(1, attacker, 25.0, guest._pvp_epoch)
 	guest._rpc_pvp_damage.rpc_id(observer_id, attacker, 25.0, guest._pvp_epoch)
@@ -169,6 +192,24 @@ func _adversarial_rpc() -> void:
 	host._rpc_pvp_damage.rpc_id(observer_id, attacker, 25.0, host._pvp_epoch)
 	await create_timer(0.1).timeout
 	_check(guest_hits == 1, "authorized damage positive control")
+	var valid_position := {"version": 1, "sector": [0, 0, 0], "local": [0.0, 1.55, 0.0]}
+	var valid_end := {"version": 1, "sector": [0, 0, 0], "local": [0.0, 1.55, -10.0]}
+	guest._rpc_pvp_hit_confirmed.rpc_id(1, attacker, observer_id, valid_position, valid_end, guest._pvp_epoch)
+	guest._rpc_pvp_hit_confirmed.rpc_id(observer_id, attacker, observer_id, valid_position, valid_end, guest._pvp_epoch)
+	await create_timer(0.1).timeout
+	_check(host_hit_events == 1 and guest_hit_events == 1 and observer_hit_events == 1, "forged tracer RPC rejected")
+	observer._receive_pvp_hit_confirmed(attacker, observer_id, valid_position, valid_end, observer._pvp_epoch + 1)
+	observer._receive_pvp_hit_confirmed(attacker, observer_id, {"version": 99}, valid_end, observer._pvp_epoch)
+	var nonfinite_position := {"version": 1, "sector": [0, 0, 0], "local": [0.0, INF, 0.0]}
+	observer._receive_pvp_hit_confirmed(attacker, observer_id, nonfinite_position, valid_end, observer._pvp_epoch)
+	var distant_end := {"version": 1, "sector": [0, 0, 0], "local": [0.0, 1.55, -2200.2]}
+	observer._receive_pvp_hit_confirmed(attacker, observer_id, valid_position, distant_end, observer._pvp_epoch)
+	observer._receive_pvp_hit_confirmed(999999, observer_id, valid_position, valid_end, observer._pvp_epoch)
+	observer._receive_pvp_hit_confirmed(attacker, 999999, valid_position, valid_end, observer._pvp_epoch)
+	observer._receive_pvp_hit_confirmed(attacker, attacker, valid_position, valid_end, observer._pvp_epoch)
+	observer.connected = false
+	observer._receive_pvp_hit_confirmed(attacker, observer_id, valid_position, valid_end, observer._pvp_epoch)
+	_check(observer_hit_events == 1, "receiver rejects stale, malformed, distant, unknown, self and disconnected events")
 	observer.leave()
 	guest.leave()
 	host.leave()

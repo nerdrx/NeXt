@@ -84,6 +84,7 @@ func _ready() -> void:
 	session.world_joined.connect(_visit_host)
 	session.peers_changed.connect(_sync_visitors)
 	session.pvp_damage_received.connect(_receive_pvp_damage)
+	session.pvp_hit_confirmed.connect(_receive_pvp_hit)
 	session.pvp_occlusion_check = _pvp_clear_shot
 	session.session_message.connect(notify)
 	session.steam_invitation_ready.connect(func(lobby_id: int):
@@ -1251,6 +1252,19 @@ func _receive_pvp_damage(attacker: int, damage: float) -> void:
 	hud.flash = 0.5
 	notify("Ship hit by %s." % str(session.presence.get(attacker, {}).get("name", "visitor")))
 	if state.hull <= 0: _rescue()
+
+func _receive_pvp_hit(attacker: int, _target_id: int, origin_data: Dictionary, end_data: Dictionary) -> void:
+	var origin_address: SectorPosition = SectorPosition.from_save(origin_data)
+	var end_address: SectorPosition = SectorPosition.from_save(end_data)
+	if origin_address == null or end_address == null: return
+	var origin: Variant = origin_address.relative_to(flight_origin, 30000)
+	var endpoint: Variant = end_address.relative_to(flight_origin, 30000)
+	if origin == null or endpoint == null: return
+	if attacker == multiplayer.get_unique_id():
+		hud.hit_confirmation = 0.3
+	else:
+		_beam(origin, endpoint, Color("ff9673"))
+	_explosion(endpoint, 0.18)
 
 func _sync_visitors() -> void:
 	# Transform presence is independent of local commander economics.

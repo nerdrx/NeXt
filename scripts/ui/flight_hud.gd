@@ -3,6 +3,7 @@ extends Control
 
 var game: Node3D
 var flash: float = 0.0
+var hit_confirmation: float = 0.0
 var message: String = ""
 var message_time: float = 0.0
 var flight_time: float = 0.0
@@ -18,6 +19,7 @@ func notify(text: String) -> void:
 func _process(delta: float) -> void:
 	message_time = maxf(0, message_time - delta)
 	flash = maxf(0, flash - delta * 2)
+	hit_confirmation = maxf(0, hit_confirmation - delta)
 	flight_time += delta
 	queue_redraw()
 
@@ -43,6 +45,11 @@ func _draw() -> void:
 	draw_line(center + Vector2(4, 0), center + Vector2(10, 0), InterfaceTheme.CYAN, 1.2)
 	draw_line(center + Vector2(0, -10), center + Vector2(0, -4), InterfaceTheme.CYAN, 1.2)
 	draw_circle(center, 1.5, InterfaceTheme.WHITE)
+	if hit_confirmation > 0:
+		for x in [-1, 1]:
+			for y in [-1, 1]:
+				var direction := Vector2(x, y)
+				draw_line(center + direction * 9, center + direction * 16, InterfaceTheme.GOLD, 2.0)
 	var stats: Dictionary = state.ship_stats()
 	var hull_max: float = maxf(1.0, float(stats.max_hull))
 	var shield_max: float = maxf(1.0, float(stats.max_shield))

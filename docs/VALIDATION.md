@@ -83,3 +83,20 @@ The navigation-enabled Windows export completed the normal Proton smoke. Dedicat
 PvPHits unit checks cover centered modular/rotated hulls, nearest protected blockers, range, distant sector precision, invalid directions and module-derived damage. Real ENet transport checks cover bilateral consent, targeted damage delivery, firing limits, fresh flight poses, revocation and travel epochs. A main-scene host with an ENet guest verifies physical wall occlusion, shield then hull damage, revocation and remote collider culling. Existing network, visit, spatial, Steam-facade and integrated smoke regressions pass. These establish host-validated hits, not host authority over movement, target health, economies or NPC simulation. Live Steam remains untested.
 
 Adversarial transport checks capture and verify Godot authority rejection of client-forged damage RPCs to the host and another client; a positive control confirms authorized delivery. Zero/NaN directions and stale travel-epoch shots are rejected. The main ENet gameplay test also runs under hidden Gamescope. The Windows export completes normal Proton smoke; dedicated multiplayer checks ran natively, not over live Steam or cross-machine Windows. The known SDR warning and post-success wrapper timeout remain.
+
+
+## Replicated hit feedback
+
+The ENet transport test verifies confirmed events reach host, target and spectator,
+while occluded and unconsented shots produce none. Forged damage and cosmetic RPCs
+are rejected by Godot authority checks with complete valid argument lists.
+Receiver checks reject stale epochs, unknown/self peers, malformed or nonfinite
+addresses, excessive range and disconnected sessions. Main-scene gameplay checks
+verify beam/impact creation, shooter-only marker expiry, no duplicate shooter beam,
+no cosmetic damage and rejection of far-away visual endpoints. Native headless and
+hidden Gamescope runs pass. This covers accepted PvP hits only; missed shots and
+NPC fire are not replicated by this event.
+
+The feedback-enabled Windows export completed normal integrated smoke under
+Proton. Dedicated feedback/authority tests ran natively. The known SDR warning
+and post-success wrapper timeout remain. The gold marker capture was inspected.

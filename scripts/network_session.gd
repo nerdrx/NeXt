@@ -6,6 +6,7 @@ signal peers_changed
 signal session_message(message: String)
 signal steam_invitation_ready(lobby_id: int)
 signal pvp_damage_received(attacker: int, damage: float)
+signal pvp_hit_confirmed(attacker: int, target: int, origin_data: Dictionary, end_data: Dictionary)
 
 const DEFAULT_PORT: int = 27840
 const MAX_PLAYERS: int = 8
@@ -644,10 +645,36 @@ func _accept_pvp_shot(attacker: int, direction: Vector3) -> void:
 	if hit.is_empty() or not pvp_occlusion_check.is_valid(): return
 	var target: int = hit.target
 	if not pvp_occlusion_check.call(attacker, target, direction, float(hit.distance)): return
+	var origin: Variant = SectorPosition.from_save(presence[attacker].get("address"))
+	var distance := float(hit.distance)
+	if origin == null or not is_finite(distance) or distance < 0.0 or distance > PvPHits.RANGE: return
+	if not origin.move_delta(PvPHits.CAMERA_OFFSET): return
+	var end_position := SectorPosition.new(origin.sector, origin.local)
+	if not end_position.move_delta(direction.normalized() * distance): return
+	var origin_data: Dictionary = origin.to_save()
+	var end_data: Dictionary = end_position.to_save()
+	_rpc_pvp_hit_confirmed.rpc(attacker, target, origin_data, end_data, _pvp_epoch)
+	_receive_pvp_hit_confirmed(attacker, target, origin_data, end_data, _pvp_epoch)
 	if target == multiplayer.get_unique_id():
 		_receive_pvp_damage(attacker, float(hit.damage), _pvp_epoch)
 	else:
 		_rpc_pvp_damage.rpc_id(target, attacker, float(hit.damage), _pvp_epoch)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _rpc_pvp_hit_confirmed(attacker: int, target: int, origin_data: Dictionary, end_data: Dictionary, epoch: int) -> void:
+	_receive_pvp_hit_confirmed(attacker, target, origin_data, end_data, epoch)
+
+
+func _receive_pvp_hit_confirmed(attacker: int, target: int, origin_data: Dictionary, end_data: Dictionary, epoch: int) -> void:
+	if not connected or epoch != _pvp_epoch or attacker == target: return
+	if not presence.has(attacker) or not presence.has(target): return
+	var origin: Variant = SectorPosition.from_save(origin_data)
+	var end_position: Variant = SectorPosition.from_save(end_data)
+	if origin == null or end_position == null: return
+	var distance: Variant = end_position.relative_to(origin, PvPHits.RANGE + 0.1)
+	if distance == null or not distance.is_finite() or distance.length() > PvPHits.RANGE + 0.1: return
+	pvp_hit_confirmed.emit(attacker, target, origin_data.duplicate(true), end_data.duplicate(true))
 
 
 @rpc("authority", "call_remote", "reliable")
