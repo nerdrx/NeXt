@@ -13,6 +13,10 @@ var speed: float = 3.4
 var actor_id: String = ""
 var role: String = "guard"
 var display_name: String = ""
+var hold_position: bool = false
+var follow_when_friendly: bool = true
+var patrol_radius: float = 8.0
+var pursuit_radius: float = INF
 
 var _home: Vector3
 var _waypoint: Vector3
@@ -55,34 +59,39 @@ func _physics_process(delta: float) -> void:
 	_patrol_timer -= delta
 	_gait += delta * (7.0 if velocity.length() > 0.2 else 1.8)
 	var move_to := _waypoint
-	var chasing := hostile and is_instance_valid(target)
+	var has_target := is_instance_valid(target)
+	var target_in_leash := hold_position or not hostile or not has_target or _home.distance_to(target.global_position) <= pursuit_radius
+	var chasing := hostile and has_target and target_in_leash and not hold_position
+	var target_distance := global_position.distance_to(target.global_position) if has_target else INF
+	if hostile and has_target and target_in_leash and target_distance < 38.0 and _fire_cooldown <= 0.0 and _has_line_of_sight():
+		_fire_cooldown = 1.25
+		var origin := global_position + Vector3.UP * 1.28 + (-global_basis.z * 0.48)
+		fired.emit(self, origin, (target.global_position + Vector3.UP * 0.9 - origin).normalized())
 	if chasing:
-		var distance := global_position.distance_to(target.global_position)
-		if distance < 38.0 and _fire_cooldown <= 0.0 and _has_line_of_sight():
-			_fire_cooldown = 1.25
-			var origin := global_position + Vector3.UP * 1.28 + (-global_basis.z * 0.48)
-			fired.emit(self, origin, (target.global_position + Vector3.UP * 0.9 - origin).normalized())
-		if distance > 9.0:
+		if target_distance > 9.0:
 			move_to = target.global_position
-		elif distance > 4.0:
+		elif target_distance > 4.0:
 			move_to = global_position
 		else:
 			move_to = global_position - (target.global_position - global_position).normalized() * 5.0
-	elif not hostile and is_instance_valid(target):
-		var distance := global_position.distance_to(target.global_position)
-		move_to = target.global_position if distance > 6.0 else global_position
-	elif _patrol_timer <= 0.0 or global_position.distance_to(_waypoint) < 0.8:
+	elif hostile and has_target and not target_in_leash and not hold_position:
+		move_to = _home
+	elif not hostile and has_target and follow_when_friendly and not hold_position:
+		move_to = target.global_position if target_distance > 6.0 else global_position
+	elif not hold_position and (_patrol_timer <= 0.0 or global_position.distance_to(_waypoint) < 0.8):
 		_patrol_timer = randf_range(2.5, 5.0)
-		_waypoint = _home + Vector3(randf_range(-8.0, 8.0), 0.0, randf_range(-8.0, 8.0))
+		var angle := randf_range(0.0, TAU)
+		var radius := sqrt(randf()) * maxf(0.0, patrol_radius)
+		_waypoint = _home + Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
 		move_to = _waypoint
 	var offset := move_to - global_position
 	offset.y = 0.0
 	var direction := offset.normalized() if offset.length_squared() > 0.01 else Vector3.ZERO
-	if direction != Vector3.ZERO and _path_blocked(direction):
+	if not hold_position and direction != Vector3.ZERO and _path_blocked(direction):
 		direction = direction.rotated(Vector3.UP, PI * 0.5)
-	var wanted := direction * speed * (1.2 if chasing else 1.0)
-	velocity.x = move_toward(velocity.x, wanted.x, delta * 8.0)
-	velocity.z = move_toward(velocity.z, wanted.z, delta * 8.0)
+	var wanted := direction * speed * (1.2 if chasing else 1.0) if not hold_position else Vector3.ZERO
+	velocity.x = 0.0 if hold_position else move_toward(velocity.x, wanted.x, delta * 8.0)
+	velocity.z = 0.0 if hold_position else move_toward(velocity.z, wanted.z, delta * 8.0)
 	if not is_on_floor():
 		velocity.y -= 20.0 * delta
 	else:

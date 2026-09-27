@@ -63,3 +63,9 @@ The exported Windows normal-entrypoint check also entered a port room, verified 
 ## Planetary cruise routing
 
 The route planner checks direct, antipodal, polar, multiple-obstacle, invalid-input and million-metre-radius cases, independently verifying segment clearance. A real Pilot flight test travels from the opposite side of planet zero to its colony approach, docks, launches, crosses 9 km and a floating-origin boundary, then verifies manual cancellation clears the queue. The observed minimum clearance in that flight was 39.07 m. Simulation runs at 5x time with 300 physics ticks/s to retain a 1/60 s simulation step; this is functional evidence, not a performance measurement. Controls, spatial gameplay, colony gameplay and integrated smoke regressions pass. Collision avoidance covers planetary spheres only; station/building/traffic avoidance remains unfinished.
+
+## Port staff and security
+
+A real-scene staff test checks six residents per port, four grounded stationary clerks, named service interactions, stable identities across rebuild/load and distant simulation suspension. Actual player weapon rays verify nonlethal assault raises wanted status, local police become hostile, lethal damage persists the casualty and surviving identities do not change after loading. A separate actor test covers stationary duty, disabled friendly following and pursuit limits. Native headless and hidden Gamescope tests pass; the named clerk capture was inspected. Existing actor and integrated smoke checks pass. This does not implement full civilian schedules, navigation meshes or staffed upper floors.
+
+The staff-enabled Windows export completed its normal integrated smoke under Proton. As in earlier runs, the wrapper required timeout cleanup after the success marker; the SDR warning persists. Staff assault and identity checks were exercised by the native dedicated test, not the Windows smoke.

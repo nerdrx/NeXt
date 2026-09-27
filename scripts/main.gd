@@ -327,7 +327,13 @@ func _colony_service() -> Dictionary:
 		var target: Vector3 = colony.to_global(service.position + Vector3.UP * 1.5)
 		if pilot.position.distance_to(target) > 3.5: continue
 		var ray := PhysicsRayQueryParameters3D.create(pilot.camera.global_position, target, 1, [pilot.get_rid()])
-		if get_world_3d().direct_space_state.intersect_ray(ray).is_empty(): return service
+		if get_world_3d().direct_space_state.intersect_ray(ray).is_empty():
+			var staffed_service: Dictionary = service.duplicate()
+			for actor in actors:
+				if actor.get_meta("colony_index", -1) == manual_planet and actor.get_meta("service", "") == service.page:
+					staffed_service.label = str(service.label) + " / " + actor.display_name
+					break
+			return staffed_service
 	return {}
 
 func _planet_center(index: int) -> Variant:
@@ -457,6 +463,7 @@ func _spawn_actors() -> void:
 			add_child(actor)
 			actors.append(actor)
 	_spawn_people(eliminated)
+	if surface_index < 0: _spawn_colony_people(eliminated)
 	_sync_fleet_actors()
 
 func _spawn_people(eliminated: Array) -> void:
@@ -489,6 +496,42 @@ func _spawn_people(eliminated: Array) -> void:
 			person.hostile = true
 			person.position = Vector3(-55 + i * 25, 4, -90)
 			person.target = pilot
+			person.destroyed.connect(_actor_destroyed)
+			person.fired.connect(_enemy_fire)
+			add_child(person)
+			actors.append(person)
+
+func _spawn_colony_people(eliminated: Array) -> void:
+	var first_names := ["Ada", "Mara", "Tomas", "Ivo", "Sera", "Niko", "Lena", "Ren"]
+	var last_names := ["Voss", "Kade", "Vale", "Chen", "Okoro", "Singh", "Reyes", "Malik"]
+	for index in colonies.size():
+		var colony: Node3D = colonies[index]
+		var rng := RandomNumberGenerator.new()
+		rng.seed = _terrain_seed(index)
+		for slot in 6:
+			var person := GroundActor.new()
+			person.actor_id = "port_%d_resident_%d" % [index, slot]
+			person.display_name = str(first_names[rng.randi_range(0, first_names.size() - 1)]) + " " + str(last_names[rng.randi_range(0, last_names.size() - 1)])
+			if person.actor_id in eliminated:
+				person.free()
+				continue
+			person.set_meta("colony_index", index)
+			person.target = pilot
+			person.hostile = false
+			person.follow_when_friendly = false
+			person.patrol_radius = 3.0
+			person.pursuit_radius = 35.0
+			if slot < 4:
+				person.faction = "civilian"
+				person.role = str(colony.interior_services[slot].label)
+				person.hold_position = true
+				person.set_meta("service", str(colony.interior_services[slot].page))
+				person.position = colony.to_global(colony.interior_positions[slot] + Vector3(0, 0.3, -4))
+				person.rotation.y = PI
+			else:
+				person.faction = "police"
+				person.role = "Port security"
+				person.position = colony.to_global(Vector3(-12 if slot == 4 else 12, 0.3, 12))
 			person.destroyed.connect(_actor_destroyed)
 			person.fired.connect(_enemy_fire)
 			add_child(person)
@@ -728,6 +771,7 @@ func _player_fire(origin: Vector3, direction: Vector3) -> void:
 	if not hit.is_empty():
 		var victim: Object = hit.collider
 		if victim.has_method("take_damage"):
+			if victim.has_meta("colony_index"): victim.active = true
 			if victim.faction not in ["pirate", "player_fleet"] and not victim.get_meta("assault_reported", false):
 				state.wanted += 1
 				victim.set_meta("assault_reported", true)
@@ -829,7 +873,9 @@ func interaction_hint() -> String:
 
 func _near_person() -> Node3D:
 	for actor in actors:
-		if not bool(actor.get_meta("spatial_culled", false)) and actor is GroundActor and actor.has_meta("service") and actor.position.distance_to(pilot.position) < 6: return actor
+		if not bool(actor.get_meta("spatial_culled", false)) and actor is GroundActor and actor.has_meta("service") and actor.position.distance_to(pilot.position) < 6:
+			var ray := PhysicsRayQueryParameters3D.create(pilot.camera.global_position, actor.global_position + Vector3.UP * 1.5, 1, [pilot.get_rid()])
+			if get_world_3d().direct_space_state.intersect_ray(ray).is_empty(): return actor
 	return null
 
 func _interact() -> void:
@@ -1030,6 +1076,7 @@ func _process(delta: float) -> void:
 	for actor in actors:
 		if not is_instance_valid(actor): continue
 		actor.active = not ui_open and jump_charge <= 0 and not aboard and not bool(actor.get_meta("spatial_culled", false))
+		if actor.has_meta("colony_index") and actor.position.distance_to(pilot.position) > 250: actor.active = false
 		if actor.faction == "police": actor.hostile = PlayerFaction.police_hostile(state.faction, str(world.data.faction), state.wanted)
 	_update_combat_targets()
 	if jump_charge > 0:
