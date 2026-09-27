@@ -106,3 +106,5 @@ Public orbital stations also assign oversized ships to an exterior 120 m berth, 
 Station Works supports editable service concourses: add up to 16 rooms, refit their service purpose, or salvage the last room. Changes persist in local saves and generate connected, numbered walkable rooms. Leave the station and multiplayer visits before editing its construction.
 
 Walkable ship interiors now occupy the ship’s actual position and orientation, with matching 2.8 m module spacing and gravity aligned to its deck. Disengage cruise and stop before leaving the helm; moving interior frames remain in development.
+
+Editable floor and ceiling window panels now have transparent apertures with solid collision barriers. You can see outside while walking on the glass; room lights and trim no longer cover the opening.

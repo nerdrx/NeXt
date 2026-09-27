@@ -77,3 +77,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Author station service-room kits and numbered wayfinding for market, company, shipyard, contracts, faction and construction rooms; retain shared doorway dimensions, corridor connectivity and service interaction points.
 
 - [ ] Replace ship interior kits within the exterior-compatible 2.8 m cell spacing and 2.45 m room height; preserve capsule clearance, deck-up orientation, window apertures and floor anchors 1.23 m below each module center.
+
+- [ ] Author horizontal ship-window frames and glass shading around the 1.85 m clear aperture, preserving floor/ceiling collision and removing opaque backing from the visible opening.

@@ -52,15 +52,21 @@ func _floor(center: Vector3, room_type: String, panels: Dictionary) -> void:
 	var ceiling_type: String = str(panels.get("+y", "standard"))
 	var floor_color := Color("23313c") if floor_type == "standard" else (Color("39464d") if floor_type == "armored" else Color("174c60"))
 	var ceiling_color := Color("314451") if ceiling_type == "standard" else (Color("465158") if ceiling_type == "armored" else Color("174c60"))
-	_box(center + Vector3(0, -0.01, 0), Vector3(2.8, 0.02, 2.8), floor_color, true)
-	_box(center + Vector3(0, WALL_HEIGHT, 0), Vector3(2.8, 0.02, 2.8), ceiling_color, true)
+	var floor_slab := _box(center + Vector3(0, -0.01, 0), Vector3(2.8, 0.02, 2.8), floor_color, true)
+	var ceiling_slab := _box(center + Vector3(0, WALL_HEIGHT, 0), Vector3(2.8, 0.02, 2.8), ceiling_color, true)
 	if floor_type == "window":
-		_box(center + Vector3(0, 0.014, 0), Vector3(1.85, 0.025, 1.85), Color(0.08, 0.27, 0.35, 0.7))
+		floor_slab.visible = false
+		floor_slab.name = "FloorWindowBarrier"
+		_add_horizontal_window(center, 0.002, "FloorWindowGlass")
 	if ceiling_type == "window":
-		_box(center + Vector3(0, WALL_HEIGHT - 0.02, 0), Vector3(1.85, 0.025, 1.85), Color(0.08, 0.27, 0.35, 0.7))
-	for x in [-0.8, 0.8]:
-		_box(center + Vector3(x, 0.014, 0), Vector3(0.022, 0.018, 2.5), Color("587c83"))
-	_box(center + Vector3(0, 2.34, 0), Vector3(0.13, 0.04, 1.9), Color("bce7e5"), false, true)
+		ceiling_slab.visible = false
+		ceiling_slab.name = "CeilingWindowBarrier"
+		_add_horizontal_window(center, WALL_HEIGHT - 0.022, "CeilingWindowGlass")
+	if floor_type != "window":
+		for x in [-0.8, 0.8]:
+			_box(center + Vector3(x, 0.014, 0), Vector3(0.022, 0.018, 2.5), Color("587c83"))
+	if ceiling_type != "window":
+		_box(center + Vector3(0, 2.34, 0), Vector3(0.13, 0.04, 1.9), Color("bce7e5"), false, true)
 	var label := Label3D.new()
 	label.text = room_type.to_upper() + "  /  DECK " + str(int(round(center.y / CELL.y)))
 	label.font_size = 40
@@ -71,6 +77,16 @@ func _floor(center: Vector3, room_type: String, panels: Dictionary) -> void:
 	if floor_type == "armored" or ceiling_type == "armored":
 		for x in [-1.1, 1.1]:
 			_box(center + Vector3(x, 0.025, 0), Vector3(0.045, 0.035, 2.35), Color("78858a"))
+
+
+func _add_horizontal_window(center: Vector3, y: float, pane_name: String) -> void:
+	var rim := Color("78898b")
+	var side_width := (2.8 - 1.85) * 0.5
+	for side in [-1.0, 1.0]:
+		_box(center + Vector3(side * (0.925 + side_width * 0.5), y, 0), Vector3(side_width, 0.02, 2.8), rim)
+		_box(center + Vector3(0, y, side * (0.925 + side_width * 0.5)), Vector3(1.85, 0.02, side_width), rim)
+	var pane := _box(center + Vector3(0, y + 0.012, 0), Vector3(1.85, 0.012, 1.85), Color(0.08, 0.27, 0.35, 0.28))
+	pane.name = pane_name
 
 
 func _outer_wall(center: Vector3, offset: Vector3, size: Vector3, face: String, panel_type: String) -> void:

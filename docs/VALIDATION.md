@@ -473,3 +473,30 @@ including the revised parked-ship interior check. The SDR white-level warning
 persists; the ZIP contains the rebuilt executable and pack.
 The Proton/Gamescope wrapper remained alive after game completion and was
 terminated by the 55-second timeout (exit 137), not a clean wrapper exit.
+
+## Horizontal interior glazing and texture ownership
+
+Floor/ceiling window overrides now hide the opaque backing mesh while retaining
+its complete collision barrier. Four opaque rim sections surround a 1.85 m glass
+aperture. Floor trim and the central ceiling light are omitted for their respective
+window panels. This supersedes the earlier floor/ceiling decorative-pane limitation.
+
+A focused fixture verifies visible alpha panes, hidden backing meshes, floor and
+ceiling ray hits, capsule support, and a jumping capsule stopped by the ceiling.
+Hidden Gamescope/Vulkan renders also verify an exterior red target through the
+floor and a blue target through the ceiling. Initial center-pixel checks sampled
+the lamp's specular reflection; inspected captures showed the correct target, so
+the final check averages four points around the central glint. Both color checks
+passed and both captures were inspected. The anchored ship interior regression
+also passed in hidden Gamescope.
+
+PlanetHeightField now keeps weak references to GPU textures while retaining its
+bounded CPU image cache. Live materials share a texture; after the last owner
+releases it, a future request recreates the deterministic texture from the cached
+image. A focused lifetime check verifies sharing, last-owner release and identical
+pixel recreation. This does not fix the observed seven texture RID warnings:
+the full main-scene graphical regression still reports them, so cache retention
+was not sufficient to explain that warning. Further renderer-lifetime work remains.
+
+The headless glazing and planet-height regression checks passed. Windows export
+and ZIP packaging completed; this increment was not separately run under Proton.

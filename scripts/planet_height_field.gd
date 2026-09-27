@@ -30,10 +30,13 @@ static func image_for(seed: int) -> Image:
 static func texture_for(seed: int) -> ImageTexture:
 	var image := image_for(seed)
 	var entry: Dictionary = _cache[seed]
-	if entry["texture"] == null:
-		entry["texture"] = ImageTexture.create_from_image(image)
+	var texture: ImageTexture = entry["texture"].get_ref() if entry["texture"] != null else null
+	if texture == null:
+		texture = ImageTexture.create_from_image(image)
+		# Materials own GPU textures; the static CPU cache must not outlive their renderer.
+		entry["texture"] = weakref(texture)
 		_cache[seed] = entry
-	return entry["texture"]
+	return texture
 
 
 static func surface_height(direction: Vector3, seed: int) -> float:
