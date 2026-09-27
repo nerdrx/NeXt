@@ -104,9 +104,11 @@ func _run() -> void:
 	var outside_position: Vector3 = game.pilot.position
 	var outside_basis: Basis = game.pilot.basis
 	var outside_up: Vector3 = game.pilot.up_direction
+	var deck_up: Vector3 = game.ship_display.global_basis.y.normalized()
 	game.enter_interior()
-	if not _check(game.aboard and game.pilot.up_direction.is_equal_approx(Vector3.UP), "interior uses local deck gravity"): return
+	if not _check(game.aboard and game.pilot.up_direction.is_equal_approx(deck_up), "interior uses parked hull deck gravity"): return
 	await create_timer(0.3).timeout
+	if not _check(game.pilot.is_on_floor(), "parked interior supports passenger on planet"): return
 	game.exit_interior()
 	if not _check(not game.aboard and not game.pilot.flying and game.manual_planet == 0, "interior exit restores grounded mode"): return
 	if not _check(game.pilot.position.is_equal_approx(outside_position) and game.pilot.basis.is_equal_approx(outside_basis) and game.pilot.up_direction.is_equal_approx(outside_up), "interior exit preserves radial position and orientation"): return

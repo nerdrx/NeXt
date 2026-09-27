@@ -500,3 +500,44 @@ was not sufficient to explain that warning. Further renderer-lifetime work remai
 
 The headless glazing and planet-height regression checks passed. Windows export
 and ZIP packaging completed; this increment was not separately run under Proton.
+
+## Coasting while walking aboard
+
+Leaving the helm with cruise off now transfers the ship's stored flight velocity
+to a separate swept modular hull. The hull keeps its world velocity while the
+passenger walks. Interior geometry and the passenger translate together before
+the passenger physics step. Static deck transforms are explicitly flushed: the
+first integration check exposed a one-step lag that otherwise let the passenger
+fall through a fast-moving floor. Internal deck bodies are excluded from the
+outer hull's collision query; its occupied module boxes still hit world geometry.
+
+Origin rebasing follows the moving hull and shifts the passenger/interior in the
+same frame. Saving records the current hull address. Returning to the helm restores
+position, orientation and stored velocity, including when boarding through the
+menu (which temporarily zeros the pilot body's visible velocity). Contact stops
+the hull and returns the commander to the helm; normal collision damage and fatal
+insured wreck recovery then apply. The interior interaction hint shows coast speed.
+
+The focused hull test checks occupied-wing sweep collision and actual passage of
+an obstacle through an unoccupied module gap. The full-scene test boards through
+the real menu, crosses an origin boundary at 180 m/s, checks an idle passenger's
+relative position, walks through a doorway, saves the moving address, returns with
+momentum, and exercises both nonfatal and fatal impacts. The physical scenario
+passed in hidden Gamescope/Vulkan; the final menu-path check passed headless.
+Anchored interior and general gameplay regressions passed. The packaged smoke now
+also enters a coasting interior, checks floor support and returns with momentum.
+
+This supersedes the stationary-only interior restriction, but only covers straight
+coasting with fixed attitude. Autopilot/crew steering while aboard, angular frame
+motion, shared multiplayer boarding and movement through physical airlocks remain
+unfinished. Existing flight saves still do not serialize momentum; reload starts
+at the recorded location. Nearby NPC combat remains paused while aboard. No target
+frame-rate claim is made for large interiors. Texture teardown warnings remain.
+
+The final menu-driven coasting test also passed under hidden Gamescope. The rebuilt
+Windows release emitted `NEXT_INTEGRATION_OK` under Proton/hidden Gamescope,
+including the release-safe coasting checks. The wrapper required timeout cleanup
+(exit 137); this is not a clean wrapper-exit claim. The spatial gameplay check that
+failed on the previous commit now passes with the moving-interior implementation.
+The planetary regression's former world-UP expectation was updated to the parked
+hull's deck normal, with an additional physical floor-support check.

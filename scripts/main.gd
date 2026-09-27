@@ -14,6 +14,8 @@ var remote_ships: Dictionary = {}
 var home_state: GameState
 var home_save_path: String = ""
 var interior: ShipInterior
+var coasting_hull: CoastingHull
+var _coasting_deck_bodies: Array[StaticBody3D] = []
 var aboard: bool = false
 var interior_deck: int = 0
 var return_position := Vector3.ZERO
@@ -51,6 +53,7 @@ var landed_ship_address: SectorPosition
 var landed_ship_normal := Vector3.UP
 
 func _ready() -> void:
+	process_physics_priority = -100
 	automation = "--smoke" in OS.get_cmdline_user_args() or "--visual-tour" in OS.get_cmdline_user_args() or "--capture-only" in OS.get_cmdline_user_args()
 	if automation: save_path = "user://integration_commander-%d.json" % OS.get_process_id()
 	_input_actions()
@@ -144,19 +147,27 @@ func _build_system() -> void:
 
 func _register_spatial_nodes() -> void:
 	for node in get_children():
-		if not node is Node3D or node == pilot or node == interior or node in remote_ships.values(): continue
+		if not node is Node3D or node == pilot or node == interior or node == coasting_hull or node in remote_ships.values(): continue
 		if not flight_frame.has_node(node): flight_frame.track(node, flight_origin)
 
 func _rebase_flight() -> void:
-	if surface_index >= 0 or aboard or not pilot.flying or maxf(absf(pilot.position.x), maxf(absf(pilot.position.y), absf(pilot.position.z))) < SectorPosition.HALF_SECTOR: return
+	var coasting := aboard and is_instance_valid(coasting_hull)
+	if surface_index >= 0 or (not coasting and (aboard or not pilot.flying)): return
+	var frame_position: Vector3 = coasting_hull.position if coasting else pilot.position
+	if maxf(absf(frame_position.x), maxf(absf(frame_position.y), absf(frame_position.z))) < SectorPosition.HALF_SECTOR: return
 	var address := SectorPosition.new(flight_origin.sector, flight_origin.local)
-	if not address.move_delta(pilot.position): return
+	if not address.move_delta(frame_position): return
 	var new_origin := SectorPosition.new(address.sector)
 	var shift: Variant = new_origin.relative_to(flight_origin, SectorPosition.MAX_RELATIVE_DISTANCE)
 	if shift == null: return
 	_register_spatial_nodes()
 	flight_frame.rebase(flight_origin, new_origin)
 	pilot.position -= shift
+	if coasting:
+		coasting_hull.position -= shift
+		interior.position -= shift
+		return_position -= shift
+		interior.reset_physics_interpolation()
 	pilot.autopilot_target -= shift
 	pilot.reset_physics_interpolation()
 	flight_origin = new_origin
@@ -1046,7 +1057,7 @@ func _rescue() -> void:
 func interaction_hint() -> String:
 	var service := _station_service() if docked_station >= 0 else _colony_service()
 	if not service.is_empty(): return str(service.label)
-	if aboard: return "Return to helm  /  PgUp/PgDn change deck"
+	if aboard: return "Return to helm  /  PgUp/PgDn change deck" + ("  /  Ship coasting %d m/s" % roundi(coasting_hull.velocity.length()) if is_instance_valid(coasting_hull) else "")
 	if surface_index >= 0: return "Board ship / return to orbit" if _near_person() == null else "Talk to " + _near_person().display_name
 	var person: Node3D = _near_person()
 	if person != null: return "Talk to " + person.display_name
@@ -1240,6 +1251,22 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_J: open_menu("navigation")
 		KEY_F5: save_commander(true)
 		KEY_F9: load_commander()
+
+func _physics_process(delta: float) -> void:
+	if not aboard or not is_instance_valid(coasting_hull): return
+	var result: Dictionary = coasting_hull.advance(delta)
+	var movement: Vector3 = result.displacement
+	interior.position += movement
+	pilot.position += movement
+	return_position = coasting_hull.position
+	_rebase_flight()
+	# Flush moving deck transforms before the passenger performs its physics step.
+	for body: StaticBody3D in _coasting_deck_bodies: body.force_update_transform()
+	if float(result.impact_speed) > 0:
+		var impact_speed: float = result.impact_speed
+		exit_interior()
+		_flight_impact(impact_speed)
+		if impact_speed <= 25: notify("Coasting hull contacted an obstacle. Returned to helm.")
 
 func _process(delta: float) -> void:
 	if pilot == null or state == null: return
@@ -1587,6 +1614,18 @@ func _integration_check() -> void:
 	open_menu("fleet")
 	await _capture("fleet")
 	_build_system()
+	pilot.set_flight(true)
+	var coast_start := Vector3(1500, 1500, 1500)
+	pilot.teleport(coast_start)
+	pilot.restore_flight_velocity(Vector3(60, 0, 0))
+	close_menu()
+	enter_interior()
+	if not _check(aboard and is_instance_valid(coasting_hull), "leave helm while coasting"): return
+	await get_tree().create_timer(0.3).timeout
+	if not _check(coasting_hull.position.x > coast_start.x + 10 and pilot.is_on_floor(), "moving interior supports passenger"): return
+	exit_interior()
+	if not _check(pilot.flying and pilot.velocity.x == 60, "return to moving helm"): return
+	_build_system()
 	if not _check(purchase_insurance().is_empty(), "insurance service"): return
 	state.cargo.food = 5
 	pilot.set_flight(true)
@@ -1745,8 +1784,8 @@ func enter_interior() -> void:
 		if is_instance_valid(actor) and not bool(actor.get_meta("spatial_culled", false)) and actor.hostile and actor.position.distance_to(pilot.position) < 1000 and pilot.flying:
 			notify("Leave the combat zone before leaving the helm.")
 			return
-	if pilot.flying and (pilot.velocity.length() > 1.0 or pilot.autopilot_active):
-		notify("Disengage cruise and bring the ship to rest before leaving the helm.")
+	if pilot.flying and pilot.autopilot_active:
+		notify("Disengage cruise before leaving the helm. Your ship will coast while you are aboard.")
 		return
 	if not bool(state.ship_stats().get("walkable", false)):
 		notify("Install a habitat and at least eight connected modules to support walkable decks.")
@@ -1768,6 +1807,16 @@ func enter_interior() -> void:
 	add_child(interior)
 	interior.global_transform = hull_transform * Transform3D(Basis.IDENTITY, -module_center - Vector3.UP * 1.23)
 	interior.build(state.ship_modules, state.ship_layout)
+	if return_flying:
+		coasting_hull = CoastingHull.new()
+		add_child(coasting_hull)
+		coasting_hull.configure(state.ship_modules)
+		coasting_hull.global_transform = hull_transform
+		coasting_hull.velocity = pilot.flight_velocity()
+		_coasting_deck_bodies.clear()
+		for body: Node in interior.find_children("*", "StaticBody3D", true, false):
+			_coasting_deck_bodies.append(body)
+			coasting_hull.add_collision_exception_with(body)
 	ship_display.hide()
 	aboard = true
 	interior_deck = 0 if 0 in interior.decks else interior.decks[0]
@@ -1777,10 +1826,17 @@ func enter_interior() -> void:
 	pilot.set_walk_up(interior.global_basis.y)
 	pilot.teleport(interior.spawn_on_deck(interior_deck))
 	close_menu()
-	notify("Aboard your ship. E returns to helm; PgUp/PgDn use the deck lift.")
+	notify("Aboard your ship. E returns to helm; PgUp/PgDn use the deck lift." + (" Ship coasting at %d m/s." % roundi(coasting_hull.velocity.length()) if return_flying else ""))
 
 func exit_interior() -> void:
 	if not aboard: return
+	var ship_velocity := Vector3.ZERO
+	if is_instance_valid(coasting_hull):
+		return_position = coasting_hull.position
+		ship_velocity = coasting_hull.velocity
+		coasting_hull.queue_free()
+		coasting_hull = null
+	_coasting_deck_bodies.clear()
 	aboard = false
 	interior.queue_free()
 	interior = null
@@ -1789,6 +1845,7 @@ func exit_interior() -> void:
 	pilot.restore_view(return_view)
 	pilot.set_walk_up(return_up)
 	pilot.basis = return_basis
+	if return_flying: pilot.restore_flight_velocity(ship_velocity)
 	ship_display.visible = not return_flying
 	close_menu()
 

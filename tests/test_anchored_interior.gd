@@ -32,9 +32,6 @@ func _run() -> void:
 	var view := Vector3(0.4, 0.7, 0.3)
 	game.pilot.teleport(anchor)
 	game.pilot.restore_view(view)
-	game.pilot.velocity = Vector3(20, 0, 0)
-	game.enter_interior()
-	assert(not game.aboard, "moving ship cannot silently stop when leaving helm")
 	game.pilot.velocity = Vector3.ZERO
 	game.pilot.autopilot_active = true
 	game.enter_interior()

@@ -364,6 +364,14 @@ func set_walk_up(up: Vector3) -> void:
 	up_direction = normal
 
 
+func flight_velocity() -> Vector3:
+	return _flight_velocity
+
+func restore_flight_velocity(value: Vector3) -> void:
+	if not flying or not value.is_finite(): return
+	_flight_velocity = value
+	velocity = value
+
 func teleport(pos: Vector3) -> void:
 	global_position = pos
 	cancel_autopilot()
