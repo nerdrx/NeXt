@@ -129,7 +129,7 @@ func _physics_process(delta: float) -> void:
 	var heat_factor := clampf((700.0 - drive_temperature_k) / 200.0, 0.0, 1.0)
 	var mass := maxf(1.0, dry_mass_kg + cargo_mass_kg)
 	var acceleration := minf(acceleration_limit_mps2, thrust_newtons * heat_factor / mass)
-	var command := _avoid_obstacles(offset.normalized() * FlightDynamics.approach_speed(distance, desired_speed, acceleration))
+	var command := _avoid_obstacles(offset.normalized() * FlightDynamics.approach_speed(distance, desired_speed, acceleration), acceleration)
 	var requested_dv := command - velocity
 	var dv_limit := minf(acceleration * delta, maxf(0.0, 700.0 - drive_temperature_k) / 20.0 * 5000000.0 / mass)
 	var actual_dv := requested_dv.limit_length(dv_limit)
@@ -146,12 +146,12 @@ func _physics_process(delta: float) -> void:
 	_visual.set_thrust(clampf(actual_dv.length() / maxf(acceleration * delta, 0.000001), 0.0, 1.0))
 
 
-func _avoid_obstacles(desired_velocity: Vector3) -> Vector3:
+func _avoid_obstacles(desired_velocity: Vector3, acceleration: float = 30.0) -> Vector3:
 	if not desired_velocity.is_finite() or desired_velocity.length_squared() < 0.000001: return Vector3.ZERO
 	var travel_speed := desired_velocity.length()
 	if not is_finite(travel_speed): return Vector3.ZERO
 	var forward := desired_velocity / travel_speed
-	var lookahead := maxf(16.0, travel_speed * 2.0)
+	var lookahead := maxf(maxf(16.0, travel_speed * 2.0), FlightDynamics.braking_distance(travel_speed, acceleration) + travel_speed * 0.25)
 	var query := PhysicsShapeQueryParameters3D.new()
 	query.shape = _avoidance_shape
 	query.transform = Transform3D(Basis.IDENTITY, global_position)
@@ -159,6 +159,13 @@ func _avoid_obstacles(desired_velocity: Vector3) -> Vector3:
 	query.exclude = [get_rid()]
 	var space := get_world_3d().direct_space_state
 	if not space.intersect_shape(query, 1).is_empty(): return Vector3.ZERO
+	# Turning the desired direction cannot instantly redirect inertial momentum.
+	# Brake first if our actual trajectory consumes the remaining stopping room.
+	var current_speed := velocity.length()
+	if current_speed > 0.01:
+		var stopping_room := FlightDynamics.braking_distance(current_speed, acceleration) + current_speed * 0.25
+		query.motion = velocity / current_speed * stopping_room
+		if space.cast_motion(query)[0] < 0.999: return Vector3.ZERO
 	query.motion = forward * lookahead
 	if space.cast_motion(query)[0] >= 0.999:
 		_avoidance_direction = Vector3.ZERO

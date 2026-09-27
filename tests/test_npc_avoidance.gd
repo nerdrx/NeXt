@@ -72,5 +72,32 @@ func _run() -> void:
 	room.add_child(trapped_ship)
 	await physics_frame
 	assert(trapped_ship._avoid_obstacles(Vector3.FORWARD * 50.0) == Vector3.ZERO, "fully enclosed fan stops instead of commanding into a wall")
-	print("NPC avoidance tests passed: wall clearance, progress, direct-path recovery and enclosed stop")
+
+	# A distant wall can still block the current inertial path when braking is weak.
+	var inertial_ship := ShipActor.new()
+	inertial_ship.position = Vector3(2000, 0, 0)
+	world.add_child(inertial_ship)
+	var distant_wall := StaticBody3D.new()
+	distant_wall.collision_layer = 1
+	var distant_shape := CollisionShape3D.new()
+	var distant_box := BoxShape3D.new()
+	distant_box.size = Vector3(4, 60, 60)
+	distant_shape.shape = distant_box
+	distant_wall.add_child(distant_shape)
+	distant_wall.position = Vector3(2400, 0, 0)
+	world.add_child(distant_wall)
+	await physics_frame
+	inertial_ship.set_physics_process(false)
+	inertial_ship.velocity = Vector3.RIGHT * 100.0
+	assert(inertial_ship._avoid_obstacles(Vector3.FORWARD * 50.0, 10.0) == Vector3.ZERO,
+		"inertial braking conflict stops even when desired direction is clear")
+	assert(inertial_ship._avoid_obstacles(Vector3.FORWARD * 50.0, 30.0) == Vector3.FORWARD * 50.0,
+		"strong acceleration preserves clear sideways command when wall is beyond stopping distance")
+	inertial_ship.velocity = Vector3.ZERO
+	var cautious_command := inertial_ship._avoid_obstacles(Vector3.RIGHT * 100.0, 10.0)
+	assert(cautious_command.length() > 1.0 and absf(cautious_command.normalized().dot(Vector3.RIGHT)) < 0.99,
+		"weak acceleration detects distant wall and chooses a lateral detour from rest")
+	assert(inertial_ship._avoid_obstacles(Vector3.RIGHT * 100.0, 30.0) == Vector3.RIGHT * 100.0,
+		"strong acceleration keeps direct command when distant wall is beyond desired-path horizon")
+	print("NPC avoidance tests passed: wall clearance, progress, direct-path recovery, enclosed stop and braking horizons")
 	quit()

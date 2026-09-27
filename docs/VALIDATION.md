@@ -975,3 +975,8 @@ The new fleet-family regression passed purchase pricing/deductions, rejected tra
 Commissioned local hulls now derive drive statistics from their blueprint, add physical cargo mass, use loaded thrust-to-mass acceleration and charge drive heat from actual impulse. Their approach command accounts for available braking acceleration. Existing actors refresh cargo mass when fleet state changes.
 
 The fleet-family regression passed blueprint drive values, actual one-step motion for empty versus 160 t loaded Merchants, radiator cooling plus impulse heating, loaded near-target braking and spawn/sync/respawn mass propagation. Its fixture disables automatic physics after tree entry so the manual tick is isolated. Headless and hidden Gamescope runs passed; existing fleet gameplay, flight-save and NPC thermal tests passed. Windows export succeeded. This does not establish distant strategic physical flight, family-specific damage/shields/weapons or Proton runtime validation.
+
+
+## Braking-aware fleet obstacle sweeps — 2026-09-28
+
+AI steering now uses available acceleration for its obstacle horizon and separately checks the ship's current inertial stopping path. Regression tests place a real wall 400 m ahead: weak braking detects it both while coasting toward it with a sideways command and while planning from rest; stronger braking preserves clear commands when the wall remains outside its stopping horizon. Existing finite-wall progress, direct-path recovery and enclosed-stop cases still pass. Native headless and hidden Gamescope avoidance checks passed, alongside fleet family, thermal and fleet combat regressions. Windows export succeeded. Local heuristic avoidance is not global pathfinding or a general collision-free guarantee.

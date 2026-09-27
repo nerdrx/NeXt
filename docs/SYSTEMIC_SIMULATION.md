@@ -216,3 +216,6 @@ Fleet drive temperatures are saved and restored independently of their route or 
 ## Local commissioned-family propulsion
 
 Local Pathfinder and Merchant actors derive dry mass, thrust, cruise command speed and radiator area from their shared module blueprint. Each cargo unit adds 1,000 kg, matching player-ship mass accounting. The local drive applies thrust divided by loaded mass, the existing thermal derating and a 3 g acceleration cap; accumulated heat follows actual impulse. Approach speed uses available braking acceleration. Cargo changes refresh the existing actor as well as newly spawned actors. Distant fleet travel still uses the strategic voyage clock; hull damage/shields and weapons still need family-specific integration.
+
+
+Local AI obstacle sweeps now extend to the greater of the existing two-second horizon and estimated braking distance plus 0.25 seconds of travel. A separate sweep follows current velocity, so a clear requested turn cannot hide an imminent collision along the inertial path. This remains local heuristic steering with conservative hull bounds, not a global route planner or a guarantee under changing thrust/obstacles.
