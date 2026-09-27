@@ -98,3 +98,10 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Local hired freighter variant (`scripts/ship_actor.gd`, `scripts/ship_visual.gd`): replace the cargo-wing procedural ship with authored civilian freight hulls, cargo-bay markings and docking lights; preserve local trade travel and collision behavior.
 
 - [ ] Fleet freight cache (`scripts/main.gd`, `rebuild_wrecks`): replace the banded procedural container and cyan beacon with authored damaged cargo pods; keep its recovery address and visibility after rebasing. No hull salvage value is attached to these containers.
+
+
+## Habitable family shells
+
+- [ ] Replace the Pathfinder and Merchant pressure blockouts with designed outer armor, propulsion housings, service access and restrained materials. Preserve the shared room envelope and boarding/collision contract; do not shrink usable interior volume to fit a cosmetic silhouette.
+- [ ] Replace roof module indicators and rectangular inset panels with functional equipment details. The current connected shell and exposed fittings are construction references, not final art.
+- [ ] Inspect replacement families in exterior, rear, cutaway and aboard views using `tests/capture_hull_families.gd` plus gameplay captures.

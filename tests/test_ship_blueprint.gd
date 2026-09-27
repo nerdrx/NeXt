@@ -18,11 +18,18 @@ func _run() -> void:
 		var visual := ShipVisual.new()
 		root.add_child(visual)
 		visual.build(state.ship_modules, "player", state.ship_layout)
-		var envelope: Array[Dictionary] = []
-		for child in visual.get_children():
-			if child is MeshInstance3D and child.mesh.get_aabb().size.is_equal_approx(ShipBlueprint.PRESSURE_SIZE):
-				envelope.append({"origin":child.position, "faces":child.mesh.get_faces()})
-		assert(envelope.size() == cells.size(), "one pressure envelope per occupied cell")
+		var shell := visual.get_node_or_null("FamilyPressureHull") as MeshInstance3D
+		assert(shell != null, "family cells produce one connected pressure skin")
+		var outline := ShipBlueprint.pressure_outline(cells)
+		var reordered := cells.duplicate()
+		reordered.reverse()
+		assert(ShipBlueprint.pressure_outline(reordered) == outline, "save/module ordering cannot change the hull")
+		for vertex: Vector3 in shell.mesh.get_faces():
+			var within_collision := false
+			for cell in cells:
+				var bounds := AABB(Vector3(cell)*ShipBlueprint.CELL_SIZE-center-ShipBlueprint.COLLISION_SIZE*0.5,ShipBlueprint.COLLISION_SIZE)
+				if bounds.grow(0.001).has_point(vertex): within_collision = true
+			assert(within_collision,"pressure skin must not protrude outside collision")
 		var interior := ShipInterior.new()
 		root.add_child(interior)
 		interior.position = ShipBlueprint.interior_offset(cells)
@@ -34,10 +41,8 @@ func _run() -> void:
 				for y in [-half.y, half.y]:
 					for z in [-half.z, half.z]:
 						var point := shape.to_global(Vector3(x,y,z))
-						var enclosed := false
-						for bounds in envelope:
-							if _inside_pressure_mesh(point - bounds.origin, bounds.faces): enclosed = true
-						assert(enclosed, "interior collision must fit the visible pressure envelope: " + str(point))
+						assert(absf(point.y) < ShipBlueprint.PRESSURE_SIZE.y*0.5, "interior fits vertical pressure bounds")
+						assert(Geometry2D.is_point_in_polygon(Vector2(point.x,point.z),outline), "interior fits the connected pressure outline")
 		var hull := CoastingHull.new()
 		root.add_child(hull)
 		hull.configure(state.ship_modules)
@@ -49,17 +54,22 @@ func _run() -> void:
 		interior.queue_free()
 		hull.queue_free()
 		await process_frame
+	# Surface fittings must remain visible after pressure-envelope dimensions change.
+	var material := StandardMaterial3D.new()
+	for face: String in ShipLayout.FACES:
+		for fitting in ["armored", "window", "radiator"]:
+			var visual := ShipVisual.new()
+			root.add_child(visual)
+			if fitting == "radiator":
+				visual._build_radiator_face(Vector3.ZERO, face, material, material, material)
+			else:
+				visual._build_hull_panel(Vector3.ZERO, face, fitting, material, material, material, material)
+			var normal := Vector3(ShipLayout.FACE_STEPS[face])
+			var surface := normal.abs().dot(ShipBlueprint.PRESSURE_SIZE) * 0.5
+			for mesh: MeshInstance3D in visual.get_children():
+				for vertex: Vector3 in mesh.mesh.get_faces():
+					assert((mesh.transform * vertex).dot(normal) > surface - 0.004, "surface fitting must not be buried in pressure hull")
+			visual.free()
 	assert(ShipBlueprint.family("unknown").is_empty())
 	print("SHIP_BLUEPRINT_OK: families, rooms, exterior containment and collision share one spatial contract")
 	quit()
-
-func _inside_pressure_mesh(point: Vector3, faces: PackedVector3Array) -> bool:
-	# Pressure cells are convex. Check actual chamfer planes, not only their AABB.
-	for i in range(0, faces.size(), 3):
-		var a := faces[i]
-		var b := faces[i+1]
-		var c := faces[i+2]
-		var normal := (b-a).cross(c-a).normalized()
-		if normal.dot((a+b+c)/3.0) < 0: normal = -normal
-		if normal.dot(point-a) > 0.001: return false
-	return true

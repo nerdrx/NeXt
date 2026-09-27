@@ -55,17 +55,34 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 		high = Vector3i(maxi(high.x, cell.x), maxi(high.y, cell.y), maxi(high.z, cell.z))
 	var center := ShipBlueprint.center(cells)
 	var bounds := (Vector3(high - low) + Vector3.ONE) * CELL_SIZE
+	var outline := ShipBlueprint.pressure_outline(cells)
+	var joined_hull := not outline.is_empty()
+	if joined_hull:
+		var shell := MeshInstance3D.new()
+		shell.name = "FamilyPressureHull"
+		shell.mesh = HullGeometry.prism(Array(outline),-ShipBlueprint.PRESSURE_SIZE.y*0.5,ShipBlueprint.PRESSURE_SIZE.y*0.5)
+		var paint := ShaderMaterial.new()
+		paint.shader = preload("res://shaders/fleet_surface.gdshader")
+		paint.set_shader_parameter("paint",Color("858e95") if ShipBlueprint.family_for_cells(cells) == "pathfinder" else Color("928d7f"))
+		paint.set_shader_parameter("base_roughness",0.5)
+		paint.set_shader_parameter("metalness",0.04)
+		paint.set_shader_parameter("coating",0.1)
+		shell.material_override = paint
+		add_child(shell)
 	# Connected pressure modules form the hull; avoid a broad hidden keel that reads as a wing.
 	for cell in cells:
 		var kind: String = kinds.get(cell, "hull")
 		var p: Vector3 = Vector3(cell) * CELL_SIZE - center
-		var deck := p + Vector3(0, 1.23, 0)
-		_add_bevelled_plate(p, ShipBlueprint.PRESSURE_SIZE, plate_mat, 0.03)
-		_add_box(p + Vector3(0, -1.24, 0), Vector3(2.48, 0.08, 2.48), dark_mat)
-		_add_box(p + Vector3(0, 0, -1.34), Vector3(1.82, 1.42, 0.035), inset_mat)
-		_add_box(p + Vector3(0, 0, 1.34), Vector3(1.82, 1.42, 0.035), inset_mat)
-		_add_box(p + Vector3(-1.34, 0, 0), Vector3(0.035, 1.42, 1.82), inset_mat)
-		_add_box(p + Vector3(1.34, 0, 0), Vector3(0.035, 1.42, 1.82), inset_mat)
+		var deck := p + Vector3.UP * (ShipBlueprint.PRESSURE_SIZE.y * 0.5 + 0.035)
+		if not joined_hull: _add_bevelled_plate(p, ShipBlueprint.PRESSURE_SIZE, plate_mat, 0.03)
+		# Only exposed faces receive inset service panels; shared cell faces are internal.
+		for face: String in ShipLayout.FACES:
+			var normal := Vector3(ShipLayout.FACE_STEPS[face])
+			if cells.has(cell + ShipLayout.FACE_STEPS[face]): continue
+			var size := Vector3(1.82, 1.42, 0.035)
+			if normal.x != 0: size = Vector3(0.035, 1.42, 1.82)
+			elif normal.y != 0: continue
+			_add_box(p + normal * _surface_depth(normal, 0.012), size, inset_mat)
 		var panel_data: Dictionary = active_layout.panels.get(ShipLayout.cell_key(cell), {})
 		for face: String in ShipLayout.FACES:
 			if panel_data.has(face):
@@ -75,7 +92,7 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 				_build_radiator_face(p, face, radiator_body, radiator_fin, radiator_channel)
 		var coordinate := cell
 		for neighbor: Vector3i in [coordinate + Vector3i.RIGHT, coordinate + Vector3i.UP, coordinate + Vector3i(0, 0, 1)]:
-			if not cells.has(neighbor):
+			if joined_hull or not cells.has(neighbor):
 				continue
 			var bridge_center := p + Vector3(neighbor - coordinate) * CELL_SIZE * 0.5
 			if neighbor.x != coordinate.x:
@@ -88,22 +105,22 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 		match kind:
 			"cockpit":
 				# Forward glazing belongs on the bow face, not as a rooftop console.
-				_add_box(p + Vector3(0, 0.45, -1.345), Vector3(1.42, 0.66, 0.045), dark_mat, Vector3(-0.16, 0, 0))
-				_add_box(p + Vector3(0, 0.45, -1.375), Vector3(1.22, 0.48, 0.03), canopy_mat, Vector3(-0.16, 0, 0))
-				_add_box(p + Vector3(0, 0.81, -1.34), Vector3(1.62, 0.06, 0.09), plate_mat)
-				_add_box(p + Vector3(-0.72, 0.44, -1.37), Vector3(0.06, 0.62, 0.08), plate_mat, Vector3(-0.16, 0, 0))
-				_add_box(p + Vector3(0.72, 0.44, -1.37), Vector3(0.06, 0.62, 0.08), plate_mat, Vector3(-0.16, 0, 0))
-				_add_box(p + Vector3(0, 0.44, -1.4), Vector3(0.035, 0.46, 0.04), glass_trim, Vector3(-0.16, 0, 0))
+				_add_box(p + Vector3(0, 0.45, -1.505), Vector3(1.42, 0.66, 0.045), dark_mat, Vector3(-0.16, 0, 0))
+				_add_box(p + Vector3(0, 0.45, -1.535), Vector3(1.22, 0.48, 0.03), canopy_mat, Vector3(-0.16, 0, 0))
+				_add_box(p + Vector3(0, 0.81, -1.50), Vector3(1.62, 0.06, 0.09), plate_mat)
+				_add_box(p + Vector3(-0.72, 0.44, -1.53), Vector3(0.06, 0.62, 0.08), plate_mat, Vector3(-0.16, 0, 0))
+				_add_box(p + Vector3(0.72, 0.44, -1.53), Vector3(0.06, 0.62, 0.08), plate_mat, Vector3(-0.16, 0, 0))
+				_add_box(p + Vector3(0, 0.44, -1.56), Vector3(0.035, 0.46, 0.04), glass_trim, Vector3(-0.16, 0, 0))
 			"engine":
 				for side in [-1, 1]:
-					_add_box(deck + Vector3(float(side) * 0.72, -0.12, 0.18), Vector3(0.62, 0.26, 1.7), hull_mat, Vector3(-0.05, 0, 0))
-					var mount := _add_cylinder(deck + Vector3(float(side) * 0.72, -0.3, 0.98), 0.43, 0.76, dark_mat)
+					_add_box(p + Vector3(float(side) * 0.72, 0.45, 1.20), Vector3(0.62, 0.26, 1.7), hull_mat, Vector3(-0.05, 0, 0))
+					var mount := _add_cylinder(p + Vector3(float(side) * 0.72, 0.45, 1.56), 0.43, 0.76, dark_mat)
 					mount.rotation.x = PI * 0.5
-					var nozzle := _add_cylinder(deck + Vector3(float(side) * 0.72, -0.3, 1.04), 0.3, 0.1, plate_mat)
+					var nozzle := _add_cylinder(p + Vector3(float(side) * 0.72, 0.45, 1.96), 0.3, 0.1, plate_mat)
 					nozzle.rotation.x = PI * 0.5
-					var core := _add_cylinder(deck + Vector3(float(side) * 0.72, -0.3, 1.1), 0.2, 0.045, warm_mat)
+					var core := _add_cylinder(p + Vector3(float(side) * 0.72, 0.45, 2.02), 0.2, 0.045, warm_mat)
 					core.rotation.x = PI * 0.5
-					var ring := _add_torus(deck + Vector3(float(side) * 0.72, -0.3, 1.09), 0.23, 0.29, accent_mat)
+					var ring := _add_torus(p + Vector3(float(side) * 0.72, 0.45, 2.02), 0.23, 0.29, accent_mat)
 					ring.rotation.x = PI * 0.5
 					_engines.append(core)
 					_engine_glow.append(warm_mat)
@@ -142,11 +159,16 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 	_add_box(Vector3(0, -0.12, bounds.z * 0.49), Vector3(bounds.x * 0.34, 0.09, 0.12), dark_mat)
 
 
+# Face-mounted equipment follows the pressure envelope, independent of grid pitch.
+func _surface_depth(normal: Vector3, clearance: float) -> float:
+	return normal.abs().dot(ShipBlueprint.PRESSURE_SIZE) * 0.5 + clearance
+
+
 func _build_hull_panel(center: Vector3, face: String, panel_type: String, standard: Material, armor: Material, dark: Material, glass: Material) -> void:
 	var normal: Vector3 = Vector3(ShipLayout.FACE_STEPS[face])
 	var horizontal_size := 2.32
 	var vertical_size := 1.42
-	var position := center + normal * (1.36 if face in ["+x", "-x", "+z", "-z"] else 1.23)
+	var position := center + normal * _surface_depth(normal, 0.04)
 	var size: Vector3
 	if face in ["+x", "-x"]:
 		size = Vector3(0.045, vertical_size, horizontal_size)
@@ -190,14 +212,13 @@ func _build_radiator_face(center: Vector3, face: String, body: Material, fin: Ma
 	var normal: Vector3 = Vector3(ShipLayout.FACE_STEPS[face])
 	var u: Vector3
 	var v: Vector3
-	var face_depth := 1.32
+	var face_depth := _surface_depth(normal, 0.025)
 	if face in ["+x", "-x"]:
 		u = Vector3(0, 0, 1)
 		v = Vector3(0, 1, 0)
 	elif face in ["+y", "-y"]:
 		u = Vector3(1, 0, 0)
 		v = Vector3(0, 0, 1)
-		face_depth = 1.19
 	else:
 		u = Vector3(1, 0, 0)
 		v = Vector3(0, 1, 0)

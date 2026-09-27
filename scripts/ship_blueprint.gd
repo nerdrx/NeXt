@@ -40,3 +40,32 @@ static func family(id: String) -> Dictionary:
 	var layout := ShipLayout.empty_data()
 	if id == "merchant": layout.rooms["-1,0,-1"] = "lounge"
 	return {"family":id, "modules":modules, "layout":layout}
+
+
+static func family_for_cells(cells: Array[Vector3i]) -> String:
+	var occupied := {}
+	for cell in cells: occupied[cell] = true
+	for id: String in FAMILIES:
+		var expected := {}
+		for module: Dictionary in family(id).modules:
+			expected[Vector3i(module.x,module.y,module.z)] = true
+		if occupied == expected: return id
+	return ""
+
+
+static func pressure_outline(cells: Array[Vector3i]) -> PackedVector2Array:
+	if family_for_cells(cells).is_empty(): return PackedVector2Array()
+	var ordered := cells.duplicate()
+	ordered.sort_custom(func(a: Vector3i,b: Vector3i): return a.z < b.z if a.z != b.z else a.x < b.x)
+	var pivot := center(cells)
+	var outline := PackedVector2Array()
+	var half := Vector2(PRESSURE_SIZE.x, PRESSURE_SIZE.z)*0.5
+	for cell: Vector3i in ordered:
+		var p := Vector2(cell.x*CELL_SIZE-pivot.x,cell.z*CELL_SIZE-pivot.z)
+		var rectangle := PackedVector2Array([p-half,p+Vector2(half.x,-half.y),p+half,p+Vector2(-half.x,half.y)])
+		if outline.is_empty(): outline = rectangle
+		else:
+			var merged := Geometry2D.merge_polygons(outline,rectangle)
+			if merged.size() != 1: return PackedVector2Array()
+			outline = merged[0]
+	return outline
