@@ -1551,6 +1551,13 @@ func _process(delta: float) -> void:
 		notify("Day %d / payroll and company accounts settled." % state.day)
 	var local_patrols: Array[String] = _sync_fleet_actors()
 	var reports: Array = crew_operations().tick(delta, local_patrols, _local_trade_status())
+	for id: String in fleet_actors:
+		var fleet_actor: ShipActor = fleet_actors[id]
+		if not is_instance_valid(fleet_actor): continue
+		var vessel := _fleet_record(id)
+		if vessel.has("defense"):
+			fleet_actor.shields = float(vessel.defense.charge)
+			fleet_actor.shield_delay = float(vessel.defense.delay)
 	if not reports.is_empty(): _sync_fleet_actors()
 	if not reports.is_empty():
 		var report: Dictionary = reports.back()

@@ -97,7 +97,8 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if not active or not is_finite(delta) or delta <= 0.0 or delta > 1.0:
 		return
-	_tick_shields(delta)
+	# Fleet shield time is owned by hosted crew simulation, including remote vessels.
+	if not has_meta("fleet_ship_id"): _tick_shields(delta)
 	if not hostile: search_seconds_remaining = 0.0
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
 	_patrol_phase += delta

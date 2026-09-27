@@ -1031,3 +1031,12 @@ Loaded family actors now use module-derived shield capacity. Hits delay recharge
 Recharge currently runs for active loaded actors; docked and remote fleet shield simulation remains incomplete. This does not claim power-aware shields or remote combat parity.
 
 Shield capacity, delayed recharge, clamping, inactive/legacy behavior and malformed-save tests passed. Real fleet integration verifies charge and delay across damage, save reload and actor respawn. Fleet gameplay, layout and family-combat regressions passed; family-combat disables automatic physics to isolate damage assertions from the newly active recharge. Hidden Gamescope integration passed and the registry shield readout was visually inspected. The existing seven-texture shutdown warning remains. Windows export passed; fresh Proton runtime remains unverified.
+
+
+## Hosted fleet shield simulation — 2026-09-28
+
+Crew simulation now recharges every operational family vessel, including idle/docked and remote ships, from elapsed hosted time. Fleet actors mirror the authoritative charge/delay after each crew tick and skip their own recharge step. Non-fleet actors retain local recharge. Family combat stats are cached for immutable hull templates to avoid reconstructing a GameState per vessel per frame. Remote patrol encounters now consume shield charge before converting residual absolute damage to hull condition; legacy patrol damage remains unchanged.
+
+Strategic patrols remain coarse encounter events, not continuous dogfights. A batched crew tick applies its recharge before the batch of encounter outcomes; large catch-up deltas are not claimed to reproduce finely stepped combat. Closed worlds accrue no elapsed time.
+
+Hosted defense tests passed for idle/remote/local recharge, invalid or zero time, delay/capacity, disabled hulls, shield absorption and unshielded family hull scaling. The real-scene family integration verifies one hosted recharge step reaches the actor and subsequent actor physics adds no duplicate charge. Crew, operations gameplay, fleet gameplay and persistence regressions passed. Hidden Gamescope integration and Windows export passed; the existing seven-texture shutdown warning remains and fresh Proton runtime is unverified.

@@ -159,6 +159,14 @@ func _run() -> void:
 		"main scene respawn keeps family hull and cargo mass")
 	assert(is_equal_approx(respawned.shields, 3.0) and respawned.shield_delay == 6.0, "actor respawn preserves shield charge and delay")
 	assert(is_equal_approx(respawned.hp, 75.0), "actor respawn preserves damaged family condition")
+	respawned.set_physics_process(false)
+	respawned.shields = 0.0
+	respawned.shield_delay = 0.0
+	game._process(1.0)
+	assert(is_equal_approx(respawned.shields, 5.0) and is_equal_approx(float(fleet_ship.defense.charge), 5.0), "hosted frame recharges and synchronizes fleet shield")
+	respawned.active = true
+	respawned._physics_process(0.1)
+	assert(is_equal_approx(respawned.shields, 5.0), "local actor physics does not double recharge fleet shields")
 	game.deck.show_page("fleet")
 	await process_frame
 	if DisplayServer.get_name() != "headless":

@@ -13,6 +13,7 @@ const PRODUCTION_INPUTS: Dictionary = {
 	"luxuries": {"electronics": 1, "alloys": 1},
 }
 const BASE: Dictionary = {"ore": 35, "alloys": 115, "food": 18, "fuel": 52, "medicine": 95, "electronics": 140, "luxuries": 210}
+static var _family_combat_stats: Dictionary = {}
 var occupied_ship_id: String = ""
 var state: GameState
 
@@ -212,6 +213,8 @@ func withdraw_station_stock(station_index: int, good: String, quantity: int) -> 
 func tick(elapsed_seconds: float, local_patrol_ship_ids: Array[String] = [], local_trade_status: Dictionary = {}) -> Array[Dictionary]:
 	var reports: Array[Dictionary] = []
 	if not is_finite(elapsed_seconds) or elapsed_seconds <= 0: return reports
+	for vessel: Dictionary in state.fleet_ships:
+		_recharge_shields(vessel, elapsed_seconds)
 	for crew_id: String in state.crew_orders.keys():
 		var order: Dictionary = state.crew_orders[crew_id]
 		if _member(crew_id).is_empty(): continue
@@ -252,6 +255,24 @@ func tick(elapsed_seconds: float, local_patrol_ship_ids: Array[String] = [], loc
 			# The scene's readiness describes this leg only, never a second leg.
 			if local_trade: break
 	return reports
+
+static func family_combat_stats(family_id: String) -> Dictionary:
+	if family_id not in ShipBlueprint.FAMILIES: return {}
+	if not _family_combat_stats.has(family_id):
+		var model := GameState.new()
+		model.ship_modules.assign(ShipBlueprint.family(family_id).modules)
+		_family_combat_stats[family_id] = model.ship_stats()
+	return _family_combat_stats[family_id]
+
+func _recharge_shields(vessel: Dictionary, elapsed_seconds: float) -> void:
+	if float(vessel.hull) <= 0.0: return
+	var stats := family_combat_stats(str(vessel.get("hull_family", "")))
+	if stats.is_empty(): return
+	var defense: Dictionary = vessel.get("defense", {"charge": 0.0, "delay": 0.0})
+	var recharge_time := maxf(0.0, elapsed_seconds - float(defense.delay))
+	defense.delay = maxf(0.0, float(defense.delay) - elapsed_seconds)
+	defense.charge = minf(float(stats.max_shield), float(defense.charge) + recharge_time * 5.0)
+	vessel.defense = defense
 
 func _complete_order(order: Dictionary) -> Dictionary:
 	match str(order.kind):
@@ -345,7 +366,16 @@ func _patrol_leg(order: Dictionary) -> Dictionary:
 	order.encounters = int(order.encounters) + 1
 	if rng.randf() < 0.62:
 		var damage: float = rng.randf_range(3.0, 16.0)
-		ship.hull = snappedf(maxf(0.0, float(ship.hull) - damage), 0.1)
+		var hull_damage := damage
+		var stats := family_combat_stats(str(ship.get("hull_family", "")))
+		if not stats.is_empty():
+			var defense: Dictionary = ship.get("defense", {"charge": 0.0, "delay": 0.0})
+			var absorbed := minf(float(defense.charge), damage)
+			defense.charge = float(defense.charge) - absorbed
+			defense.delay = 6.0
+			ship.defense = defense
+			hull_damage = (damage - absorbed) * 100.0 / float(stats.max_hull)
+		ship.hull = maxf(0.0, float(ship.hull) - hull_damage) if not stats.is_empty() else snappedf(maxf(0.0, float(ship.hull) - hull_damage), 0.1)
 		var reward: int = roundi(rng.randf_range(180.0, 420.0))
 		state.credits += reward
 		return {"kind": "patrol", "status": "hostile intercepted", "crew_id": order.crew_id, "ship_id": ship.id, "system": ship.system, "damage": damage, "reward": reward, "hull": ship.hull}
