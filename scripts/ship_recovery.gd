@@ -99,6 +99,73 @@ static func destroy_ship(state: GameState, position: Vector3, surface: int, orig
 	return _report(true, "Ship recovered with %s coverage; %d credits charged, %d added to recovery debt." % ["insurance" if insured else "uninsured replacement", paid, fee - paid], {"wreck_id": wreck_id, "insured": insured, "fee": fee, "paid": paid, "debt_added": fee - paid})
 
 
+static func abandon_fleet_cargo(state: GameState, ship_id: String, position: Vector3, origin_data: Dictionary = {}) -> Dictionary:
+	if not validate_data(state.recovery): return _report(false, "Recovery record is invalid.")
+	if not _valid_location(state.system_index, -1, position) or (not origin_data.is_empty() and SectorPosition.from_save(origin_data) == null):
+		return _report(false, "Recovery location or record is invalid.")
+	var ship: Dictionary = {}
+	for candidate: Dictionary in state.fleet_ships:
+		if str(candidate.get("id", "")) == ship_id:
+			ship = candidate
+			break
+	if ship.is_empty() or not _is_number(ship.get("hull")) or not is_finite(float(ship.hull)) or float(ship.hull) > 0.0 or not _is_int(ship.get("system")) or int(ship.system) != state.system_index:
+		return _report(false, "Only a disabled local fleet ship can abandon cargo.")
+	if not ship.get("cargo") is Dictionary: return _report(false, "Fleet cargo is invalid.")
+	var cargo: Dictionary = {}
+	var total: int = 0
+	for key: Variant in ship.cargo:
+		if not key is String and not key is StringName: return _report(false, "Fleet cargo is invalid.")
+		var good: String = str(key)
+		if not GameState.GOODS.has(good) or cargo.has(good): return _report(false, "Fleet cargo is invalid.")
+		var amount: Variant = ship.cargo[key]
+		if not _is_int(amount) or int(amount) < 0 or int(amount) > MAX_CARGO: return _report(false, "Fleet cargo is invalid.")
+		cargo[good] = int(amount)
+		total += int(amount)
+		if total > MAX_CARGO: return _report(false, "Fleet cargo exceeds recovery limits.")
+	for good: String in GameState.GOODS:
+		if not cargo.has(good): cargo[good] = 0
+	if total <= 0: return _report(false, "Fleet ship has no cargo to abandon.")
+	if int(state.recovery.next_id) >= 2147483647: return _report(false, "Wreck registry ID limit reached.")
+	var recyclable: int = -1
+	if state.recovery.wrecks.size() >= MAX_WRECKS:
+		for index: int in range(state.recovery.wrecks.size()):
+			var old_wreck: Dictionary = state.recovery.wrecks[index]
+			if old_wreck.cargo_recovered and old_wreck.salvaged:
+				recyclable = index
+				break
+		if recyclable < 0: return _report(false, "Wreck registry is full; recover cargo and salvage an existing wreck first.")
+	var wreck_address: SectorPosition
+	if not origin_data.is_empty():
+		wreck_address = SectorPosition.from_save(origin_data)
+		if not wreck_address.move_delta(position): return _report(false, "Recovery address is out of range.")
+	var wreck_id: String = "wreck-%06d" % int(state.recovery.next_id)
+	var wreck: Dictionary = {
+		"id": wreck_id,
+		"system": state.system_index,
+		"surface": -1,
+		"position": [position.x, position.y, position.z],
+		"cargo": cargo.duplicate(true),
+		"modules": [],
+		"integrity": WRECK_INTEGRITY,
+		"salvage_value": 0,
+		"cargo_recovered": false,
+		"salvaged": true,
+	}
+	if wreck_address != null: wreck.address = wreck_address.to_save()
+	var next_recovery: Dictionary = state.recovery.duplicate(true)
+	if recyclable >= 0: next_recovery.wrecks.remove_at(recyclable)
+	next_recovery.wrecks.append(wreck)
+	next_recovery.next_id = int(state.recovery.next_id) + 1
+	if not validate_data(next_recovery): return _report(false, "Recovery record is invalid.")
+	state.recovery = next_recovery
+	ship.cargo.clear()
+	ship.erase("flight")
+	for order: Dictionary in state.crew_orders.values():
+		if order.get("kind", "") == "trade" and str(order.get("ship_id", "")) == ship_id:
+			order.purchase_cost = 0
+	return _report(true, "Fleet cargo abandoned in a recovery wreck.", {"wreck_id": wreck_id, "ship_id": ship_id, "cargo": cargo})
+
+
 static func recover_cargo(state: GameState, wreck_id: String, surface: int, position: Vector3, max_distance: float = 80.0, origin_data: Dictionary = {}) -> String:
 	var result: Dictionary = _find_wreck(state, wreck_id, surface, position, max_distance, origin_data)
 	if not result.ok:
@@ -181,7 +248,12 @@ static func validate_data(value: Variant) -> bool:
 				return false
 		if wreck.cargo_recovered and total > 0:
 			return false
-		if not wreck.modules is Array or not _valid_blueprint(verifier, wreck.modules):
+		if not wreck.modules is Array:
+			return false
+		if wreck.modules.is_empty():
+			if not wreck.salvaged or int(wreck.salvage_value) != 0 or float(wreck.integrity) != WRECK_INTEGRITY or int(wreck.surface) != -1 or (wreck.cargo_recovered != (total == 0)):
+				return false
+		elif not _valid_blueprint(verifier, wreck.modules):
 			return false
 	if int(value.next_id) <= highest_id:
 		return false

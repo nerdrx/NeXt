@@ -1191,11 +1191,19 @@ func _tick_ship_defense(delta: float) -> void:
 func _actor_destroyed(actor: Node3D) -> void:
 	if actor.has_meta("fleet_ship_id"):
 		_persist_fleet_damage(actor)
-		fleet_actors.erase(str(actor.get_meta("fleet_ship_id")))
+		var ship_id: String = str(actor.get_meta("fleet_ship_id"))
+		var cargo_message := ""
+		var ship := _fleet_record(ship_id)
+		if not ship.is_empty() and state._fleet_cargo_total(ship) > 0:
+			var address := flight_frame.address_for(actor, flight_origin)
+			var result: Dictionary = ShipRecovery.abandon_fleet_cargo(state, ship_id, Vector3.ZERO, address.to_save()) if address != null else {"ok": false, "message": "Cargo location unavailable."}
+			cargo_message = " Cargo recovery beacon recorded." if result.ok else " Cargo remains aboard: " + str(result.message)
+			if result.ok: rebuild_wrecks()
+		fleet_actors.erase(ship_id)
 		actors.erase(actor)
 		_explosion(actor.global_position, 8)
 		var saved: bool = save_commander(false)
-		notify("Fleet ship disabled. Arrange repairs in Crew Operations." if saved else "Fleet ship disabled; damage NOT SAVED. Check storage and save again.")
+		notify(("Fleet ship disabled. Arrange repairs in Crew Operations." + cargo_message) if saved else "Fleet ship disabled; damage NOT SAVED. Check storage and save again.")
 		return
 	var eliminated: Array = state.world_flags.get(_location_key(), [])
 	if actor.actor_id not in eliminated: eliminated.append(actor.actor_id)
@@ -2113,6 +2121,18 @@ func _integration_check() -> void:
 	pilot.reset_view()
 	ship_display.hide()
 	await _capture("local-patrol")
+	state.fleet_ships.back().cargo.ore = 3
+	var freight_point: Vector3 = fleet_actors[patrol_id].position
+	fleet_actors[patrol_id].active = true
+	fleet_actors[patrol_id].take_damage(1000)
+	if not _check(state.fleet_ships.back().cargo.is_empty() and state.recovery.wrecks.back().cargo.ore == 3, "combat separates fleet cargo into a recovery cache"): return
+	if not _check(save_commander(false) and restored.load_save(save_path).is_empty() and restored.recovery.wrecks.back().modules.is_empty(), "cargo cache survives save roundtrip"): return
+	pilot.teleport(freight_point + Vector3(0, 0, 35))
+	pilot.reset_view()
+	await _capture("freight-cache")
+	var freight_id: String = state.recovery.wrecks.back().id
+	var recovered_ore: int = int(state.cargo.get("ore", 0))
+	if not _check(recover_wreck(freight_id).is_empty() and state.cargo.ore == recovered_ore + 3, "actual combat cache recovers original goods"): return
 	var money_before_menu: int = state.credits
 	for menu_page in ["overview", "navigation", "market", "shipyard", "contracts", "company", "fleet", "recovery", "factions", "stations", "settings"]:
 		open_menu(menu_page)
@@ -2423,14 +2443,25 @@ func rebuild_wrecks() -> void:
 		if bool(wreck.get("salvaged", false)) and bool(wreck.get("cargo_recovered", false)): continue
 		var position: Variant = _wreck_position(wreck)
 		if position == null: continue
-		var hull := ShipVisual.new()
-		wreck_root.add_child(hull)
-		hull.build(wreck.get("modules", state.ship_modules), "wreck")
-		hull.position = position
-		hull.rotation = Vector3(0.25, 0.7, -0.35)
-		hull.scale = Vector3.ONE * 0.85
+		var cargo_only: bool = wreck.modules.is_empty()
+		if cargo_only:
+			var cache := Node3D.new()
+			wreck_root.add_child(cache)
+			cache.position = position
+			cache.rotation = Vector3(0.2, 0.4, -0.15)
+			_box(cache, Vector3.ZERO, Vector3(3.6, 2.2, 5.0), Color("33434c"))
+			for z: float in [-1.7, 1.7]:
+				_box(cache, Vector3(0, 0, z), Vector3(3.8, 2.4, 0.18), Color("bb914e"))
+			_box(cache, Vector3(0, 1.3, 0), Vector3(0.5, 0.2, 0.5), Color("75f6e7"), true)
+		else:
+			var hull := ShipVisual.new()
+			wreck_root.add_child(hull)
+			hull.build(wreck.modules, "wreck")
+			hull.position = position
+			hull.rotation = Vector3(0.25, 0.7, -0.35)
+			hull.scale = Vector3.ONE * 0.85
 		var beacon := Label3D.new()
-		beacon.text = "RECOVERY BEACON / " + str(wreck.id)
+		beacon.text = ("FREIGHT CACHE / " if cargo_only else "RECOVERY BEACON / ") + str(wreck.id)
 		beacon.font_size = 32
 		beacon.pixel_size = 0.025
 		beacon.position = position + Vector3(0, 6, 0)

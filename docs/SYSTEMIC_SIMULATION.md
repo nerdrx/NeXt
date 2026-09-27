@@ -195,3 +195,10 @@ Fleet orders can assign a trader and ship to repeatedly buy a selected commodity
 Each leg takes at least 600 active simulation seconds. Nearby ships must also reach their endpoint within 15 metres at 5 m/s or less before the leg settles. Same-system supply ships retain position and velocity when switching between market pickup and the station freight approach. Saves preserve the station destination, cargo, invoice and local flight state, including after coordinate rebasing. Remote and inter-system travel remains a strategic approximation; loading is instantaneous.
 
 Delivered inputs feed the existing factory recipes. Automatic selection of inputs, station output distribution, physical cargo handling and multiplayer economy authority remain unfinished. Routes do not increase their original purchase budget automatically when prices rise.
+
+
+## Combat interrupts freight
+
+A disabled local fleet ship transfers its carried goods into a recoverable freight cache at the combat address. The route retains no cargo or acquisition cost, so repairs cannot complete the lost delivery. The existing recovery service requires proximity and free hold space, supports partial recovery, and prevents collecting the same goods twice. A freight cache has no hull salvage payout: the fleet hull remains separately repairable. Goods remain removed from the origin market until someone returns them through an actual sale.
+
+Cargo and its cache persist together. Invalid locations or a full recovery registry leave goods aboard and report the limitation instead of deleting inventory. Crew rescue, hull repair, stationary cache motion and remote combat remain approximations. This does not add remote trader ambushes, pirate looting or fleet insurance. Existing player wrecks retain their hull salvage and insurance behavior.
