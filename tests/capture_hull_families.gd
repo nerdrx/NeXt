@@ -15,19 +15,19 @@ func _capture() -> void:
 	world.environment.background_color = Color("101820")
 	world.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	world.environment.ambient_light_color = Color("b0bdc8")
-	world.environment.ambient_light_energy = 0.55
+	world.environment.ambient_light_energy = 0.25
 	world.environment.tonemap_mode = Environment.TONE_MAPPER_ACES
 	scene.add_child(world)
 	var key := DirectionalLight3D.new()
-	key.rotation_degrees = Vector3(-38, -32, 0)
+	key.rotation_degrees = Vector3(-65, -15, 0)
 	key.light_color = Color("fff0dc")
-	key.light_energy = 1.8
+	key.light_energy = 1.0
 	key.shadow_enabled = true
 	scene.add_child(key)
 	var fill := DirectionalLight3D.new()
 	fill.rotation_degrees = Vector3(-18, 145, 0)
 	fill.light_color = Color("b7d7ed")
-	fill.light_energy = 0.75
+	fill.light_energy = 0.35
 	scene.add_child(fill)
 	var camera := Camera3D.new()
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
@@ -52,6 +52,18 @@ func _capture() -> void:
 		var visual := ShipVisual.new()
 		scene.add_child(visual)
 		visual.build(modules, "player", layout)
+		# Compare the same shell and camera against Godot's native PBR response.
+		if "--standard-material" in OS.get_cmdline_user_args():
+			var shell := visual.get_node("FamilyPressureHull") as MeshInstance3D
+			var source := shell.material_override as ShaderMaterial
+			var standard := StandardMaterial3D.new()
+			standard.albedo_color = source.get_shader_parameter("paint")
+			standard.roughness = source.get_shader_parameter("base_roughness")
+			standard.metallic = source.get_shader_parameter("metalness")
+			standard.clearcoat_enabled = true
+			standard.clearcoat = source.get_shader_parameter("coating")
+			standard.clearcoat_roughness = 0.35
+			shell.material_override = standard
 		var interior := ShipInterior.new()
 		interior.position = ShipBlueprint.interior_offset(cells)
 		scene.add_child(interior)
@@ -111,7 +123,8 @@ func _save_capture(filename: String) -> void:
 	for _frame in 3:
 		await process_frame
 		await RenderingServer.frame_post_draw
-	var path := "user://" + filename
+	var prefix := "standard-" if "--standard-material" in OS.get_cmdline_user_args() else ""
+	var path := "user://" + prefix + filename
 	var error: Error = root.get_texture().get_image().save_png(path)
 	assert(error == OK, "could not save ship-family capture: " + path)
 	print("HULL_FAMILY_CAPTURE_FILE: ", ProjectSettings.globalize_path(path))

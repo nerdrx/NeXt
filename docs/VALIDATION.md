@@ -987,3 +987,8 @@ AI steering now uses available acceleration for its obstacle horizon and separat
 Replaced emissive roof symbols with mechanical service covers, vents and paired cargo hatches; lowered painted fitting metalness and removed canopy/trim emission. Flat armor normals fix warped triangular highlights, and engine braces no longer obscure the exhaust disks. The family capture now includes rear views as well as exterior/cutaway views.
 
 Blueprint containment and new flat-normal regression passed; fleet-family integration passed. Six actual renderer captures completed under hidden Gamescope, and Pathfinder front/rear views were inspected during correction. The silhouettes remain rectangular pressure blockouts, not accepted ship art. Windows export succeeded; Proton runtime remains unverified.
+
+
+## Family material capture diagnosis — 2026-09-28
+
+Confirmed the dark gray shell uniform and upward roof normals, then reproduced the roof washout using native StandardMaterial3D under the original lights. Adjusted only the family inspection light setup and added a reproducible `--standard-material` comparison mode with matched PBR properties. Both normal and comparison modes produced six captures each under hidden Gamescope without script errors; Pathfinder exterior comparisons were inspected. The reduced highlight reveals the current material and blockout geometry more clearly. No gameplay shader, geometry or lighting change is claimed by this diagnostic increment.
