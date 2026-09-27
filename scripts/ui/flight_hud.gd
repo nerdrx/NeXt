@@ -61,7 +61,7 @@ func _draw() -> void:
 		var thrust_g: float = pilot.thrust_g if pilot.flying else game.coasting_hull.thrust_g
 		_word(Vector2(w - 250, h - 131), "THRUST %.1f g" % thrust_g, 14, InterfaceTheme.GOLD)
 	_word(Vector2(w - 250, h - 78), "CARGO  %d / %d" % [state.cargo_total(), int(stats.cargo_capacity)], 14, InterfaceTheme.MUTED)
-	_word(Vector2(w - 250, h - 54), ("BRAKING" if pilot.braking else ("CRUISE AUTOPILOT" if pilot.autopilot_active else "FLIGHT ASSIST  ON")) if pilot.flying else "MAG BOOTS  ACTIVE", 13, InterfaceTheme.MUTED)
+	_word(Vector2(w - 250, h - 54), ("BRAKING" if pilot.braking else ("CRUISE AUTOPILOT" if pilot.autopilot_active else ("FLIGHT ASSIST  ON" if pilot.flight_assist_enabled else "INERTIAL FLIGHT"))) if pilot.flying else "MAG BOOTS  ACTIVE", 13, InterfaceTheme.MUTED)
 	_word(Vector2(w * 0.5 - 260, h - 24), "TAB  Command    E  Interact / dock    J  Navigation    F5  Save", 14, InterfaceTheme.MUTED)
 	if pilot.flying:
 		_draw_radar(Vector2(w - 130, 220))

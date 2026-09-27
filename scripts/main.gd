@@ -340,7 +340,7 @@ func stop_cruise() -> void:
 	aboard_cruise = false
 	pilot.cancel_autopilot()
 	if pilot.flying: pilot.request_brake()
-	notify("Cruise cancelled. Braking to a stop.")
+	notify("Braking to a stop. Propellant required.")
 
 func _flight_impact(closing_speed: float) -> void:
 	if not pilot.flying or aboard or not is_finite(closing_speed) or closing_speed <= 25.0: return
@@ -1345,6 +1345,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 				if member != null:
 					crew_focus_id = member.actor_id
 					open_menu("fleet")
+		KEY_B:
+			if pilot.flying or aboard: stop_cruise()
 		KEY_J: open_menu("navigation")
 		KEY_F5: save_commander(true)
 		KEY_F9: load_commander()
@@ -1476,19 +1478,22 @@ func quit_game() -> void:
 		await get_tree().process_frame
 		get_tree().quit()
 
-func save_settings() -> void:
+func save_settings(path: String = "user://settings.cfg") -> void:
 	if automation: return
 	var config := ConfigFile.new()
 	config.set_value("controls", "sensitivity", pilot.mouse_sensitivity)
 	config.set_value("controls", "invert_y", pilot.inverted_y)
-	config.save("user://settings.cfg")
+	config.set_value("controls", "flight_assist", pilot.flight_assist_enabled)
+	config.save(path)
 
-func _load_settings() -> void:
+func _load_settings(path: String = "user://settings.cfg") -> void:
 	if automation: return
 	var config := ConfigFile.new()
-	if config.load("user://settings.cfg") == OK:
+	if config.load(path) == OK:
 		pilot.mouse_sensitivity = clampf(float(config.get_value("controls", "sensitivity", 0.0025)), 0.0005, 0.006)
 		pilot.inverted_y = bool(config.get_value("controls", "invert_y", false))
+		var assist: Variant = config.get_value("controls", "flight_assist", true)
+		pilot.flight_assist_enabled = assist if assist is bool else true
 
 func _receive_ephemeris(seconds: float) -> void:
 	if session.connected and not session.is_host and home_state != null:
@@ -1955,6 +1960,21 @@ func _integration_check() -> void:
 	_process(0.02)
 	if not _check(state.day == calendar_day + 1 and state.day_progress < 1, "active world calendar advances without travel"): return
 	if not _check(state.ephemeris_seconds > physical_epoch and state.ephemeris_seconds - physical_epoch < 1.0, "physical time advances independently of economic day settlement"): return
+	var assist_before: bool = pilot.flight_assist_enabled
+	var input_before: bool = pilot.enabled
+	var position_before: Vector3 = pilot.position
+	var velocity_before: Vector3 = pilot.flight_velocity()
+	var fuel_before_coast: float = state.fuel
+	pilot.flight_assist_enabled = false
+	pilot.enabled = false
+	pilot.teleport(Vector3(10000, 5000, 0))
+	pilot.restore_flight_velocity(Vector3(20, 0, 0))
+	pilot._fly(0.01)
+	if not _check(pilot.flight_velocity().is_equal_approx(Vector3(20, 0, 0)) and state.fuel == fuel_before_coast, "inertial flight coasts without fuel in release build"): return
+	pilot.flight_assist_enabled = assist_before
+	pilot.enabled = input_before
+	pilot.teleport(position_before)
+	pilot.restore_flight_velocity(velocity_before)
 	DirAccess.remove_absolute(save_path)
 	DirAccess.remove_absolute(save_path + ".bak")
 	await get_tree().create_timer(0.5).timeout

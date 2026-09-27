@@ -165,7 +165,7 @@ func _overview() -> void:
 		var cruise := _row()
 		cruise.add_child(InterfaceTheme.button("STOP CRUISE", func(): game.stop_cruise(); refresh()))
 	_text("FLIGHT & FOOT CONTROLS", 13, InterfaceTheme.CYAN)
-	_text("WASD move · mouse look · Shift boost/sprint · Space/Ctrl altitude\nQ/R roll · E board/dock/interact · Left click fire · J navigation\nTab command deck · F5 save · F9 load", 16, InterfaceTheme.MUTED)
+	_text("WASD move · mouse look · Shift boost/sprint · Space/Ctrl altitude\nQ/R roll · B brake · E board/dock/interact · Left click fire · J navigation\nTab command deck · F5 save · F9 load", 16, InterfaceTheme.MUTED)
 	_text("Station services require docking. Hyperdrive consumes fuel; contracts, trade and pirate bounties earn credits. Company wages and production settle when the simulation day advances.", 16, InterfaceTheme.MUTED)
 	var actions := _row()
 	actions.add_child(InterfaceTheme.button("SAVE COMMANDER", func(): game.save_commander(true)))
@@ -493,6 +493,15 @@ func _station_rooms(index: int, station: Dictionary) -> void:
 
 func _settings() -> void:
 	heading.text = "FLIGHT SETTINGS"
+	var assist := CheckButton.new()
+	assist.text = "Flight assist — match speed and brake when controls are released"
+	assist.button_pressed = game.pilot.flight_assist_enabled
+	assist.toggled.connect(func(value: bool):
+		game.pilot.flight_assist_enabled = value
+		game.save_settings())
+	content.add_child(assist)
+	_text("Switch off for inertial flight: thrust changes velocity; releasing controls coasts without fuel use. B commands braking in either mode. Autopilot keeps its own guidance.", 16, InterfaceTheme.MUTED)
+	_button("BRAKE SHIP / B", game.stop_cruise, not game.pilot.flying and not game.aboard)
 	_text("Mouse sensitivity", 18)
 	var sensitivity := HSlider.new()
 	sensitivity.min_value = 0.0005

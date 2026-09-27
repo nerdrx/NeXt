@@ -799,3 +799,11 @@ The shared GameState limiter spends fuel on applied translational delta-v times 
 Existing hull, navigation, braking, flight-load, reactor-boost and coasting-interior regressions pass. Native normal-entrypoint integration reaches NEXT_INTEGRATION_OK, including a release-safe partial-fuel momentum check. The Windows recovery-page capture was inspected for the emergency fuel action and its fee/debt explanation. The delivery remains an immediate menu abstraction; fuel mass, rotational propellant, tank capacity by module and supplier logistics remain absent.
 
 The final exported Windows executable reaches NEXT_INTEGRATION_OK under hidden Gamescope/Proton, with no script or shader compilation errors in the run. Its bounded wrapper ends 137 after the marker; known SDR and texture shutdown warnings remain. The Windows ZIP was rebuilt from this export.
+
+## Optional inertial flight
+
+The main-scene inertial-flight test passes in hidden Gamescope. It checks default assisted braking with fuel use, momentum and fuel preservation with input disabled, camera-axis thrust that preserves transverse velocity, travel beyond the assisted speed target, explicit braking, B-key routing, empty-tank drift and autopilot guidance. Temporary settings files verify preference persistence and the assisted default for older settings. The rendered Flight Settings page was inspected for readable toggle, explanation and brake action.
+
+The shared acceleration helper retains the previous acceleration/boost validation tests. Native normal-entrypoint integration reaches NEXT_INTEGRATION_OK. Inertial mode changes translational control only; angular momentum, rotational propellant, relativistic effects and physical-scale planetary motion remain unfinished.
+
+The final native and exported Windows normal-entrypoint checks explicitly disable assist and input, then verify preserved velocity and fuel in inertial flight. Both reach NEXT_INTEGRATION_OK. The Windows run used hidden Gamescope/Proton with no script or shader compilation errors; its bounded wrapper ended 124 after the marker. Clean wrapper shutdown is not claimed. The Windows ZIP was rebuilt from this export.

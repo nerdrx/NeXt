@@ -12,6 +12,7 @@ var acceleration_mps2: float = FlightDynamics.STANDARD_GRAVITY * FlightDynamics.
 var boost_acceleration_mps2: float = -1.0
 var boost_speed_multiplier: float = 3.0
 var flying: bool = false
+var flight_assist_enabled: bool = true
 var enabled: bool = true
 var camera: Camera3D
 var speed: float = 8.0
@@ -162,6 +163,9 @@ func _fly(delta: float) -> void:
 	else:
 		var boost_scale := boost_speed_multiplier if boosting else 1.0
 		desired = Vector3.ZERO if braking else camera.global_basis * local_direction * flight_speed * boost_scale
+		if not flight_assist_enabled and not braking:
+			# Inertial input requests thrust; released controls preserve momentum.
+			desired = incoming_thrust + camera.global_basis * local_direction * FlightDynamics.command_acceleration(acceleration_mps2, boosting, boost_acceleration_mps2) * delta
 	var commanded := FlightDynamics.command_velocity(incoming_thrust, desired, delta, boosting, acceleration_mps2, boost_acceleration_mps2)
 	if autopilot_active:
 		_update_module_collision_basis()
