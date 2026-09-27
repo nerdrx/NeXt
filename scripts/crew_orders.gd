@@ -44,6 +44,24 @@ func purchase_ship(name: String, family_id: String = "") -> String:
 	state.fleet_ships.append(vessel)
 	return ""
 
+func refit_layout(ship_id: String, cell: Vector3i, value: String, face: String = "") -> String:
+	var vessel := _ship(ship_id)
+	if vessel.is_empty(): return "Fleet vessel does not exist."
+	var blueprint := ShipBlueprint.family(str(vessel.get("hull_family", "")))
+	if blueprint.is_empty(): return "This vessel has no configurable family layout."
+	if int(vessel.system) != state.system_index or float(vessel.hull) <= 0.0: return "Refit a local operational vessel."
+	if _ship_busy(ship_id) or vessel.has("flight"): return "Recall and leave the vessel before refitting."
+	var candidate := GameState.new()
+	candidate.ship_modules.assign(blueprint.modules)
+	candidate.ship_layout = vessel.get("layout",blueprint.layout).duplicate(true)
+	candidate.credits = state.credits
+	var error := ShipLayout.configure_room(candidate,cell,value) if face.is_empty() else ShipLayout.set_panel(candidate,cell,face,value)
+	if not error.is_empty(): return error
+	state.credits = candidate.credits
+	vessel.layout = candidate.ship_layout.duplicate(true)
+	return ""
+
+
 func assign_trade_route(crew_id: String, ship_id: String, good: String, destination: int, quantity: int = 5, delivery_station: int = -1) -> String:
 	var member: Dictionary = _member(crew_id)
 	var ship: Dictionary = _ship(ship_id)

@@ -810,9 +810,9 @@ func _load_v2(data: Dictionary) -> String:
 		if data.fleet_ships.size() > 50 or data.crew_orders.size() > 12: return "Fleet or crew order limit exceeded."
 		var ship_ids: Dictionary = {}
 		for value: Variant in data.fleet_ships:
-			if not value is Dictionary or value.size() not in [6, 7, 8, 9] or not value.has_all(["id", "name", "system", "hull", "cargo", "capacity"]): return "Invalid fleet ship record."
+			if not value is Dictionary or value.size() not in [6, 7, 8, 9, 10] or not value.has_all(["id", "name", "system", "hull", "cargo", "capacity"]): return "Invalid fleet ship record."
 			for field: Variant in value:
-				if not str(field) in ["id", "name", "system", "hull", "cargo", "capacity", "flight", "drive_temperature_k", "hull_family"]: return "Invalid fleet ship field."
+				if not str(field) in ["id", "name", "system", "hull", "cargo", "capacity", "flight", "drive_temperature_k", "hull_family", "layout"]: return "Invalid fleet ship field."
 			if not value.id is String or value.id.length() < 4 or value.id.length() > 64 or ship_ids.has(value.id) or not value.name is String or value.name.length() < 2 or value.name.length() > 32 or not _is_int(value.system) or int(value.system) < 0 or int(value.system) >= SYSTEM_LIMIT or not _is_number(value.hull) or not is_finite(float(value.hull)) or float(value.hull) < 0 or float(value.hull) > 100 or not _is_int(value.capacity) or int(value.capacity) < 1 or int(value.capacity) > 2000 or not value.cargo is Dictionary: return "Invalid fleet ship values."
 			var ship_cargo: Dictionary = {}
 			for good: Variant in value.cargo:
@@ -825,6 +825,9 @@ func _load_v2(data: Dictionary) -> String:
 				if int(value.capacity) != int(quote.capacity): return "Fleet capacity does not match hull family."
 				loaded_ship.hull_family = value.hull_family
 			elif int(value.capacity) > 100: return "Invalid legacy fleet capacity."
+			if value.has("layout"):
+				if not loaded_ship.has("hull_family") or not ShipLayout.validate_data(value.layout, ShipBlueprint.family(loaded_ship.hull_family).modules): return "Invalid fleet layout."
+				loaded_ship.layout = value.layout.duplicate(true)
 			if value.has("drive_temperature_k"):
 				if not _is_number(value.drive_temperature_k) or not is_finite(float(value.drive_temperature_k)) or float(value.drive_temperature_k) < 300.0 or float(value.drive_temperature_k) > 700.0: return "Invalid fleet drive temperature."
 				loaded_ship.drive_temperature_k = float(value.drive_temperature_k)

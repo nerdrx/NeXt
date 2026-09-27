@@ -27,6 +27,7 @@ var travel_active: bool = false
 var travel_target := Vector3.ZERO
 
 var hull_family: String = ""
+var hull_layout: Dictionary = {}
 var _visual: Node3D
 var _attack_cooldown: float = 0.0
 var _patrol_phase: float = 0.0
@@ -58,7 +59,7 @@ func _ready() -> void:
 	else:
 		var model := GameState.new()
 		model.ship_modules.assign(blueprint.modules)
-		model.ship_layout = blueprint.layout
+		model.ship_layout = hull_layout if ShipLayout.validate_data(hull_layout,blueprint.modules) else blueprint.layout
 		var stats := model.ship_stats()
 		dry_mass_kg = float(stats.dry_mass_kg)
 		thrust_newtons = float(stats.thrust_newtons)
@@ -68,7 +69,7 @@ func _ready() -> void:
 		var family_visual := ShipVisual.new()
 		_visual = family_visual
 		add_child(_visual)
-		family_visual.build(blueprint.modules, faction, blueprint.layout)
+		family_visual.build(blueprint.modules, faction, model.ship_layout)
 	# Convex exterior proxy follows the model; cavities remain an approximation.
 	var hull_points := PackedVector3Array()
 	var radius := 0.0

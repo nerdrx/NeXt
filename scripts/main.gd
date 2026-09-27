@@ -800,6 +800,7 @@ func _sync_fleet_actors() -> Array[String]:
 				actor.faction = "player_fleet"
 				actor.hostile = false if is_trader else true
 				actor.hull_family = str(ship.get("hull_family", ""))
+				actor.hull_layout = ship.get("layout", {}).duplicate(true)
 				actor.cargo_mass_kg = state._fleet_cargo_total(ship) * 1000.0
 				actor.set_meta("fleet_ship_id", id)
 				actor.set_meta("fleet_order_kind", desired_kind)
@@ -2276,6 +2277,12 @@ func _capture(name: String) -> void:
 	var folder: String = "res://build/" if OS.has_feature("editor") else "user://"
 	get_viewport().get_texture().get_image().save_png(folder + name + ".png")
 
+func refit_fleet_layout(ship_id: String, cell: Vector3i, value: String, face: String = "") -> String:
+	var issue := fleet_boarding_issue(ship_id)
+	if not issue.is_empty(): return issue
+	return crew_operations().refit_layout(ship_id,cell,value,face)
+
+
 func fleet_boarding_issue(ship_id: String) -> String:
 	if aboard: return "Return to the concourse before visiting another ship."
 	if session.connected: return "Leave the world visit before inspecting a fleet interior."
@@ -2310,7 +2317,7 @@ func enter_interior(fleet_id: String = "") -> void:
 		var vessel: Dictionary = crew_operations()._ship(fleet_id)
 		var blueprint := ShipBlueprint.family(str(vessel.hull_family))
 		modules = blueprint.modules
-		layout = blueprint.layout
+		layout = vessel.get("layout",blueprint.layout)
 		aboard_fleet_id = fleet_id
 		crew_operations().occupied_ship_id = fleet_id
 	return_position = pilot.position
