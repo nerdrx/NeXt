@@ -305,3 +305,9 @@ func _mat(color: Color, roughness: float, glow: float) -> StandardMaterial3D:
 	if color.a < 1.0:
 		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	return material
+
+func restore_view(angles: Vector3) -> void:
+	rotation = Vector3(0, angles.y, 0)
+	_pitch = angles.x
+	_roll = angles.z
+	camera.rotation = Vector3(_pitch, 0, _roll)

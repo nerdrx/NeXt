@@ -52,6 +52,8 @@ jobs:
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_recovery.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_ship_layout.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_sector_position.gd
+          timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_flight_frame.gd
+          timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_spatial_gameplay.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_operations_gameplay.gd -- --capture-only
 
       - name: Test integrated gameplay

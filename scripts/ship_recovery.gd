@@ -44,11 +44,15 @@ static func repay_debt(state: GameState, amount: int) -> String:
 	return ""
 
 
-static func destroy_ship(state: GameState, position: Vector3, surface: int) -> Dictionary:
+static func destroy_ship(state: GameState, position: Vector3, surface: int, origin_data: Dictionary = {}) -> Dictionary:
 	if state.hull > 0.0:
 		return _report(false, "Ship is not destroyed.")
-	if not _valid_location(state.system_index, surface, position) or not validate_data(state.recovery):
+	if not _valid_location(state.system_index, surface, position) or (not origin_data.is_empty() and SectorPosition.from_save(origin_data) == null) or not validate_data(state.recovery):
 		return _report(false, "Recovery location or record is invalid.")
+	var wreck_address: SectorPosition
+	if not origin_data.is_empty():
+		wreck_address = SectorPosition.from_save(origin_data)
+		if not wreck_address.move_delta(position): return _report(false, "Recovery address is out of range.")
 	if state.recovery.wrecks.size() >= MAX_WRECKS:
 		var recyclable: int = -1
 		for index: int in range(state.recovery.wrecks.size()):
@@ -73,7 +77,7 @@ static func destroy_ship(state: GameState, position: Vector3, surface: int) -> D
 	var paid: int = mini(state.credits, fee)
 	state.credits -= paid
 	state.recovery.debt += fee - paid
-	state.recovery.wrecks.append({
+	var wreck: Dictionary = {
 		"id": wreck_id,
 		"system": state.system_index,
 		"surface": surface,
@@ -84,7 +88,9 @@ static func destroy_ship(state: GameState, position: Vector3, surface: int) -> D
 		"salvage_value": maxi(100, ceili(float(value) * WRECK_INTEGRITY * (0.08 if insured else 1.0))),
 		"cargo_recovered": false,
 		"salvaged": false,
-	})
+	}
+	if wreck_address != null: wreck.address = wreck_address.to_save()
+	state.recovery.wrecks.append(wreck)
 	state.recovery.next_id += 1
 	state.hull = maxf(1.0, float(state.ship_stats().max_hull) * (0.60 if insured else 0.35))
 	state.shield = maxf(0.0, float(state.ship_stats().max_shield) * 0.25)
@@ -92,8 +98,8 @@ static func destroy_ship(state: GameState, position: Vector3, surface: int) -> D
 	return _report(true, "Ship recovered with %s coverage; %d credits charged, %d added to recovery debt." % ["insurance" if insured else "uninsured replacement", paid, fee - paid], {"wreck_id": wreck_id, "insured": insured, "fee": fee, "paid": paid, "debt_added": fee - paid})
 
 
-static func recover_cargo(state: GameState, wreck_id: String, surface: int, position: Vector3, max_distance: float = 80.0) -> String:
-	var result: Dictionary = _find_wreck(state, wreck_id, surface, position, max_distance)
+static func recover_cargo(state: GameState, wreck_id: String, surface: int, position: Vector3, max_distance: float = 80.0, origin_data: Dictionary = {}) -> String:
+	var result: Dictionary = _find_wreck(state, wreck_id, surface, position, max_distance, origin_data)
 	if not result.ok:
 		return result.message
 	var wreck: Dictionary = result.wreck
@@ -114,8 +120,8 @@ static func recover_cargo(state: GameState, wreck_id: String, surface: int, posi
 	return ""
 
 
-static func salvage_wreck(state: GameState, wreck_id: String, surface: int, position: Vector3, max_distance: float = 80.0) -> String:
-	var result: Dictionary = _find_wreck(state, wreck_id, surface, position, max_distance)
+static func salvage_wreck(state: GameState, wreck_id: String, surface: int, position: Vector3, max_distance: float = 80.0, origin_data: Dictionary = {}) -> String:
+	var result: Dictionary = _find_wreck(state, wreck_id, surface, position, max_distance, origin_data)
 	if not result.ok:
 		return result.message
 	var wreck: Dictionary = result.wreck
@@ -144,7 +150,9 @@ static func validate_data(value: Variant) -> bool:
 	var highest_id: int = 0
 	var verifier: GameState = GameState.new()
 	for wreck: Variant in value.wrecks:
-		if not wreck is Dictionary or wreck.size() != 10 or not wreck.has_all(["id", "system", "surface", "position", "cargo", "modules", "integrity", "salvage_value", "cargo_recovered", "salvaged"]):
+		if not wreck is Dictionary or wreck.size() < 10 or wreck.size() > 11 or not wreck.has_all(["id", "system", "surface", "position", "cargo", "modules", "integrity", "salvage_value", "cargo_recovered", "salvaged"]):
+			return false
+		if wreck.has("address") and SectorPosition.from_save(wreck.address) == null:
 			return false
 		if not wreck.id is String or wreck.id.length() > 32 or not wreck.id.begins_with("wreck-") or ids.has(wreck.id):
 			return false
@@ -179,17 +187,36 @@ static func validate_data(value: Variant) -> bool:
 	return true
 
 
-static func _find_wreck(state: GameState, wreck_id: String, surface: int, position: Vector3, max_distance: float) -> Dictionary:
+static func wreck_relative(wreck: Dictionary, origin_data: Dictionary, radius: float = 30000.0) -> Variant:
+	if not is_finite(radius) or radius < 0.0 or radius > SectorPosition.MAX_RELATIVE_DISTANCE:
+		return null
+	if wreck.has("address"):
+		if origin_data.is_empty(): return null
+		var wreck_address: Variant = SectorPosition.from_save(wreck.address)
+		var origin: Variant = SectorPosition.from_save(origin_data)
+		if wreck_address == null or origin == null: return null
+		return wreck_address.relative_to(origin, radius)
+	var legacy_position: Vector3 = _decode_position(wreck.get("position", null))
+	if not legacy_position.is_finite(): return null
+	if origin_data.is_empty():
+		return legacy_position if legacy_position.length() <= radius else null
+	var legacy_origin: Variant = SectorPosition.from_save(origin_data)
+	if legacy_origin == null: return null
+	return SectorPosition.new(Vector3i.ZERO, legacy_position).relative_to(legacy_origin, radius)
+
+
+static func _find_wreck(state: GameState, wreck_id: String, surface: int, position: Vector3, max_distance: float, origin_data: Dictionary = {}) -> Dictionary:
 	if not validate_data(state.recovery):
 		return _report(false, "Recovery record is invalid.")
-	if not position.is_finite() or not is_finite(max_distance) or max_distance < 0.0:
+	if not position.is_finite() or not is_finite(max_distance) or max_distance < 0.0 or (not origin_data.is_empty() and SectorPosition.from_save(origin_data) == null):
 		return _report(false, "Recovery position is invalid.")
 	for wreck: Dictionary in state.recovery.wrecks:
 		if str(wreck.id) != wreck_id:
 			continue
 		if int(wreck.system) != state.system_index or int(wreck.surface) != surface:
 			return _report(false, "Wreck is at another location.")
-		if position.distance_to(_decode_position(wreck.position)) > max_distance:
+		var relative: Variant = wreck_relative(wreck, origin_data, SectorPosition.MAX_RELATIVE_DISTANCE)
+		if relative == null or position.distance_to(relative) > max_distance:
 			return _report(false, "Move closer to the wreck to recover it.")
 		return {"ok": true, "message": "", "wreck": wreck}
 	return _report(false, "Wreck does not exist.")

@@ -174,7 +174,7 @@ func _navigation() -> void:
 	controls.add_child(InterfaceTheme.button("ENGAGE HYPERDRIVE", func(): game.request_jump(destination)))
 	_button("RECOVERY BEACONS", show_page.bind("recovery"))
 	_text("LOCAL SYSTEM / SURFACE APPROACH", 13, InterfaceTheme.CYAN)
-	_button("CRUISE TO ORBITAL DOCK", game.cruise_to.bind(game.world.launch_position), not game.pilot.flying or game.aboard)
+	_button("CRUISE TO ORBITAL DOCK", game.cruise_system_to.bind(game.world.launch_position), not game.pilot.flying or game.aboard)
 	for index in game.world.planets.size():
 		var planet: Dictionary = game.world.planets[index]
 		var row := _row()
@@ -582,12 +582,13 @@ func _recovery() -> void:
 	if wrecks.is_empty(): _text("No wreck beacons recorded.", 16, InterfaceTheme.MUTED)
 	for wreck: Dictionary in wrecks:
 		var here: bool = int(wreck.system) == s.system_index and int(wreck.surface) == game.surface_index
-		var distance: float = game.pilot.position.distance_to(game._wreck_position(wreck)) if here else INF
+		var local_point: Variant = game._wreck_position(wreck)
+		var distance: float = game.pilot.position.distance_to(local_point) if here and local_point != null else INF
 		var units: int = 0
 		for amount: Variant in wreck.get("cargo", {}).values(): units += int(amount)
 		_text("%s / system %d / %s / %d cargo units / hull salvage %d CR" % [wreck.id, wreck.system, "%.0f m" % distance if here else "Remote beacon", units, 0 if wreck.get("salvaged", false) else int(wreck.get("salvage_value", 0))], 17)
 		var controls := _row()
-		var cruise := InterfaceTheme.button("APPROACH", game.cruise_to.bind(game._wreck_position(wreck) + Vector3(0, 0, 25)))
+		var cruise := InterfaceTheme.button("APPROACH", game.approach_wreck.bind(str(wreck.id)))
 		cruise.disabled = not here or not game.pilot.flying or game.aboard
 		controls.add_child(cruise)
 		var recover := InterfaceTheme.button("RECOVER CARGO", _act.bind(game.recover_wreck.bind(str(wreck.id), false), "Available cargo recovered."))

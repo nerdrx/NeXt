@@ -15,10 +15,30 @@ func _initialize() -> void:
 	assert(wrecked.ok and wrecked.wreck_id == "wreck-000001")
 	assert(state.ship_modules.size() == 7 and state.hull > 0 and state.fuel == 25.0)
 	assert(state.cargo_total() == 0 and wrecked.debt_added > 0 and state.recovery.debt == wrecked.debt_added)
+	assert(Recovery.wreck_relative(state.recovery.wrecks[0], {}) == Vector3(12, 4, -8), "legacy wreck keeps local-coordinate display")
+	var legacy_state = GameStateScript.new()
+	legacy_state.cargo.ore = 2
+	legacy_state.hull = 0.0
+	var legacy_wreck: Dictionary = Recovery.destroy_ship(legacy_state, Vector3(12, 4, -8), -1)
+	var shifted_origin := SectorPosition.new(Vector3i.ZERO, Vector3(20, 0, 0))
+	var shifted_wreck_position := Vector3(-8, 4, -8)
+	assert(Recovery.wreck_relative(legacy_state.recovery.wrecks[0], shifted_origin.to_save()) == shifted_wreck_position, "legacy system-space wreck resolves after origin shift")
+	assert(Recovery.recover_cargo(legacy_state, legacy_wreck.wreck_id, -1, shifted_wreck_position, 80.0, shifted_origin.to_save()).is_empty() and legacy_state.cargo.ore == 2, "legacy wreck cargo remains recoverable after rebase")
 	assert(not Recovery.destroy_ship(state, Vector3.ZERO, -1).ok, "duplicate death ignored after replacement")
 	assert(not Recovery.recover_cargo(state, wrecked.wreck_id, 0, Vector3(12, 4, -8)).is_empty(), "reject wrong surface")
 	assert(not Recovery.salvage_wreck(state, "missing", -1, Vector3(12, 4, -8)).is_empty(), "reject nonexistent wreck")
 	assert(not Recovery.salvage_wreck(state, wrecked.wreck_id, -1, Vector3(500, 0, 0)).is_empty(), "reject out-of-range interaction")
+	var rebase_state = GameStateScript.new()
+	var wreck_origin := SectorPosition.new(Vector3i(4, 0, 0), Vector3.ZERO)
+	rebase_state.hull = 0.0
+	var rebased: Dictionary = Recovery.destroy_ship(rebase_state, Vector3(10, 0, 0), -1, wreck_origin.to_save())
+	assert(rebased.ok and Recovery.wreck_relative(rebase_state.recovery.wrecks[-1], wreck_origin.to_save()) == Vector3(10, 0, 0), "wreck resolves in its original sector frame")
+	var distant_origin := SectorPosition.new(Vector3i.ZERO, Vector3.ZERO)
+	assert(not Recovery.recover_cargo(rebase_state, rebased.wreck_id, -1, Vector3(10, 0, 0), 80.0, distant_origin.to_save()).is_empty(), "local-coordinate coincidence cannot recover wreck in another sector")
+	var json_wreck: Dictionary = rebase_state.recovery.wrecks[-1].duplicate(true)
+	json_wreck.address = SectorPosition.from_save(json_wreck.address).to_save()
+	assert(Recovery.validate_data({"next_id": 2, "insurance_until_day": -1, "debt": 0, "wrecks": [json_wreck]}), "address survives JSON-form canonical serialization")
+	assert(Recovery.recover_cargo(rebase_state, rebased.wreck_id, -1, Vector3(10, 0, 0), 80.0, wreck_origin.to_save()).is_empty(), "matching absolute address permits local recovery")
 	state.cargo.ore = int(state.ship_stats().cargo_capacity)
 	assert(not Recovery.recover_cargo(state, wrecked.wreck_id, -1, Vector3(12, 4, -8)).is_empty(), "full hold reports an error")
 	state.cargo.ore = int(state.ship_stats().cargo_capacity) - 1
@@ -58,6 +78,9 @@ func _initialize() -> void:
 	invalid = serialized.duplicate(true)
 	invalid.wrecks[0].cargo.unobtainium = 1
 	assert(not Recovery.validate_data(invalid), "reject unknown cargo key")
+	invalid = rebase_state.recovery.duplicate(true)
+	invalid.wrecks[0].address = {"version": 1, "sector": [1, 2], "local": [0, 0, 0]}
+	assert(not Recovery.validate_data(invalid), "reject malformed absolute wreck address")
 	var save_path: String = "user://recovery-test-%d.json" % OS.get_process_id()
 	assert(state.save(save_path).is_empty(), "recovery state saves")
 	var loaded = GameStateScript.new()

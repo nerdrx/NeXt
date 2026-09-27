@@ -11,6 +11,7 @@ const HOST_LAYOUT: Dictionary = {"version": 1, "rooms": {}, "panels": {"0,0,0": 
 const GUEST_LAYOUT: Dictionary = {"version": 1, "rooms": {}, "panels": {"0,0,0": {"-x": "window"}}}
 const GUEST_UPDATED_LAYOUT: Dictionary = {"version": 1, "rooms": {}, "panels": {"0,0,0": {"-x": "armored"}}}
 const INVALID_HIDDEN_FACE: Dictionary = {"version": 1, "rooms": {}, "panels": {"0,0,0": {"+x": "armored"}}}
+const INVALID_ADDRESS: Dictionary = {"version": 1, "sector": [1.5, 0, 0], "local": [0.0, 0.0, 0.0]}
 
 var session: NetworkSession
 var acknowledgement: NetworkAcknowledgement
@@ -101,7 +102,9 @@ func _run_host() -> void:
 		return
 	if session.world_id != host_world_id:
 		_fail("host travel changed world identity")
-	if not await _wait_for(func() -> bool: return _guest_profile().get("position", Vector3.ZERO).is_equal_approx(Vector3(13, 4, 5)), 6.0):
+	if not await _wait_for(func() -> bool:
+		var guest_profile := _guest_profile()
+		return guest_profile.get("position", Vector3.ZERO).is_equal_approx(Vector3(13, 4, 5)) and guest_profile.get("address", {}).get("sector", []) == [10, -2, 3] and guest_profile.get("address", {}).get("local", []) == [14.0, 6.0, 8.0], 6.0):
 		_fail("guest pose was not relayed after shared travel")
 		return
 	if _guest_profile().get("ship_layout", {}).get("panels", {}).get("0,0,0", {}).get("-x", "") != "armored":
@@ -218,7 +221,9 @@ func _on_world_joined(index: int) -> void:
 		travel_received = true
 		if session.display_name == "Guestscript":
 			session.ship_layout = GUEST_UPDATED_LAYOUT.duplicate(true)
-			session.publish_pose(Vector3(13, 4, 5), Vector3.ZERO)
+			session._rpc_publish_pose.rpc_id(1, Vector3(13, 4, 5), Vector3.ZERO, session.ship_modules.duplicate(true), session.ship_layout.duplicate(true), INVALID_ADDRESS)
+			var origin := SectorPosition.new(Vector3i(10, -2, 3), Vector3(1, 2, 3))
+			session.publish_pose(Vector3(13, 4, 5), Vector3.ZERO, origin.to_save())
 
 
 func _guest_profile() -> Dictionary:

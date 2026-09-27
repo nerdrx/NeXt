@@ -8,29 +8,31 @@ crossing many sectors never constructs a large floating-point world coordinate.
 The address is deterministic and serializes as a versioned dictionary of integer
 sector coordinates and finite local coordinates.
 
-## Integration plan
+## Current integration
 
-1. Keep `SectorPosition` as authoritative travel/save state. Convert the current
-   system origin and ship/pilot offset into a `SectorPosition` at a system
-   boundary; do not derive authority from `Node3D.global_position`.
-2. Select a local origin near the player. For each streamed body's address,
-   call `relative_to(origin, draw_distance)`. It returns a `Vector3` only when
-   that body is inside the requested radius; a distant address never becomes a
-   huge draw coordinate.
-3. When the player leaves the local safety radius, choose a nearby origin and
-   shift active local `Node3D` positions by the inverse origin movement in one
-   frame. Recompute local positions from authoritative addresses after rebase,
-   including physics bodies and cached target positions. Keep velocities,
-   orientations, and sector addresses unchanged.
-4. Stream cells around the current address using integer sector coordinates as
-   stable cell keys. Seed procedural content from a stable hash of the sector
-   address plus a generator version; iteration order must not affect results.
-5. Persist addresses with `to_save()` and validate with `from_save()` before
-   accepting state. Keep a system/planet-local frame identifier alongside the
-   address when a location belongs to a moving or rotating body.
+Orbital flight uses `main.flight_origin` plus the pilot's bounded local position.
+Crossing an 8192-metre sector rebases registered scene roots, the pilot, cruise
+waypoints and AI patrol/safety references together without resetting velocity.
+`FlightFrame` freezes and hides roots beyond 60 km, disables their collision
+layers, and restores their recorded addresses, visibility and collision settings
+when the player returns. WorldEnvironment remains in the tree. Remote ship poses
+carry validated absolute sector addresses and are rendered relative to the local
+origin only within 30 km.
 
-This adds an address representation and bounded conversion primitive. It does
-not implement origin rebasing, cell streaming, moving reference frames, or
-seamless planetary travel. Current `SpaceWorld` geometry and pilot movement still
-use local `Vector3` coordinates; replace any 28 km travel clamp only after the
-world-origin owner and physics/render rebase path are integrated together.
+Cruise destinations retain absolute addresses across rebases. Long approaches
+use bounded forward waypoints until their target enters the local range. Orbital
+saves persist location and helm orientation (also when saving from the interior),
+and resume at rest. Ground saves still use the orbital spawn. New wrecks store
+absolute addresses; older system-local wreck records remain recoverable after a
+rebase. Surface and interstellar transitions reset the local frame deliberately.
+
+## Remaining work
+
+This removes the former 28 km flight snap-back, but does not make planets seamless
+or increase their physical sizes. Content remains the existing compact system;
+there is no generated content in newly crossed empty sectors. Celestial LODs,
+planetary terrain streaming, moving reference frames and continuous atmosphere
+entry are still required. Local actors freeze when culled; distant fleet patrols
+continue through the existing strategic simulation. Stationary scene roots can
+contain children offset from their root, so the current 60 km culling radius is
+chosen beyond the camera's 30 km draw distance and current content bounds.

@@ -33,6 +33,7 @@ Start in the orbital concourse. The ship is on the central pad. Approach it, pre
 
 - Assisted first-person walking and ship flight, acceleration, boost, local cruise autopilot, cockpit and held weapon.
 - Moving pirate/security ships, ground NPCs, patrol/pursuit/retreat behavior, physics-ray combat, shielding, hull damage and bounties. Destroyed actor IDs persist by location.
+- Floating-origin orbital flight keeps the player near zero across sector boundaries; distant local geometry/physics is culled and restored on return. Orbital flight addresses and helm orientation survive saves; wrecks and peer positions use sector addresses.
 - One billion deterministic system addresses, procedural celestial visuals, station geometry, planet surfaces and colony districts. The generator creates data on demand rather than allocating a billion scenes.
 - Connected grid-based ship assembly with live 3D preview, power/attachment/cargo checks, calculated mass, speed, weapons, shields and crew capacity.
 - Walkable ship rooms derived from the installed modules when a habitat and sufficient connected hull exist. Rooms have collision, equipment, connecting doors and a deck selector. Grid-selected refits change compatible room fittings and exposed standard/armored/window panels. Room footprints and corridor placement are still derived from the module grid; panel refits currently change appearance rather than combat statistics.
@@ -53,9 +54,9 @@ The complete target is substantially larger than the implemented systems above:
 - Steam lobby adapter code and lifecycle tests are present, but native Steam build configuration and a production AppID are still required. Real invites/relay, shared authoritative combat/economy, property permissions, consensual PvP and durable transfer transactions are **not verified or complete**. ENet visits are an explicitly limited development feature, not finished Steam co-op.
 - Freeform hull shaping, movable interior walls/furniture, physical trade routes, fleet wreck salvage and territorial sovereignty/negotiated diplomacy remain unimplemented. Current room and panel refits are bounded grid choices.
 - Cities are generated colony districts; they are not complete populated urban simulations. Ship interiors currently pause local threats after requiring a safe flight zone. They do not simulate unattended ships under attack.
-- A system uses compact local coordinates and a 28 km safety boundary. Celestial sizes are presentation scale. This is not a physically scaled or fully streamed galaxy.
+- Orbital flight rebases across sectors without the former 28 km snap-back. Existing celestial bodies remain compact and presentation-scale; newly crossed space has no generated content yet. This is not a physically scaled or fully streamed galaxy.
 - Local patrol positions reset when rebuilding a system; hull damage and orders persist. Disabled fleet ships are service-repaired, not yet salvageable wrecks.
-- Menus pause local AI in solo play. Combat/economy state is currently simulated independently during network visits. Saving resumes at the saved system's orbital station, not the exact player position.
+- Menus pause local AI in solo play. Combat/economy state is currently simulated independently during network visits. Orbital flight saves resume their sector location at rest; ground saves resume at the orbital station.
 - Current crew, police and company systems provide defined gameplay rules, not unrestricted human behavior. There is no claim that "everything" is implemented.
 
 ## Development checks
@@ -76,6 +77,8 @@ godot --headless --path . -s tests/test_crew.gd
 godot --headless --path . -s tests/test_recovery.gd
 godot --headless --path . -s tests/test_ship_layout.gd
 godot --headless --path . -s tests/test_sector_position.gd
+godot --headless --path . -s tests/test_flight_frame.gd
+godot --headless --path . -s tests/test_spatial_gameplay.gd -- --capture-only
 godot --headless --path . -s tests/test_operations_gameplay.gd -- --capture-only
 godot --headless --path . -- --smoke
 godot --headless --path . --export-release "Windows Desktop" build/windows/NeXt.exe

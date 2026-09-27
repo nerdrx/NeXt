@@ -79,11 +79,13 @@ func _initialize() -> void:
 	state.credits = 0
 	assert(state.jump(8001) == "")
 	assert(not state.crew_paid and state.hull == 100.0 and state.company_balance == unpaid_treasury + 100, "unpaid crew have no role benefits")
+	assert(state.location.is_empty(), "successful jump clears stale local-frame location")
 	var path: String = "user://state-test-%d.json" % OS.get_process_id()
 	state.shield = 72.5
 	state.reputation["Solar Union"] = 12
 	state.world_flags["7919"] = ["pirate-1", "pirate-2"]
 	state.world_flags["8000:4"] = ["surface-actor"]
+	state.location = {"system": state.system_index, "surface": -1, "address": SectorPosition.new(Vector3i(3, -2, 9), Vector3(12, 20, -40)).to_save(), "rotation": [0.1, -1.2, 2.9], "flying": true}
 	assert(state.save(path) == "")
 	state.credits += 1
 	assert(state.save(path) == "", "existing save is atomically replaced")
@@ -93,10 +95,17 @@ func _initialize() -> void:
 	assert(loaded._save_data() == state._save_data(), "all persistent fields round-trip: %s | %s" % [loaded._save_data(), state._save_data()])
 	var old_v2: Dictionary = state._save_data().duplicate(true)
 	old_v2.erase("world_id")
+	old_v2.erase("location")
 	var bad := FileAccess.open(path, FileAccess.WRITE)
 	bad.store_string(JSON.stringify(old_v2))
 	bad.close()
-	assert(loaded.load_save(path) == "" and loaded._valid_world_id(loaded.world_id) and loaded.world_id != state.world_id, "v2 saves without an identity migrate to a fresh world")
+	assert(loaded.load_save(path) == "" and loaded._valid_world_id(loaded.world_id) and loaded.world_id != state.world_id and loaded.location.is_empty(), "older saves without identity or local location migrate")
+	var invalid_location: Dictionary = state._save_data().duplicate(true)
+	invalid_location.location.system = state.system_index + 1
+	bad = FileAccess.open(path, FileAccess.WRITE)
+	bad.store_string(JSON.stringify(invalid_location))
+	bad.close()
+	assert(loaded.load_save(path) != "" and loaded.location.is_empty(), "malformed saved location is rejected transactionally")
 	var invalid_world: Dictionary = state._save_data().duplicate(true)
 	invalid_world.world_id = "NOT-A-VALID-WORLD-ID"
 	bad = FileAccess.open(path, FileAccess.WRITE)

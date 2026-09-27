@@ -314,3 +314,8 @@ func _mat(color: Color, roughness: float, glow: float, metallic: float = 0.0) ->
 		material.emission = color
 		material.emission_energy_multiplier = glow
 	return material
+
+func apply_origin_shift(delta: Vector3) -> void:
+	_home -= delta
+	_waypoint -= delta
+	reset_physics_interpolation()

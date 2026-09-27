@@ -55,9 +55,10 @@ func _draw() -> void:
 	_word(Vector2(w * 0.5 - 260, h - 24), "TAB  Command    E  Interact / dock    J  Navigation    F5  Save", 14, InterfaceTheme.MUTED)
 	if pilot.flying:
 		_draw_radar(Vector2(w - 130, 220))
-		_draw_marker(Vector3(0, 12, -70), "ORBITAL DOCK", InterfaceTheme.CYAN, pilot.camera)
+		if not bool(game.world.get_meta("spatial_culled", false)):
+			_draw_marker(game.world.to_global(Vector3(0, 12, -70)), "ORBITAL DOCK", InterfaceTheme.CYAN, pilot.camera)
 		for actor: Node3D in game.actors:
-			if is_instance_valid(actor) and actor.position.distance_to(pilot.position) < 2800:
+			if is_instance_valid(actor) and not bool(actor.get_meta("spatial_culled", false)) and actor.position.distance_to(pilot.position) < 2800:
 				_draw_marker(actor.position, str(actor.get_meta("contact_name", actor.faction)).to_upper(), Color("f08670") if actor.faction == "pirate" else Color("75b9f1"), pilot.camera)
 	else:
 		_word(Vector2(w * 0.5 - 180, h - 90), "[E] " + game.interaction_hint(), 17, InterfaceTheme.CYAN)
@@ -103,7 +104,7 @@ func _draw_radar(pos: Vector2) -> void:
 	draw_line(pos - Vector2(radius, 0), pos + Vector2(radius, 0), Color(0.2, 0.5, 0.55, 0.3))
 	draw_line(pos - Vector2(0, radius), pos + Vector2(0, radius), Color(0.2, 0.5, 0.55, 0.3))
 	for actor: Node3D in game.actors:
-		if not is_instance_valid(actor): continue
+		if not is_instance_valid(actor) or bool(actor.get_meta("spatial_culled", false)): continue
 		var relative: Vector3 = game.pilot.global_basis.inverse() * (actor.position - game.pilot.position)
 		var flat := Vector2(relative.x, relative.z) / 20
 		if flat.length() > radius - 5: flat = flat.normalized() * (radius - 5)

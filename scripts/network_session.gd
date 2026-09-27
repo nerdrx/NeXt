@@ -200,9 +200,18 @@ func _exit_tree() -> void:
 		_steam_session.shutdown()
 
 
-func publish_pose(position: Vector3, rotation: Vector3) -> void:
+func publish_pose(position: Vector3, rotation: Vector3, origin_data: Dictionary = {}) -> void:
 	if not connected or not _valid_vector(position, MAX_WORLD_COORD) or not _valid_rotation(rotation):
 		return
+	var origin: Variant = SectorPosition.new()
+	if not origin_data.is_empty():
+		origin = SectorPosition.from_save(origin_data)
+	if origin == null:
+		return
+	var address: SectorPosition = origin
+	if not address.move_delta(position):
+		return
+	var address_data: Dictionary = address.to_save()
 	var normalized := _normalize_modules(ship_modules)
 	if not normalized.ok: return
 	var normalized_layout := _normalize_layout(ship_layout, normalized.modules)
@@ -217,6 +226,7 @@ func publish_pose(position: Vector3, rotation: Vector3) -> void:
 	var profile: Dictionary = presence.get(id, _make_presence(Vector3.ZERO, Vector3.ZERO, ship_modules, ship_layout, display_name))
 	profile.position = position
 	profile.rotation = rotation
+	profile.address = address_data
 	profile.ship_modules = ship_modules.duplicate(true)
 	profile.ship_layout = ship_layout.duplicate(true)
 	profile.name = display_name
@@ -225,7 +235,7 @@ func publish_pose(position: Vector3, rotation: Vector3) -> void:
 		_broadcast_presence(id, profile)
 		peers_changed.emit()
 	else:
-		_rpc_publish_pose.rpc_id(1, position, rotation, ship_modules.duplicate(true), ship_layout.duplicate(true))
+		_rpc_publish_pose.rpc_id(1, position, rotation, ship_modules.duplicate(true), ship_layout.duplicate(true), address_data)
 
 
 func travel(index: int) -> String:
@@ -309,11 +319,12 @@ func _rpc_join_request(raw_name: String, raw_modules: Array, raw_layout: Variant
 
 
 @rpc("any_peer", "call_remote", "unreliable_ordered")
-func _rpc_publish_pose(position: Vector3, rotation: Vector3, raw_modules: Array, raw_layout: Variant) -> void:
+func _rpc_publish_pose(position: Vector3, rotation: Vector3, raw_modules: Array, raw_layout: Variant, raw_address: Variant) -> void:
 	if not is_host or not connected:
 		return
+	var address: Variant = SectorPosition.from_save(raw_address)
 	var sender := multiplayer.get_remote_sender_id()
-	if not presence.has(sender) or not _valid_vector(position, MAX_WORLD_COORD) or not _valid_rotation(rotation) or raw_modules.size() > MAX_MODULES or not raw_layout is Dictionary:
+	if address == null or not presence.has(sender) or not _valid_vector(position, MAX_WORLD_COORD) or not _valid_rotation(rotation) or raw_modules.size() > MAX_MODULES or not raw_layout is Dictionary:
 		return
 	var normalized := _normalize_modules(raw_modules)
 	if not normalized.ok: return
@@ -326,6 +337,7 @@ func _rpc_publish_pose(position: Vector3, rotation: Vector3, raw_modules: Array,
 	var profile: Dictionary = presence[sender]
 	profile.position = position
 	profile.rotation = rotation
+	profile.address = address.to_save()
 	profile.ship_modules = normalized.modules
 	profile.ship_layout = normalized_layout.layout
 	presence[sender] = profile
@@ -392,8 +404,9 @@ func _rpc_world_joined(index: int, seed: int, incoming_world_id: String) -> void
 	world_joined.emit(system_index)
 
 
-func _make_presence(pos: Vector3, rot: Vector3, modules: Array, layout: Dictionary, player_name: String) -> Dictionary:
-	return {"position": pos, "rotation": rot, "ship_modules": modules.duplicate(true), "ship_layout": layout.duplicate(true), "name": _sanitize_name(player_name)}
+func _make_presence(pos: Vector3, rot: Vector3, modules: Array, layout: Dictionary, player_name: String, address: Dictionary = {}) -> Dictionary:
+	var safe_address: Dictionary = address.duplicate(true) if not address.is_empty() and SectorPosition.from_save(address) != null else SectorPosition.new(Vector3i.ZERO, pos).to_save()
+	return {"position": pos, "rotation": rot, "address": safe_address, "ship_modules": modules.duplicate(true), "ship_layout": layout.duplicate(true), "name": _sanitize_name(player_name)}
 
 
 func _valid_presence(value: Variant) -> bool:
@@ -401,12 +414,10 @@ func _valid_presence(value: Variant) -> bool:
 
 
 func _normalize_presence(value: Variant) -> Dictionary:
-	if not value is Dictionary or value.size() < 4 or value.size() > 5 or not value.has_all(["position", "rotation", "name", "ship_modules"]):
-		return {"ok": false}
-	if value.size() == 5 and not value.has("ship_layout"):
+	if not value is Dictionary or value.size() < 4 or value.size() > 6 or not value.has_all(["position", "rotation", "name", "ship_modules"]):
 		return {"ok": false}
 	for key: Variant in value:
-		if not str(key) in ["position", "rotation", "name", "ship_modules", "ship_layout"]: return {"ok": false}
+		if not str(key) in ["position", "rotation", "name", "ship_modules", "ship_layout", "address"]: return {"ok": false}
 	if not value.position is Vector3 or not value.rotation is Vector3 or not _valid_vector(value.position, MAX_WORLD_COORD) or not _valid_rotation(value.rotation):
 		return {"ok": false}
 	if not value.name is String or str(value.name).length() > 20 or not value.ship_modules is Array or value.ship_modules.size() > MAX_MODULES:
@@ -416,7 +427,10 @@ func _normalize_presence(value: Variant) -> Dictionary:
 	var raw_layout: Variant = value.get("ship_layout", ShipLayoutScript.empty_data())
 	var layout := _normalize_layout(raw_layout, modules.modules)
 	if not layout.ok: return {"ok": false}
-	return {"ok": true, "profile": {"position": value.position, "rotation": value.rotation, "name": _sanitize_name(value.name), "ship_modules": modules.modules, "ship_layout": layout.layout}}
+	var raw_address: Variant = value.get("address", SectorPosition.new(Vector3i.ZERO, value.position).to_save())
+	var address: Variant = SectorPosition.from_save(raw_address)
+	if address == null: return {"ok": false}
+	return {"ok": true, "profile": {"position": value.position, "rotation": value.rotation, "address": address.to_save(), "name": _sanitize_name(value.name), "ship_modules": modules.modules, "ship_layout": layout.layout}}
 
 
 func _normalize_layout(raw_layout: Variant, modules: Array) -> Dictionary:

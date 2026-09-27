@@ -15,6 +15,8 @@ var _world_environment: WorldEnvironment
 var _material_cache: Dictionary = {}
 
 func build(system_index: int) -> void:
+	spawn_position = Vector3(0, 2, 20)
+	launch_position = Vector3(0, 12, -110)
 	for child in get_children():
 		child.queue_free()
 	self.system_index = clampi(system_index, 0, Universe.SYSTEM_LIMIT - 1)

@@ -18,6 +18,7 @@ var _visual: ShipVisual
 var _attack_cooldown: float = 0.0
 var _patrol_phase: float = 0.0
 var _desired_velocity: Vector3 = Vector3.ZERO
+var _safe_zone_center: Vector3 = Vector3.ZERO
 var _home: Vector3
 var _destroyed: bool = false
 var _patrol_center_set: bool = false
@@ -110,4 +111,9 @@ func _near_safe_zone() -> bool:
 	if target.is_in_group("safe_zone") or target.has_meta("safe_zone"):
 		return target.global_position.distance_to(global_position) < 240.0
 	# Docking or concourse areas use a conservative exclusion bubble around origin.
-	return global_position.length() < 220.0
+	return global_position.distance_to(_safe_zone_center) < 220.0
+
+func apply_origin_shift(delta: Vector3) -> void:
+	_safe_zone_center -= delta
+	_home -= delta
+	reset_physics_interpolation()

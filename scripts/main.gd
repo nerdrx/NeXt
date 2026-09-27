@@ -18,6 +18,7 @@ var aboard: bool = false
 var interior_deck: int = 0
 var return_position := Vector3.ZERO
 var return_flying: bool = false
+var return_view := Vector3.ZERO
 var ui_open: bool = true
 var surface_index: int = -1
 var jump_charge: float = 0.0
@@ -35,6 +36,9 @@ var _rescuing: bool = false
 var pending_steam_lobby: int = 0
 var docked_station: int = -1
 var fleet_actors: Dictionary = {}
+var flight_origin := SectorPosition.new()
+var flight_frame := FlightFrame.new()
+var cruise_address: SectorPosition
 
 func _ready() -> void:
 	automation = "--smoke" in OS.get_cmdline_user_args() or "--visual-tour" in OS.get_cmdline_user_args() or "--capture-only" in OS.get_cmdline_user_args()
@@ -76,6 +80,7 @@ func _ready() -> void:
 		notify("Steam invitation received. Choose Join Invitation to travel with your ship."))
 	_build_system()
 	apply_ship_stats()
+	_restore_flight_location()
 	deck.show_page("overview")
 	if not automation and steam_app_id() > 0 and steam_available():
 		var steam_error: String = session.enable_steam(steam_app_id())
@@ -96,17 +101,84 @@ func _input_actions() -> void:
 
 func _build_system() -> void:
 	if aboard: exit_interior()
+	flight_frame.clear()
+	flight_origin = SectorPosition.new()
+	cruise_address = null
+	world.position = Vector3.ZERO
 	_clear_actors()
 	surface_index = -1
 	docked_station = -1
 	world.build(state.system_index)
 	pilot.set_flight(false)
-	pilot.teleport(world.spawn_position)
+	pilot.teleport(world.to_global(world.spawn_position))
 	pilot.reset_view()
 	_spawn_actors()
 	rebuild_player_ship()
 	rebuild_owned_stations()
 	rebuild_wrecks()
+	_register_spatial_nodes()
+
+func _register_spatial_nodes() -> void:
+	for node in get_children():
+		if not node is Node3D or node == pilot or node == interior or node in remote_ships.values(): continue
+		if not flight_frame.has_node(node): flight_frame.track(node, flight_origin)
+
+func _rebase_flight() -> void:
+	if surface_index >= 0 or aboard or not pilot.flying or maxf(absf(pilot.position.x), maxf(absf(pilot.position.y), absf(pilot.position.z))) < SectorPosition.HALF_SECTOR: return
+	var address := SectorPosition.new(flight_origin.sector, flight_origin.local)
+	if not address.move_delta(pilot.position): return
+	var new_origin := SectorPosition.new(address.sector)
+	var shift: Variant = new_origin.relative_to(flight_origin, SectorPosition.MAX_RELATIVE_DISTANCE)
+	if shift == null: return
+	_register_spatial_nodes()
+	flight_frame.rebase(flight_origin, new_origin)
+	pilot.position -= shift
+	pilot.autopilot_target -= shift
+	pilot.reset_physics_interpolation()
+	flight_origin = new_origin
+	rebuild_wrecks()
+	_update_remote_positions()
+
+func _capture_flight_location() -> void:
+	state.location = {}
+	if surface_index >= 0 or (not pilot.flying and not (aboard and return_flying)): return
+	var address := SectorPosition.new(flight_origin.sector, flight_origin.local)
+	if not address.move_delta(return_position if aboard else pilot.position): return
+	var angles: Vector3 = return_view if aboard else Vector3(pilot.camera.rotation.x, pilot.rotation.y, pilot.camera.rotation.z)
+	state.location = {"system": state.system_index, "surface": -1, "address": address.to_save(), "rotation": [angles.x, angles.y, angles.z], "flying": true}
+
+func _restore_flight_location() -> void:
+	var location: Dictionary = state.location
+	if location.is_empty() or not bool(location.flying) or int(location.surface) != -1: return
+	var address: SectorPosition = SectorPosition.from_save(location.address)
+	if address == null: return
+	var new_origin := SectorPosition.new(address.sector)
+	_register_spatial_nodes()
+	flight_frame.rebase(flight_origin, new_origin)
+	flight_origin = new_origin
+	pilot.set_flight(true)
+	pilot.teleport(address.local)
+	pilot.restore_view(Vector3(location.rotation[0], location.rotation[1], location.rotation[2]))
+	ship_display.hide()
+	rebuild_wrecks()
+
+func _cruise_point(address: SectorPosition) -> Vector3:
+	var point: Variant = address.relative_to(flight_origin, 60000)
+	if point != null: return point
+	var direction := Vector3(float(address.sector.x) - flight_origin.sector.x, float(address.sector.y) - flight_origin.sector.y, float(address.sector.z) - flight_origin.sector.z).normalized()
+	return pilot.position + direction * 20000
+
+func cruise_system_to(point: Vector3) -> void:
+	_start_address_cruise(SectorPosition.new(Vector3i.ZERO, point))
+
+func _start_address_cruise(address: SectorPosition) -> void:
+	if not pilot.flying or aboard:
+		notify("Launch your ship before engaging cruise autopilot.")
+		return
+	cruise_address = address
+	close_menu()
+	pilot.autopilot_to(_cruise_point(address))
+	notify("Cruise autopilot engaged. Movement or mouse input returns manual control.")
 
 func _clear_actors() -> void:
 	for actor in actors:
@@ -218,6 +290,7 @@ func _sync_fleet_actors() -> Array[String]:
 				actor.destroyed.connect(_actor_destroyed)
 				actor.fired.connect(_enemy_fire)
 				add_child(actor)
+				flight_frame.track(actor, flight_origin, SectorPosition.new(Vector3i.ZERO, actor.position))
 				actors.append(actor)
 				fleet_actors[id] = actor
 				var label := Label3D.new()
@@ -239,7 +312,10 @@ func _sync_fleet_actors() -> Array[String]:
 			remove_child(actor)
 			actor.queue_free()
 		fleet_actors.erase(id)
-	return local_ids
+	var simulated: Array[String] = []
+	for id: String in local_ids:
+		if not bool(fleet_actors[id].get_meta("spatial_culled", false)): simulated.append(id)
+	return simulated
 
 func approach_fleet_ship(ship_id: String) -> void:
 	var actor: Node3D = fleet_actors.get(ship_id)
@@ -256,7 +332,7 @@ func _nearest_ship(origin: ShipActor, faction: String) -> Node3D:
 	var nearest: Node3D = null
 	var distance: float = 2500.0
 	for other in actors:
-		if not is_instance_valid(other) or not other is ShipActor or other == origin or other.faction != faction or other.hp <= 0: continue
+		if not is_instance_valid(other) or bool(other.get_meta("spatial_culled", false)) or not other is ShipActor or other == origin or other.faction != faction or other.hp <= 0: continue
 		var candidate: float = origin.position.distance_to(other.position)
 		if candidate < distance:
 			nearest = other
@@ -302,6 +378,7 @@ func rebuild_player_ship() -> void:
 			_box(ship_display, cell + Vector3(side * 0.9, -1.58, 0), Vector3(0.12, 0.6, 0.15), Color("a6acaf"))
 			_box(ship_display, cell + Vector3(side * 0.9, -1.9, 0), Vector3(0.4, 0.16, 1.9), Color("252b30"))
 	ship_display.visible = not pilot.flying
+	flight_frame.track(ship_display, flight_origin)
 
 func apply_ship_stats() -> void:
 	_last_stats = state.ship_stats()
@@ -329,6 +406,7 @@ func rebuild_owned_stations() -> void:
 		base.set_meta("station_index", station_index)
 		base.build(station)
 		count += 1
+	flight_frame.track(owned_root, flight_origin, SectorPosition.new())
 
 func _station_node(index: int) -> Node3D:
 	if index < 0 or not is_instance_valid(owned_root): return null
@@ -338,17 +416,17 @@ func _station_node(index: int) -> Node3D:
 
 func _ship_pad() -> Vector3:
 	var station := _station_node(docked_station)
-	return station.to_global(station.dock_position) if station != null else Vector3(0, 0, -22)
+	return station.to_global(station.dock_position) if station != null else world.to_global(Vector3(0, 0, -22))
 
 func approach_owned_station(index: int) -> void:
 	var station := _station_node(index)
 	if station == null:
 		notify("That station is in another system.")
 		return
-	cruise_to(station.to_global(station.launch_position))
+	cruise_system_to(station.position + station.launch_position)
 
 func _dock_owned_station() -> bool:
-	if surface_index >= 0 or not is_instance_valid(owned_root): return false
+	if surface_index >= 0 or not is_instance_valid(owned_root) or bool(owned_root.get_meta("spatial_culled", false)): return false
 	for station in owned_root.get_children():
 		if pilot.position.distance_to(station.to_global(station.dock_position)) > 65: continue
 		if pilot.velocity.length() > 35:
@@ -481,7 +559,7 @@ func _rescue() -> void:
 	_rescuing = true
 	var message: String
 	if pilot.flying and state.hull <= 0:
-		var report: Dictionary = ShipRecovery.destroy_ship(state, pilot.position, surface_index)
+		var report: Dictionary = ShipRecovery.destroy_ship(state, pilot.position, surface_index, flight_origin.to_save())
 		if not bool(report.get("ok", false)):
 			_rescuing = false
 			open_menu("recovery")
@@ -509,7 +587,7 @@ func interaction_hint() -> String:
 
 func _near_person() -> Node3D:
 	for actor in actors:
-		if actor is GroundActor and actor.has_meta("service") and actor.position.distance_to(pilot.position) < 6: return actor
+		if not bool(actor.get_meta("spatial_culled", false)) and actor is GroundActor and actor.has_meta("service") and actor.position.distance_to(pilot.position) < 6: return actor
 	return null
 
 func _interact() -> void:
@@ -519,12 +597,12 @@ func _interact() -> void:
 	if jump_charge > 0: return
 	if pilot.flying:
 		if _dock_owned_station(): return
-		if pilot.position.distance_to(world.launch_position) > 250:
+		if bool(world.get_meta("spatial_culled", false)) or pilot.position.distance_to(world.to_global(world.launch_position)) > 250:
 			notify("Approach the orbital dock to within 250 m.")
 			return
 		docked_station = -1
 		pilot.set_flight(false)
-		pilot.teleport(world.spawn_position)
+		pilot.teleport(world.to_global(world.spawn_position))
 		pilot.reset_view()
 		rebuild_player_ship()
 		save_commander(false)
@@ -540,7 +618,7 @@ func _interact() -> void:
 	if surface_index >= 0:
 		_build_system()
 	var station := _station_node(docked_station)
-	var departure: Vector3 = station.to_global(station.launch_position) if station != null else world.launch_position
+	var departure: Vector3 = station.to_global(station.launch_position) if station != null else world.to_global(world.launch_position)
 	docked_station = -1
 	pilot.set_flight(true)
 	pilot.teleport(departure)
@@ -594,11 +672,15 @@ func land(planet_index: int) -> void:
 		notify("Surface excursions require leaving the current multiplayer visit.")
 		return
 	_clear_actors()
+	flight_frame.clear()
+	flight_origin = SectorPosition.new()
+	world.position = Vector3.ZERO
+	cruise_address = null
 	docked_station = -1
 	surface_index = planet_index
 	world.build_surface(planet_index)
 	pilot.set_flight(false)
-	pilot.teleport(world.spawn_position)
+	pilot.teleport(world.to_global(world.spawn_position))
 	pilot.reset_view()
 	suit_health = 100
 	_spawn_actors()
@@ -666,13 +748,18 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if pilot == null or state == null: return
 	if home_state != null and not session.connected: _return_home()
+	_register_spatial_nodes()
+	_rebase_flight()
+	if cruise_address != null:
+		if pilot.autopilot_active: pilot.autopilot_target = _cruise_point(cruise_address)
+		else: cruise_address = null
 	var local_patrols: Array[String] = _sync_fleet_actors()
 	var reports: Array = crew_operations().tick(delta, local_patrols)
 	if not reports.is_empty():
 		notify("Crew / %s: %s" % [reports.back().get("kind", "operation"), reports.back().get("status", "updated")])
 	for actor in actors:
 		if not is_instance_valid(actor): continue
-		actor.active = not ui_open and jump_charge <= 0 and not aboard
+		actor.active = not ui_open and jump_charge <= 0 and not aboard and not bool(actor.get_meta("spatial_culled", false))
 		if actor.faction == "police": actor.hostile = PlayerFaction.police_hostile(state.faction, str(world.data.faction), state.wanted)
 	_update_combat_targets()
 	if jump_charge > 0:
@@ -682,14 +769,12 @@ func _process(delta: float) -> void:
 		shield_delay -= delta
 		if shield_delay <= 0: state.shield = minf(float(_last_stats.get("max_shield", 100)), state.shield + delta * 5)
 		if not pilot.flying:
-			var safe_spawn: Vector3 = world.spawn_position
+			var safe_spawn: Vector3 = world.to_global(world.spawn_position)
 			var dock := _station_node(docked_station)
 			if dock != null: safe_spawn = dock.to_global(dock.stand_position)
 			if aboard: safe_spawn = interior.spawn_on_deck(interior_deck)
 			if pilot.position.y < safe_spawn.y - 150: pilot.teleport(safe_spawn)
-		if pilot.position.length() > 28000:
-			pilot.teleport(world.launch_position)
-			notify("Leaving local flight space. Plot a hyperdrive course to continue.")
+
 		autosave_clock += delta
 		if autosave_clock > 60 and not automation:
 			autosave_clock = 0
@@ -698,10 +783,11 @@ func _process(delta: float) -> void:
 	_network_clock += delta
 	if session != null and session.connected and _network_clock > 0.05:
 		_network_clock = 0
-		session.publish_pose(pilot.position, pilot.rotation)
+		session.publish_pose(pilot.position, pilot.rotation, flight_origin.to_save())
 		_update_remote_positions()
 
 func save_commander(show_message: bool = true) -> bool:
+	_capture_flight_location()
 	var error: String = state.save(save_path)
 	if not error.is_empty():
 		notify(error)
@@ -725,8 +811,9 @@ func load_commander() -> void:
 		return
 	_build_system()
 	apply_ship_stats()
+	_restore_flight_location()
 	open_menu()
-	notify("Commander restored at the saved system's orbital station.")
+	notify("Commander restored at the saved flight location." if pilot.flying else "Commander restored at the orbital station.")
 
 func quit_game() -> void:
 	if home_state != null:
@@ -815,7 +902,10 @@ func _update_remote_positions() -> void:
 	for peer_id: int in remote_ships:
 		if session.presence.has(peer_id):
 			var player: Dictionary = session.presence[peer_id]
-			remote_ships[peer_id].position = player.position
+			var address: SectorPosition = SectorPosition.from_save(player.get("address", {}))
+			var point: Variant = address.relative_to(flight_origin, 30000) if address != null else null
+			remote_ships[peer_id].visible = point != null
+			if point != null: remote_ships[peer_id].position = point
 			remote_ships[peer_id].rotation = player.rotation
 
 func _check(condition: bool, message: String) -> bool:
@@ -973,10 +1063,20 @@ func _integration_check() -> void:
 		open_menu(menu_page)
 		await get_tree().process_frame
 	if not _check(state.credits == money_before_menu, "menu browsing must not change finances"): return
+	_build_system()
+	pilot.set_flight(true)
+	pilot.teleport(Vector3(5000, 300, 0))
+	_rebase_flight()
+	if not _check(flight_origin.sector.x == 1 and pilot.position.x == -3192, "origin rebase preserves physical flight"): return
+	if not _check(save_commander(false), "save rebased flight"): return
+	load_commander()
+	if not _check(flight_origin.sector.x == 1 and pilot.flying, "restore rebased flight"): return
+	close_menu()
+	await _capture("rebase-flight")
 	DirAccess.remove_absolute(save_path)
 	DirAccess.remove_absolute(save_path + ".bak")
 	await get_tree().create_timer(0.5).timeout
-	print("NEXT_INTEGRATION_OK: trading, stock, construction, persistent combat, save/load, hyperdrive, landing, walkable interior, crew orders, insured wreck recovery, factions, owned docks, local fleet, menu safety")
+	print("NEXT_INTEGRATION_OK: trading, stock, construction, persistent combat, save/load, hyperdrive, landing, walkable interior, crew orders, insured wreck recovery, factions, owned docks, local fleet, spatial rebasing, menu safety")
 	sound.shutdown()
 	await get_tree().process_frame
 	get_tree().quit()
@@ -996,7 +1096,7 @@ func enter_interior() -> void:
 		notify("Leave the current world visit before boarding the interior.")
 		return
 	for actor in actors:
-		if is_instance_valid(actor) and actor.hostile and actor.position.distance_to(pilot.position) < 1000 and pilot.flying:
+		if is_instance_valid(actor) and not bool(actor.get_meta("spatial_culled", false)) and actor.hostile and actor.position.distance_to(pilot.position) < 1000 and pilot.flying:
 			notify("Leave the combat zone before leaving the helm.")
 			return
 	if not bool(state.ship_stats().get("walkable", false)):
@@ -1004,6 +1104,7 @@ func enter_interior() -> void:
 		return
 	return_position = pilot.position
 	return_flying = pilot.flying
+	return_view = Vector3(pilot.camera.rotation.x, pilot.rotation.y, pilot.camera.rotation.z)
 	interior = ShipInterior.new()
 	add_child(interior)
 	interior.position = Vector3(0, 6000, 0)
@@ -1023,7 +1124,7 @@ func exit_interior() -> void:
 	interior = null
 	pilot.set_flight(return_flying)
 	pilot.teleport(return_position)
-	pilot.reset_view()
+	pilot.restore_view(return_view)
 	close_menu()
 
 func _copy_carried_ship(source: GameState, destination: GameState) -> void:
@@ -1049,22 +1150,20 @@ func _return_home() -> void:
 	home_save_path = ""
 	_build_system()
 	apply_ship_stats()
+	_restore_flight_location()
 	open_menu()
 	notify("Returned home with your ship and cargo. World finances stayed separate." if saved else "Returned home; previous save failed. Save again before quitting.")
 
 func cruise_to(point: Vector3) -> void:
-	if not pilot.flying or aboard:
-		notify("Launch your ship before engaging cruise autopilot.")
-		return
-	close_menu()
-	pilot.autopilot_to(point)
-	notify("Cruise autopilot engaged. Movement or mouse input returns manual control.")
+	var address := SectorPosition.new(flight_origin.sector, flight_origin.local)
+	if address.move_delta(point): _start_address_cruise(address)
 
 func approach_planet(index: int) -> void:
 	if index < 0 or index >= world.planets.size(): return
 	var body: Dictionary = world.planets[index]
-	var radial: Vector3 = (pilot.position - Vector3(body.position)).normalized()
-	cruise_to(Vector3(body.position) + radial * (float(body.visual_radius) + 160.0))
+	var center: Variant = SectorPosition.new(Vector3i.ZERO, body.position).relative_to(flight_origin, 60000)
+	var radial: Vector3 = (pilot.position - center).normalized() if center != null else Vector3.BACK
+	cruise_system_to(Vector3(body.position) + radial * (float(body.visual_radius) + 160.0))
 
 func crew_operations() -> RefCounted:
 	return CrewOrders.new(state)
@@ -1078,7 +1177,8 @@ func rebuild_wrecks() -> void:
 	for wreck: Dictionary in state.recovery.get("wrecks", []):
 		if int(wreck.system) != state.system_index or int(wreck.surface) != surface_index: continue
 		if bool(wreck.get("salvaged", false)) and bool(wreck.get("cargo_recovered", false)): continue
-		var position := _wreck_position(wreck)
+		var position: Variant = _wreck_position(wreck)
+		if position == null: continue
 		var hull := ShipVisual.new()
 		wreck_root.add_child(hull)
 		hull.build(wreck.get("modules", state.ship_modules), "wreck")
@@ -1094,15 +1194,23 @@ func rebuild_wrecks() -> void:
 		beacon.modulate = Color("e0b96e")
 		wreck_root.add_child(beacon)
 
-func _wreck_position(wreck: Dictionary) -> Vector3:
-	var p: Variant = wreck.get("position", [0, 0, 0])
-	if p is Array: return Vector3(p[0], p[1], p[2])
-	if p is Dictionary: return Vector3(p.x, p.y, p.z)
-	return Vector3.ZERO
+func _wreck_position(wreck: Dictionary) -> Variant:
+	return ShipRecovery.wreck_relative(wreck, flight_origin.to_save())
+
+func approach_wreck(id: String) -> void:
+	for wreck: Dictionary in state.recovery.wrecks:
+		if str(wreck.id) != id or int(wreck.system) != state.system_index or int(wreck.surface) != surface_index: continue
+		var address: SectorPosition = SectorPosition.from_save(wreck.get("address", {}))
+		if address == null:
+			var p: Array = wreck.position
+			address = SectorPosition.new(Vector3i.ZERO, Vector3(p[0], p[1], p[2]))
+		address.move_delta(Vector3(0, 0, 25))
+		_start_address_cruise(address)
+		return
 
 func recover_wreck(id: String, salvage: bool = false) -> String:
 	if aboard: return "Return to the helm or approach the wreck on foot."
-	var error: String = ShipRecovery.salvage_wreck(state, id, surface_index, pilot.position, 80.0 if pilot.flying else 8.0) if salvage else ShipRecovery.recover_cargo(state, id, surface_index, pilot.position, 80.0 if pilot.flying else 8.0)
+	var error: String = ShipRecovery.salvage_wreck(state, id, surface_index, pilot.position, 80.0 if pilot.flying else 8.0, flight_origin.to_save()) if salvage else ShipRecovery.recover_cargo(state, id, surface_index, pilot.position, 80.0 if pilot.flying else 8.0, flight_origin.to_save())
 	if error.is_empty(): rebuild_wrecks()
 	return error
 
