@@ -845,7 +845,15 @@ func rebuild_player_ship() -> void:
 	ship_display.visible = not pilot.flying
 	flight_frame.track(ship_display, flight_origin)
 
+func _consume_ship_propulsion(before: Vector3, commanded: Vector3) -> Vector3:
+	var previous_fuel: float = state.fuel
+	var result := state.consume_propulsion(before, commanded)
+	if previous_fuel > 0.0 and state.fuel <= 0.0:
+		notify("Propellant depleted. Ship coasting. Emergency fuel is available in Rescue & Recovery.")
+	return result
+
 func apply_ship_stats() -> void:
+	pilot.propulsion_limiter = _consume_ship_propulsion
 	pilot.configure_ship_collision(state.ship_modules)
 	_last_stats = state.ship_stats()
 	pilot.flight_speed = float(_last_stats.speed)
@@ -1647,6 +1655,10 @@ func _integration_check() -> void:
 	if not _check(deck.survey_labels.size() == world.planets.size() and "Equilibrium" in deck.survey_labels[0].text, "physical system survey is available in release build"): return
 	if not _check("Direct light" in deck.survey_labels[0].text, "rotating surface daylight is available in release build"): return
 	if not _check(is_equal_approx(pilot.boost_acceleration_mps2, state.ship_stats().boost_acceleration_mps2), "reactor-limited boost reaches the flight controller in release build"): return
+	var fuel_probe := GameState.new()
+	fuel_probe.fuel = 0.01
+	var depleted_velocity := fuel_probe.consume_propulsion(Vector3(100, 0, 0), Vector3.ZERO)
+	if not _check(pilot.propulsion_limiter.is_valid() and fuel_probe.fuel == 0.0 and depleted_velocity.x > 90.0, "empty propellant preserves residual momentum in release build"): return
 	var physical_sample := CelestialSystem.sample(deck.survey_catalog, 0, 0.0)
 	if not _check(not physical_sample.is_empty() and physical_sample.irradiance_w_m2 > 0.0, "orbital radiation model in release build"): return
 	await _capture("celestial-survey")
@@ -1996,6 +2008,7 @@ func enter_interior() -> void:
 		coasting_hull.velocity = pilot.flight_velocity()
 		coasting_hull.braking = pilot.braking
 		coasting_hull.acceleration_mps2 = pilot.acceleration_mps2
+		coasting_hull.propulsion_limiter = _consume_ship_propulsion
 		_coasting_deck_bodies.clear()
 		for body: Node in interior.find_children("*", "StaticBody3D", true, false):
 			_coasting_deck_bodies.append(body)

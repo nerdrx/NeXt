@@ -21,6 +21,7 @@ var inverted_y: bool = false
 var fire_interval: float = 0.16
 var autopilot_target: Vector3 = Vector3.ZERO
 var autopilot_active: bool = false
+var propulsion_limiter: Callable
 
 var _pitch: float = 0.0
 var _fire_cooldown: float = 0.0
@@ -144,15 +145,14 @@ func _fly(delta: float) -> void:
 		cancel_autopilot()
 	var desired: Vector3
 	var incoming_thrust := _flight_velocity
+	var provisional_arrival := false
 	var boosting := enabled and Input.is_action_pressed("boost") and not autopilot_active and not braking
 	if autopilot_active:
 		var offset := autopilot_target - global_position
 		var distance := offset.length()
 		if distance <= 2.0 and _flight_velocity.length() <= FlightDynamics.usable_acceleration(acceleration_mps2) * delta:
-			autopilot_active = false
-			_flight_velocity = Vector3.ZERO
+			provisional_arrival = true
 			desired = Vector3.ZERO
-			autopilot_arrived.emit()
 		else:
 			var direction := offset / distance if distance > 0.000001 else -_flight_velocity.normalized()
 			desired = direction * FlightDynamics.approach_speed(distance, flight_speed, acceleration_mps2)
@@ -162,18 +162,20 @@ func _fly(delta: float) -> void:
 	else:
 		var boost_scale := boost_speed_multiplier if boosting else 1.0
 		desired = Vector3.ZERO if braking else camera.global_basis * local_direction * flight_speed * boost_scale
-	_flight_velocity = FlightDynamics.command_velocity(_flight_velocity, desired, delta, boosting, acceleration_mps2, boost_acceleration_mps2)
-	thrust_g = FlightDynamics.thrust_load(incoming_thrust, _flight_velocity, delta)
-	if not _flight_velocity.is_finite():
-		_flight_velocity = Vector3.ZERO
+	var commanded := FlightDynamics.command_velocity(incoming_thrust, desired, delta, boosting, acceleration_mps2, boost_acceleration_mps2)
 	if autopilot_active:
 		_update_module_collision_basis()
 		var lookahead := maxf(5.0, FlightDynamics.braking_distance(incoming_thrust.length(), acceleration_mps2) + incoming_thrust.length() * delta + 2.0)
-		if lookahead > 0.0 and _flight_velocity.length_squared() > 0.0 and test_move(global_transform, _flight_velocity.normalized() * lookahead):
+		if lookahead > 0.0 and commanded.length_squared() > 0.0 and test_move(global_transform, commanded.normalized() * lookahead):
 			request_brake()
-			_flight_velocity = FlightDynamics.command_velocity(incoming_thrust, Vector3.ZERO, delta, false, acceleration_mps2)
-			thrust_g = FlightDynamics.thrust_load(incoming_thrust, _flight_velocity, delta)
+			commanded = FlightDynamics.command_velocity(incoming_thrust, Vector3.ZERO, delta, false, acceleration_mps2)
+			provisional_arrival = false
 			autopilot_blocked.emit()
+	_flight_velocity = _limit_propulsion(incoming_thrust, commanded)
+	thrust_g = FlightDynamics.thrust_load(incoming_thrust, _flight_velocity, delta)
+	if provisional_arrival and _flight_velocity.is_zero_approx():
+		autopilot_active = false
+		autopilot_arrived.emit()
 	if braking and _flight_velocity.is_zero_approx(): braking = false
 	velocity = _flight_velocity
 	if enabled and Input.is_action_pressed("roll_left"):
@@ -196,6 +198,13 @@ func _fly(delta: float) -> void:
 		if is_finite(max_closing) and max_closing > 25.0:
 			_flight_impact_cooldown = 0.7
 			flight_impact.emit(max_closing)
+
+
+func _limit_propulsion(before: Vector3, commanded: Vector3) -> Vector3:
+	if not propulsion_limiter.is_valid():
+		return commanded if commanded.is_finite() else before
+	var limited: Variant = propulsion_limiter.call(before, commanded)
+	return limited if limited is Vector3 and limited.is_finite() else before
 
 
 func _update_view_effects(delta: float) -> void:

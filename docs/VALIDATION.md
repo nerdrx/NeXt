@@ -791,3 +791,11 @@ The main-scene test runs the actual Pilot physics callback with forward/boost in
 Power ratings are abstract and nominal demand is always reserved. These checks do not establish dynamic batteries, damaged reactors, heat, propellant flow or power redistribution. Boost target speed remains a flight-assist tuning limit.
 
 The final Windows export reaches NEXT_INTEGRATION_OK under hidden Gamescope/Proton. No script or shader compilation errors appear in the run. The bounded wrapper ends 137 after the integration marker, so clean wrapper shutdown is not claimed; known SDR and texture shutdown warnings remain. The Windows ZIP was rebuilt from the validated export.
+
+## Impulse-based propulsion fuel
+
+The shared GameState limiter spends fuel on applied translational delta-v times loaded mass. Tests verify impulse cost, cargo mass, split/lumped commands, partial-budget residual velocity, invalid commands, save/load continuity, and emergency delivery with debt and repeat rejection. Main-scene checks pass in hidden Gamescope for a free-coasting walkable hull, fueled braking, a fuel-limited arrival, return-to-helm momentum and the pilot's own empty-tank arrival guard. Both controllers defer arrival until the limited velocity actually stops. Collision velocity changes bypass the fuel limiter.
+
+Existing hull, navigation, braking, flight-load, reactor-boost and coasting-interior regressions pass. Native normal-entrypoint integration reaches NEXT_INTEGRATION_OK, including a release-safe partial-fuel momentum check. The Windows recovery-page capture was inspected for the emergency fuel action and its fee/debt explanation. The delivery remains an immediate menu abstraction; fuel mass, rotational propellant, tank capacity by module and supplier logistics remain absent.
+
+The final exported Windows executable reaches NEXT_INTEGRATION_OK under hidden Gamescope/Proton, with no script or shader compilation errors in the run. Its bounded wrapper ends 137 after the marker; known SDR and texture shutdown warnings remain. The Windows ZIP was rebuilt from this export.

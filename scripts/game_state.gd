@@ -10,6 +10,7 @@ const SYSTEM_LIMIT: int = 1_000_000_000
 const DAY_SECONDS: float = 1200.0
 const MAX_ELAPSED_SECONDS: float = 86400.0
 const MAX_EPHEMERIS_SECONDS: float = 1.0e12
+const IMPULSE_PER_FUEL: float = 5.0e6 # Newton-seconds per abstract tank unit.
 const MAX_ITEMS: int = 1000
 const SHIP_CELL_LIMIT: int = 16
 const MAX_SHIP_MODULES: int = 100
@@ -100,6 +101,30 @@ func ship_stats() -> Dictionary:
 	result.acceleration_mps2 = minf(3.0 * 9.80665, float(result.thrust_newtons) / maxf(float(result.loaded_mass_kg), 1.0))
 	result.boost_acceleration_mps2 = minf(6.0 * 9.80665, float(result.thrust_newtons) * float(result.boost_multiplier) / maxf(float(result.loaded_mass_kg), 1.0))
 	return result
+
+func consume_propulsion(before: Vector3, commanded: Vector3) -> Vector3:
+	if not before.is_finite(): return Vector3.ZERO
+	if not commanded.is_finite() or not is_finite(fuel) or fuel <= 0.0: return before
+	var delta_velocity := commanded - before
+	var speed_change := delta_velocity.length()
+	if not is_finite(speed_change) or speed_change <= 0.0: return before
+	var mass := maxf(float(ship_stats().loaded_mass_kg), 1.0)
+	var required := speed_change * mass / IMPULSE_PER_FUEL
+	var used := minf(fuel, required)
+	var result := before + delta_velocity * (used / required)
+	if not result.is_finite(): return before
+	fuel = maxf(0.0, fuel - used)
+	return result
+
+func emergency_refuel() -> String:
+	if not is_finite(fuel) or fuel < 0.0: return "Invalid fuel level."
+	if fuel > 0.01: return "Emergency delivery is reserved for empty tanks."
+	var fee := maxi(500, price("fuel") * 4)
+	var paid := mini(credits, fee)
+	credits -= paid
+	recovery.debt += fee - paid
+	fuel = 20.0
+	return ""
 
 func price(good: String) -> int:
 	return price_at(good, system_index, day)

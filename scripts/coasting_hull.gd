@@ -4,6 +4,7 @@ extends CharacterBody3D
 var braking: bool = false
 var thrust_g: float = 0.0
 var acceleration_mps2: float = FlightDynamics.STANDARD_GRAVITY * FlightDynamics.CRUISE_G
+var propulsion_limiter: Callable
 var _module_shapes: Array[CollisionShape3D] = []
 var _navigation_radius := 0.0
 
@@ -70,30 +71,30 @@ func navigate(delta: float, target: Vector3, speed: float) -> Dictionary:
 	var distance := offset.length()
 	if not is_finite(distance):
 		return result
-	if distance <= 2.0 and velocity.length() <= FlightDynamics.usable_acceleration(acceleration_mps2) * delta:
-		thrust_g = FlightDynamics.thrust_load(velocity, Vector3.ZERO, delta)
-		velocity = Vector3.ZERO
-		result.arrived = true
-		return result
+	var provisional_arrival := distance <= 2.0 and velocity.length() <= FlightDynamics.usable_acceleration(acceleration_mps2) * delta
 	var direction := offset / distance if distance > 0.000001 else -velocity.normalized()
-	var desired := direction * FlightDynamics.approach_speed(distance, speed, acceleration_mps2)
+	var desired := Vector3.ZERO if provisional_arrival else direction * FlightDynamics.approach_speed(distance, speed, acceleration_mps2)
 	var incoming_thrust := velocity
-	velocity = FlightDynamics.command_velocity(velocity, desired, delta, false, acceleration_mps2)
-	var commanded_g := FlightDynamics.thrust_load(incoming_thrust, velocity, delta)
-	if not velocity.is_finite():
-		velocity = Vector3.ZERO
+	var commanded := FlightDynamics.command_velocity(incoming_thrust, desired, delta, false, acceleration_mps2)
 	if delta == 0.0:
 		return result
-	if not _rotation_clear():
-		velocity = incoming_thrust
-		return _blocked_advance(delta)
-	var up := Vector3.UP if absf(direction.dot(Vector3.UP)) < 0.98 else Vector3.RIGHT
-	var wanted := Basis.looking_at(direction, up)
-	global_basis = global_basis.orthonormalized().slerp(wanted, minf(1.0, delta * 0.85)).orthonormalized()
-	var lookahead := maxf(5.0, FlightDynamics.braking_distance(incoming_thrust.length(), acceleration_mps2) + incoming_thrust.length() * delta + 2.0)
-	if velocity.length_squared() > 0.0 and test_move(global_transform, velocity.normalized() * lookahead):
-		velocity = incoming_thrust
-		return _blocked_advance(delta)
+	if not provisional_arrival:
+		if not _rotation_clear():
+			velocity = incoming_thrust
+			return _blocked_advance(delta)
+		var up := Vector3.UP if absf(direction.dot(Vector3.UP)) < 0.98 else Vector3.RIGHT
+		var wanted := Basis.looking_at(direction, up)
+		global_basis = global_basis.orthonormalized().slerp(wanted, minf(1.0, delta * 0.85)).orthonormalized()
+		var lookahead := maxf(5.0, FlightDynamics.braking_distance(incoming_thrust.length(), acceleration_mps2) + incoming_thrust.length() * delta + 2.0)
+		if commanded.length_squared() > 0.0 and test_move(global_transform, commanded.normalized() * lookahead):
+			velocity = incoming_thrust
+			return _blocked_advance(delta)
+	velocity = _limit_propulsion(incoming_thrust, commanded)
+	var commanded_g := FlightDynamics.thrust_load(incoming_thrust, velocity, delta)
+	if provisional_arrival and velocity.is_zero_approx():
+		thrust_g = commanded_g
+		result.arrived = true
+		return result
 	var movement := advance(delta)
 	thrust_g = commanded_g
 	result.displacement = movement.displacement
@@ -103,6 +104,13 @@ func navigate(delta: float, target: Vector3, speed: float) -> Dictionary:
 
 func request_brake() -> void:
 	braking = not velocity.is_zero_approx()
+
+
+func _limit_propulsion(before: Vector3, commanded: Vector3) -> Vector3:
+	if not propulsion_limiter.is_valid():
+		return commanded if commanded.is_finite() else before
+	var limited: Variant = propulsion_limiter.call(before, commanded)
+	return limited if limited is Vector3 and limited.is_finite() else before
 
 
 func _blocked_advance(delta: float) -> Dictionary:
@@ -140,7 +148,8 @@ func advance(delta: float) -> Dictionary:
 		return result
 	if braking:
 		var before := velocity
-		velocity = FlightDynamics.command_velocity(velocity, Vector3.ZERO, delta, false, acceleration_mps2)
+		var commanded := FlightDynamics.command_velocity(velocity, Vector3.ZERO, delta, false, acceleration_mps2)
+		velocity = _limit_propulsion(before, commanded)
 		thrust_g = FlightDynamics.thrust_load(before, velocity, delta)
 		if velocity.is_zero_approx(): braking = false
 	var incoming := velocity

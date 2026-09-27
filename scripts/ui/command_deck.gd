@@ -679,6 +679,9 @@ func _recovery() -> void:
 	var recovery: Dictionary = s.recovery
 	_text("Ship destruction leaves recoverable cargo and hull salvage. Insurance retains your design at partial hull; without coverage, rescue restores the same design at lower hull and a higher deductible. Unpaid deductibles remain as debt.", 17)
 	_text("COVERAGE & LIABILITY", 13, InterfaceTheme.CYAN)
+	var fuel_fee := maxi(500, s.price("fuel") * 4)
+	_text("Empty tank? Emergency delivery supplies 20 fuel. Unpaid delivery fees become rescue debt.", 16, InterfaceTheme.MUTED)
+	_button("EMERGENCY FUEL / %d CR" % fuel_fee, _act.bind(s.emergency_refuel, "Emergency fuel delivered; unpaid fees recorded as rescue debt."), s.fuel > 0.01)
 	var covered: bool = int(recovery.get("insurance_until_day", -1)) >= s.day
 	_text("%s / Rescue debt %d CR" % ["Covered through day %d" % recovery.insurance_until_day if covered else "No active insurance", int(recovery.get("debt", 0))], 20)
 	_button("INSURE 30 DAYS / %d CR" % ShipRecovery.insurance_cost(s), _act.bind(game.purchase_insurance, "Insurance coverage purchased."), game.pilot.flying or game.aboard)
