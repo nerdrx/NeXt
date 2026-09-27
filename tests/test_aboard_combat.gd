@@ -59,8 +59,9 @@ func _run() -> void:
 	wall.queue_free()
 	await physics_frame
 	await physics_frame
+	pirate.weapon_damage = 17.0
 	game._enemy_fire(pirate, origin, direction)
-	assert(game.state.shield == shield - 9 and game.suit_health == suit, "outer hull receives damage after cover removed")
+	assert(game.state.shield == shield - 17 and game.suit_health == suit, "outer hull receives damage after cover removed")
 	var wreck_address := SectorPosition.new(game.flight_origin.sector, game.coasting_hull.position)
 	game.state.shield = 0
 	game.state.hull = 5

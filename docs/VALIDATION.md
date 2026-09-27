@@ -1015,3 +1015,10 @@ Commissioned family vessels now retain optional validated room/panel layouts. Cr
 These refits change room fittings and hull faces within the fixed family assembly. They do not yet replace fleet modules, transfer the player helm or enable shared multiplayer interiors.
 
 The new integration test passed natively and under hidden Gamescope: actual menu callbacks, credit charges, save reload, boarded layout, additional actor armor meshes, atomic rejections and strict legacy/malformed-save handling. Existing fleet boarding, fleet families and player ShipLayout tests passed. The 1440x900 refit screenshot was inspected and controls condensed so the model/deck preview remains visible. Windows export passed; fresh Proton runtime remains unverified. The graphical test emits a seven-texture RID shutdown warning, so clean graphics-resource teardown is not established.
+
+
+## Family hull strength and weapon damage — 2026-09-28
+
+Family actors now derive maximum hull strength and weapon damage from their module stats. Actor hp remains a 0–100 condition value for saves, retreat decisions and repair; unabsorbed damage is converted to that percentage using the actual hull capacity. Legacy actors retain 100 hull points and 9 damage. The firing controller uses the actor damage rating for opposing fleet ships, piloted vessels and occupied coasting hulls. Existing base armament remains part of GameState stats; these hull families have no additional weapon modules. Fleet shields remain disabled by the existing spawn path pending durable shield state and recharge integration.
+
+The focused family combat regression passed for both families, shield overflow, preloaded hull condition and legacy behavior. The fleet-family integration verifies damage is stored as 75% condition, survives save reload and respawns at the same condition. Fleet gameplay and aboard-combat regressions passed; the latter now verifies a changed actor damage rating reaches the occupied hull. Hidden Gamescope aboard combat passed and Windows export succeeded. No fresh Proton runtime result is claimed.

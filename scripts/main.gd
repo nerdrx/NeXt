@@ -1160,6 +1160,7 @@ func _player_fire(origin: Vector3, direction: Vector3) -> void:
 
 func _enemy_fire(actor: Node3D, origin: Vector3, direction: Vector3) -> void:
 	if ui_open or jump_charge > 0: return
+	var damage: float = actor.weapon_damage if actor is ShipActor else 12.0
 	var excluded: Array[RID] = [actor.get_rid()]
 	if actor is ShipActor and aboard and is_instance_valid(coasting_hull):
 		# Space weapons hit the outer vessel, not the passenger or cabin furniture.
@@ -1172,14 +1173,13 @@ func _enemy_fire(actor: Node3D, origin: Vector3, direction: Vector3) -> void:
 	_beam(origin, endpoint, Color("ff9673"))
 	var struck: Object = hit.get("collider")
 	if actor is ShipActor and is_instance_valid(coasting_hull) and struck == coasting_hull:
-		_apply_ship_hit(9.0, "Ship under attack! Return to the helm or continue your escape route.")
+		_apply_ship_hit(damage, "Ship under attack! Return to the helm or continue your escape route.")
 		return
 	if struck is ShipActor and ((actor.faction == "pirate" and struck.faction == "player_fleet") or (actor.faction == "player_fleet" and struck.faction == "pirate")):
 		if actor.has_meta("fleet_ship_id") and struck.faction == "pirate":
 			struck.set_meta("fleet_hit", actor.get_meta("fleet_ship_id"))
-		struck.take_damage(9.0)
+		struck.take_damage(damage)
 	if hit.get("collider") == pilot:
-		var damage: float = 9 if actor is ShipActor else 12
 		shield_delay = 6
 		if pilot.flying:
 			var absorbed: float = minf(state.shield, damage)

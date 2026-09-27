@@ -139,12 +139,18 @@ func _run() -> void:
 	fleet_ship.cargo["ore"] = 160
 	game._sync_fleet_actors()
 	assert(integrated.cargo_mass_kg == 160000.0, "main sync updates existing actor cargo mass")
+	integrated.take_damage(integrated.max_hull * 0.25)
+	assert(is_equal_approx(float(fleet_ship.hull), 75.0), "family damage persists as normalized hull condition")
+	assert(game.save_commander(false))
+	var damaged_save := GameStateScript.new()
+	assert(damaged_save.load_save(path).is_empty() and is_equal_approx(float(damaged_save.fleet_ships[0].hull), 75.0))
 	game._clear_actors()
 	game._sync_fleet_actors()
 	var respawned: ShipActor = game.fleet_actors[str(fleet_ship.id)]
 	assert(respawned.hull_family == "merchant" and respawned._visual.get_node_or_null("FamilyPressureHull") != null
 		and respawned.cargo_mass_kg == 160000.0,
 		"main scene respawn keeps family hull and cargo mass")
+	assert(is_equal_approx(respawned.hp, 75.0), "actor respawn preserves damaged family condition")
 	game.deck.show_page("fleet")
 	await process_frame
 	if DisplayServer.get_name() != "headless":

@@ -8,7 +8,9 @@ signal damaged(actor: ShipActor)
 var faction: String = "pirate"
 var target: Node3D
 var active: bool = true
-var hp: float = 100.0
+var hp: float = 100.0 # Hull condition percentage, also used by fleet saves.
+var max_hull: float = 100.0
+var weapon_damage: float = 9.0
 var shields: float = 40.0
 var speed: float = 65.0
 var drive_temperature_k: float = 450.0
@@ -61,6 +63,8 @@ func _ready() -> void:
 		model.ship_modules.assign(blueprint.modules)
 		model.ship_layout = hull_layout if ShipLayout.validate_data(hull_layout,blueprint.modules) else blueprint.layout
 		var stats := model.ship_stats()
+		max_hull = float(stats.max_hull)
+		weapon_damage = float(stats.damage)
 		dry_mass_kg = float(stats.dry_mass_kg)
 		thrust_newtons = float(stats.thrust_newtons)
 		acceleration_limit_mps2 = 3.0 * FlightDynamics.STANDARD_GRAVITY
@@ -195,7 +199,7 @@ func take_damage(amount: float) -> void:
 		return
 	var absorbed := minf(shields, amount)
 	shields -= absorbed
-	hp = maxf(0.0, hp - (amount - absorbed))
+	hp = maxf(0.0, hp - (amount - absorbed) * 100.0 / maxf(1.0, max_hull))
 	damaged.emit(self)
 	if hp <= 0.0:
 		_destroyed = true
