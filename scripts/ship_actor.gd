@@ -16,6 +16,8 @@ var hostile: bool = true
 const CONTACT_SEARCH_SECONDS: float = 15.0
 var last_contact_position := Vector3.ZERO
 var search_seconds_remaining: float = 0.0
+var travel_active: bool = false
+var travel_target := Vector3.ZERO
 
 var _visual: ShipVisual
 var _attack_cooldown: float = 0.0
@@ -44,7 +46,8 @@ func _ready() -> void:
 	add_child(collision)
 	_visual = ShipVisual.new()
 	add_child(_visual)
-	_visual.build([{"cell": Vector3i.ZERO, "kind": "cockpit"}, {"cell": Vector3i(0, 0, 1), "kind": "engine"}, {"cell": Vector3i(-1, 0, 1), "kind": "weapon"}, {"cell": Vector3i(1, 0, 1), "kind": "weapon"}], faction)
+	var side_module := "cargo" if get_meta("fleet_order_kind", "") == "trade" else "weapon"
+	_visual.build([{"cell": Vector3i.ZERO, "kind": "cockpit"}, {"cell": Vector3i(0, 0, 1), "kind": "engine"}, {"cell": Vector3i(-1, 0, 1), "kind": side_module}, {"cell": Vector3i(1, 0, 1), "kind": side_module}], faction)
 
 
 func _physics_process(delta: float) -> void:
@@ -54,6 +57,7 @@ func _physics_process(delta: float) -> void:
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
 	_patrol_phase += delta
 	var destination := _home + Vector3(sin(_patrol_phase * 0.22) * 26.0, sin(_patrol_phase * 0.31) * 8.0, cos(_patrol_phase * 0.22) * 26.0)
+	if travel_active: destination = travel_target
 	var attacking := hostile and _target_is_active()
 	if not attacking and hostile and search_seconds_remaining > 0.0:
 		search_seconds_remaining = maxf(0.0, search_seconds_remaining - delta)
@@ -151,6 +155,12 @@ func set_patrol_center(center: Vector3) -> void:
 	_patrol_center_set = true
 
 
+func set_travel_target(point: Vector3) -> void:
+	if not point.is_finite(): return
+	travel_target = point
+	travel_active = true
+
+
 func observe_target(candidate: Node3D) -> void:
 	target = candidate
 	if not hostile:
@@ -185,4 +195,5 @@ func apply_origin_shift(delta: Vector3) -> void:
 	_safe_zone_center -= delta
 	_home -= delta
 	last_contact_position -= delta
+	travel_target -= delta
 	reset_physics_interpolation()

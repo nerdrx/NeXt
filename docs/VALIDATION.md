@@ -845,3 +845,13 @@ The NPC movement fixture passes with a wall wider than the normal patrol wander:
 Native main-entrypoint integration and the Windows export under Proton emitted NEXT_INTEGRATION_OK, including a release-safe sphere-sweep detour check against a real StaticBody3D. Export succeeded and the Windows ZIP was rebuilt. This validates a finite-wall case and bounded local steering, not global navigation, dense-traffic avoidance or a many-NPC performance target. Thermal detection commit 68dd785 passed both CI runs.
 
 The avoidance-build Gamescope/Proton wrapper required timeout cleanup after success (exit 137). No script/shader errors were found in the integration/export logs.
+
+## Local hired traders
+
+Local trade checks pass for arrival-gated settlement, unchanged wages/cargo while waiting, one leg per readiness observation, distant two-leg progression, save/load at the waiting boundary, passive actor materialization, acceleration toward a travel target, sector-relative destinations, persistent damage, disabled actor removal, same-frame trade-to-patrol reassignment and cancellation. Existing crew, fleet combat and contact-search regressions pass. The local freighter/captain capture was inspected under hidden Gamescope; the art checklist includes its replacement assets.
+
+The main-entrypoint integration now verifies a local trader cannot settle from its timer alone and retires from the old scene on departure. Its first attempt incorrectly ran this space-only fixture from a surface instance; the next exposed an untyped empty array at the scripted call site. The fixture now returns to space and supplies an explicit Array[String]; the native integration passes. These fixes change the validation setup, not trade accounting.
+
+This increment does not establish seamless NPC hyperdrive, physical loading, saved NPC flight positions, conserved supplier markets or shared multiplayer logistics. The previous obstacle-avoidance and contact-search commits passed both CI runs.
+
+The final local-trader Windows export and Proton integration passed, with NEXT_INTEGRATION_OK and no script/shader errors. The wrapper required timeout cleanup after completion (exit 137). The Windows ZIP was rebuilt.

@@ -729,23 +729,46 @@ func _patrol_order(ship_id: String) -> Dictionary:
 		if order.kind == "patrol" and str(order.get("ship_id", "")) == ship_id: return order
 	return {}
 
+func _trade_order(ship_id: String) -> Dictionary:
+	for order: Dictionary in state.crew_orders.values():
+		if order.kind == "trade" and str(order.get("ship_id", "")) == ship_id: return order
+	return {}
+
 func _sync_fleet_actors() -> Array[String]:
-	var local_ids: Array[String] = []
+	var local_patrol_ids: Array[String] = []
+	var local_actor_ids: Array[String] = []
 	if surface_index < 0:
 		for ship: Dictionary in state.fleet_ships:
 			var id: String = str(ship.id)
 			var order := _patrol_order(id)
-			if int(ship.system) != state.system_index or float(ship.hull) <= 0 or order.is_empty() or int(order.system) != state.system_index: continue
-			local_ids.append(id)
+			var trade_order := _trade_order(id)
+			var is_patrol: bool = not order.is_empty() and int(order.system) == state.system_index
+			var is_trader: bool = not trade_order.is_empty()
+			if int(ship.system) != state.system_index or float(ship.hull) <= 0 or (not is_patrol and not is_trader): continue
+			local_actor_ids.append(id)
+			if is_patrol: local_patrol_ids.append(id)
+			var trade_phase: String = str(trade_order.get("phase", "outbound")) if is_trader else ""
+			var desired_kind: String = "trade" if is_trader else "patrol"
+			if fleet_actors.has(id):
+				var current: ShipActor = fleet_actors[id]
+				if str(current.get_meta("fleet_order_kind", "")) != desired_kind or str(current.get_meta("trade_phase", "")) != trade_phase:
+					actors.erase(current)
+					remove_child(current)
+					current.queue_free()
+					fleet_actors.erase(id)
 			if not fleet_actors.has(id):
 				var actor := ShipActor.new()
 				actor.actor_id = id
 				actor.faction = "player_fleet"
+				actor.hostile = false if is_trader else true
 				actor.set_meta("fleet_ship_id", id)
+				actor.set_meta("fleet_order_kind", desired_kind)
 				actor.set_meta("contact_name", str(ship.name))
 				actor.hp = float(ship.hull)
 				actor.shields = 0
-				actor.position = Vector3(-420 + (local_ids.size() - 1) * 25, 100, -650)
+				actor.set_meta("trade_phase", trade_phase)
+				actor.position = Vector3(-420 + (local_actor_ids.size() - 1) * 25, 100, -2000 if is_trader and trade_phase == "inbound" else -650)
+				if is_trader: actor.set_travel_target(Vector3(-420, 100, -650 if trade_phase == "inbound" else -2000))
 				actor.damaged.connect(_persist_fleet_damage)
 				actor.destroyed.connect(_actor_destroyed)
 				actor.fired.connect(_enemy_fire)
@@ -756,31 +779,40 @@ func _sync_fleet_actors() -> Array[String]:
 				var label := Label3D.new()
 				label.text = str(ship.name)
 				for member: Dictionary in state.crew:
-					if str(member.id) == str(order.crew_id): label.text += "\n" + str(member.name)
+					if str(member.id) == str((trade_order if is_trader else order).crew_id): label.text += "\n" + str(member.name)
 				label.position.y = 5
 				label.pixel_size = 0.03
 				label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 				label.modulate = Color("68e8db")
 				actor.add_child(label)
 			else:
-				fleet_actors[id].hp = float(ship.hull)
+				var actor: ShipActor = fleet_actors[id]
+				actor.hp = float(ship.hull)
 	for id: String in fleet_actors.keys():
-		if id in local_ids: continue
+		if id in local_actor_ids: continue
 		var actor: Node = fleet_actors[id]
 		if is_instance_valid(actor):
 			actors.erase(actor)
 			remove_child(actor)
 			actor.queue_free()
 		fleet_actors.erase(id)
-	var simulated: Array[String] = []
-	for id: String in local_ids:
-		if not bool(fleet_actors[id].get_meta("spatial_culled", false)): simulated.append(id)
-	return simulated
+	var simulated_patrols: Array[String] = []
+	for id: String in local_patrol_ids:
+		if fleet_actors.has(id) and not bool(fleet_actors[id].get_meta("spatial_culled", false)): simulated_patrols.append(id)
+	return simulated_patrols
+
+func _local_trade_status() -> Dictionary:
+	var status: Dictionary = {}
+	for id: String in fleet_actors:
+		var actor: ShipActor = fleet_actors[id]
+		if not is_instance_valid(actor) or bool(actor.get_meta("spatial_culled", false)) or str(actor.get_meta("fleet_order_kind", "")) != "trade": continue
+		status[id] = actor.position.distance_to(actor.travel_target) <= 15.0 and actor.velocity.length() <= 5.0
+	return status
 
 func approach_fleet_ship(ship_id: String) -> void:
 	var actor: Node3D = fleet_actors.get(ship_id)
 	if not is_instance_valid(actor):
-		notify("That vessel is not patrolling this local space.")
+		notify("That vessel is not in local space.")
 		return
 	cruise_to(actor.position + Vector3(0, 20, 60))
 
@@ -827,12 +859,16 @@ func _update_combat_targets() -> void:
 	for actor in actors:
 		if not actor is ShipActor: continue
 		if actor.faction == "player_fleet":
-			actor.target = _nearest_ship(actor, "pirate")
-			actor.hostile = true
-			var order := _patrol_order(str(actor.get_meta("fleet_ship_id", "")))
-			if bool(order.get("paused", true)):
+			if str(actor.get_meta("fleet_order_kind", "patrol")) == "trade":
 				actor.target = null
 				actor.hostile = false
+			else:
+				actor.target = _nearest_ship(actor, "pirate")
+				actor.hostile = true
+				var order := _patrol_order(str(actor.get_meta("fleet_ship_id", "")))
+				if bool(order.get("paused", true)):
+					actor.target = null
+					actor.hostile = false
 		elif actor.faction == "pirate":
 			var fleet_target := _nearest_ship(actor, "player_fleet")
 			actor.target = player_ship if _ship_detectable(actor, player_ship) else null
@@ -1430,7 +1466,8 @@ func _process(delta: float) -> void:
 		if ui_open and jump_charge <= 0: deck.show_page(deck.page)
 		notify("Day %d / payroll and company accounts settled." % state.day)
 	var local_patrols: Array[String] = _sync_fleet_actors()
-	var reports: Array = crew_operations().tick(delta, local_patrols)
+	var reports: Array = crew_operations().tick(delta, local_patrols, _local_trade_status())
+	if not reports.is_empty(): _sync_fleet_actors()
 	if not reports.is_empty():
 		notify("Crew / %s: %s" % [reports.back().get("kind", "operation"), reports.back().get("status", "updated")])
 	for actor in actors:
@@ -1822,14 +1859,25 @@ func _integration_check() -> void:
 	exit_interior()
 	if not _check(not aboard and not pilot.flying, "return from interior"): return
 	# Exercise new systems through the exported main scene as well as standalone tests.
+	_build_system() # Local fleet actors operate in space, not the surface instance.
 	state.credits = 50000
 	if not _check(state.hire("trader").is_empty(), "hire named captain"): return
 	if not _check(crew_operations().purchase_ship("Integration Courier").is_empty(), "commission fleet vessel"): return
 	var member_id: String = state.crew.back().id
 	var fleet_id: String = state.fleet_ships.back().id
 	if not _check(crew_operations().assign_trade_route(member_id, fleet_id, "food", state.system_index + 1, 5).is_empty(), "assign fleet route"): return
-	crew_operations().tick(CrewOrders.TRIP_SECONDS * 2.0)
+	var local_trade_patrols: Array[String] = _sync_fleet_actors()
+	if not _check(fleet_actors.has(fleet_id) and not bool(_local_trade_status().get(fleet_id, true)), "local trade actor starts en route"): return
+	crew_operations().tick(CrewOrders.TRIP_SECONDS * 2.0, local_trade_patrols, _local_trade_status())
+	if not _check(int(state.fleet_ships.back().cargo.get("food", 0)) == 0, "unready local trader cannot settle from timer alone"): return
+	var trader_actor: ShipActor = fleet_actors[fleet_id]
+	trader_actor.set_physics_process(false)
+	trader_actor.position = trader_actor.travel_target
+	trader_actor.velocity = Vector3.ZERO
+	crew_operations().tick(1.0, local_trade_patrols, _local_trade_status())
+	_sync_fleet_actors()
 	if not _check(int(state.fleet_ships.back().cargo.get("food", 0)) == 5, "fleet purchases actual cargo"): return
+	if not _check(not fleet_actors.has(fleet_id), "departed trader retires from old local scene"): return
 	open_menu("fleet")
 	await _capture("fleet")
 	_build_system()

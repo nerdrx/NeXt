@@ -93,3 +93,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Replace or art-direct `shaders/planet_clouds.gdshader`: seeded drifting weather patterns on a separate transparent shell, with lit day and dark night sides. Keep clouds non-colliding and above the maximum terrain height.
 - [ ] Replace the atmosphere limb approximation in `shaders/planet_atmosphere.gdshader` with calibrated scattering.
 - [ ] Add volumetric depth and weather simulation. Current shells use matching analytic shadows on orbital and streamed ground materials; extend cloud shading to buildings, vessels and rocks. Planet scale and streaming still need expansion.
+
+- [ ] Local hired freighter variant (`scripts/ship_actor.gd`, `scripts/ship_visual.gd`): replace the cargo-wing procedural ship with authored civilian freight hulls, cargo-bay markings and docking lights; preserve local trade travel and collision behavior.

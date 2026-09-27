@@ -126,7 +126,7 @@ func withdraw_station_stock(station_index: int, good: String, quantity: int) -> 
 	return ""
 
 # Call only with elapsed hosted gameplay time. Paused worlds never accrue work.
-func tick(elapsed_seconds: float, local_patrol_ship_ids: Array[String] = []) -> Array[Dictionary]:
+func tick(elapsed_seconds: float, local_patrol_ship_ids: Array[String] = [], local_trade_status: Dictionary = {}) -> Array[Dictionary]:
 	var reports: Array[Dictionary] = []
 	if not is_finite(elapsed_seconds) or elapsed_seconds <= 0: return reports
 	for crew_id: String in state.crew_orders.keys():
@@ -140,7 +140,11 @@ func tick(elapsed_seconds: float, local_patrol_ship_ids: Array[String] = []) -> 
 				continue
 		order.progress = minf(float(order.progress) + elapsed_seconds, 86400.0 * 365.0)
 		var interval: float = STATION_SECONDS if order.kind == "station" else TRIP_SECONDS * (2.0 if order.kind == "trade" else 1.0)
+		var local_trade: bool = order.kind == "trade" and local_trade_status.has(str(order.ship_id))
+		if local_trade: order.progress = minf(float(order.progress), interval)
 		while float(order.progress) >= interval:
+			# A represented trader must actually reach its departure/berth point.
+			if local_trade and not bool(local_trade_status[str(order.ship_id)]): break
 			order.progress = float(order.progress) - interval
 			var member: Dictionary = _member(crew_id)
 			var wage: int = int(member.salary)
@@ -162,6 +166,8 @@ func tick(elapsed_seconds: float, local_patrol_ship_ids: Array[String] = []) -> 
 					continue
 			var report: Dictionary = _complete_order(order)
 			if not report.is_empty(): reports.append(report)
+			# The scene's readiness describes this leg only, never a second leg.
+			if local_trade: break
 	return reports
 
 func _complete_order(order: Dictionary) -> Dictionary:
