@@ -1763,6 +1763,7 @@ func _integration_check() -> void:
 	enter_interior()
 	await get_tree().create_timer(0.6).timeout
 	if not _check(aboard and aboard_cruise and pilot.is_on_floor(), "cruise carries walking passenger"): return
+	if not _check(coasting_hull.thrust_g > 0.0 and coasting_hull.thrust_g <= 3.01, "aboard cruise respects thruster acceleration limit"): return
 	var helm_basis: Basis = coasting_hull.global_basis
 	exit_interior()
 	if not _check(pilot.autopilot_active and pilot.camera.global_basis.is_equal_approx(helm_basis), "cruise helm handoff"): return

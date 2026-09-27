@@ -1,6 +1,7 @@
 class_name CoastingHull
 extends CharacterBody3D
 
+var thrust_g: float = 0.0
 var _module_shapes: Array[CollisionShape3D] = []
 var _navigation_radius := 0.0
 
@@ -58,6 +59,7 @@ func aim_point() -> Vector3:
 
 
 func navigate(delta: float, target: Vector3, speed: float) -> Dictionary:
+	thrust_g = 0.0
 	var result := {"displacement": Vector3.ZERO, "impact_speed": 0.0, "arrived": false, "blocked": false}
 	if not is_finite(delta) or delta < 0.0 or delta > 1.0 or not target.is_finite() or not is_finite(speed) or speed < 0.0 or not velocity.is_finite():
 		return result
@@ -65,15 +67,16 @@ func navigate(delta: float, target: Vector3, speed: float) -> Dictionary:
 	var distance := offset.length()
 	if not is_finite(distance):
 		return result
-	if distance <= 2.0:
+	if distance <= 2.0 and velocity.length() <= FlightDynamics.STANDARD_GRAVITY * FlightDynamics.CRUISE_G * delta:
+		thrust_g = FlightDynamics.thrust_load(velocity, Vector3.ZERO, delta)
 		velocity = Vector3.ZERO
 		result.arrived = true
 		return result
-	var direction := offset / distance
-	var approach := clampf(distance / 50.0, 0.0, 1.0)
-	approach = approach * approach * (3.0 - 2.0 * approach)
-	var desired := direction * speed * approach
-	velocity = velocity.lerp(desired, minf(1.0, 1.8 * delta))
+	var direction := offset / distance if distance > 0.000001 else -velocity.normalized()
+	var desired := direction * FlightDynamics.approach_speed(distance, speed)
+	var incoming_thrust := velocity
+	velocity = FlightDynamics.command_velocity(velocity, desired, delta)
+	var commanded_g := FlightDynamics.thrust_load(incoming_thrust, velocity, delta)
 	if not velocity.is_finite():
 		velocity = Vector3.ZERO
 	if delta == 0.0:
@@ -91,6 +94,7 @@ func navigate(delta: float, target: Vector3, speed: float) -> Dictionary:
 		result.blocked = true
 		return result
 	var movement := advance(delta)
+	thrust_g = commanded_g
 	result.displacement = movement.displacement
 	result.impact_speed = movement.impact_speed
 	return result
@@ -115,6 +119,7 @@ func _rotation_clear() -> bool:
 
 
 func advance(delta: float) -> Dictionary:
+	thrust_g = 0.0
 	var result := {"displacement": Vector3.ZERO, "impact_speed": 0.0}
 	if not is_finite(delta) or delta < 0.0 or delta > 1.0 or not velocity.is_finite():
 		return result

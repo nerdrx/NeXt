@@ -18,7 +18,10 @@ func _run() -> void:
 	hull.global_position = Vector3.ZERO
 	hull.velocity = Vector3(5, 0, 0)
 	result = hull.navigate(0.1, Vector3(1, 0, 0), 20.0)
-	assert(result.arrived and hull.velocity == Vector3.ZERO and result.displacement == Vector3.ZERO, "near target arrives and stops")
+	assert(not result.arrived and hull.velocity.x > 0.0 and hull.thrust_g <= 3.001, "near target brakes within the thrust limit")
+	result = hull.navigate(0.1, Vector3(1, 0, 0), 20.0)
+	assert(result.arrived and hull.velocity == Vector3.ZERO, "arrival waits until the ship can stop within the thrust limit")
+	hull.global_position = Vector3.ZERO
 	for invalid in [NAN, INF]:
 		result = hull.navigate(0.1, Vector3(invalid, 0, 0), 20.0)
 		assert(not result.arrived and not result.blocked and hull.global_position == Vector3.ZERO, "non-finite target is rejected")

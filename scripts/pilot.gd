@@ -6,6 +6,7 @@ signal autopilot_arrived
 signal autopilot_blocked
 signal flight_impact(closing_speed: float)
 
+var thrust_g: float = 0.0
 var flying: bool = false
 var enabled: bool = true
 var camera: Camera3D
@@ -82,6 +83,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	thrust_g = 0.0
 	_flight_impact_cooldown = maxf(0.0, _flight_impact_cooldown - delta)
 	_fire_cooldown = maxf(0.0, _fire_cooldown - delta)
 	_recoil = move_toward(_recoil, 0.0, delta * 2.8)
@@ -133,29 +135,27 @@ func _fly(delta: float) -> void:
 	if autopilot_active and (local_direction.length_squared() > 0.001 or rolling):
 		cancel_autopilot()
 	var desired: Vector3
-	var response := 2.8
+	var incoming_thrust := _flight_velocity
+	var boosting := Input.is_action_pressed("boost") and not autopilot_active
 	if autopilot_active:
 		var offset := autopilot_target - global_position
 		var distance := offset.length()
-		if distance <= 2.0:
+		if distance <= 2.0 and _flight_velocity.length() <= FlightDynamics.STANDARD_GRAVITY * FlightDynamics.CRUISE_G * delta:
 			autopilot_active = false
 			_flight_velocity = Vector3.ZERO
 			desired = Vector3.ZERO
 			autopilot_arrived.emit()
 		else:
-			var direction := offset / distance
-			var approach := clampf(distance / 50.0, 0.0, 1.0)
-			approach = approach * approach * (3.0 - 2.0 * approach)
-			desired = direction * flight_speed * approach
+			var direction := offset / distance if distance > 0.000001 else -_flight_velocity.normalized()
+			desired = direction * FlightDynamics.approach_speed(distance, flight_speed)
 			rotation.y = lerp_angle(rotation.y, atan2(-direction.x, -direction.z), delta * 0.85)
 			_pitch = lerpf(_pitch, asin(clampf(direction.y, -1.0, 1.0)), minf(1.0, delta * 0.85))
 			camera.rotation.x = _pitch
-		response = 1.8 if distance > 2.0 else 1.15
 	else:
 		var boost_scale := 3.0 if Input.is_action_pressed("boost") else 1.0
 		desired = camera.global_basis * local_direction * flight_speed * boost_scale
-		response = 2.8 if local_direction.length_squared() > 0.001 else 1.15
-	_flight_velocity = _flight_velocity.lerp(desired, minf(1.0, response * delta))
+	_flight_velocity = FlightDynamics.command_velocity(_flight_velocity, desired, delta, boosting)
+	thrust_g = FlightDynamics.thrust_load(incoming_thrust, _flight_velocity, delta)
 	if not _flight_velocity.is_finite():
 		_flight_velocity = Vector3.ZERO
 	if autopilot_active:
@@ -229,6 +229,7 @@ func reset_view() -> void:
 
 
 func set_flight(value: bool) -> void:
+	thrust_g = 0.0
 	if value: set_walk_up(Vector3.UP)
 	flying = value
 	cancel_autopilot()

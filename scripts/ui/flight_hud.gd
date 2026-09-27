@@ -57,6 +57,9 @@ func _draw() -> void:
 	_draw_meter(Vector2(35, h - 98), "SHIELD", state.shield / shield_max, InterfaceTheme.CYAN)
 	_draw_meter(Vector2(35, h - 65), "FUEL", state.fuel / 100.0, Color("b9bbf5"))
 	_word(Vector2(w - 250, h - 105), "%03d m/s" % int(pilot.velocity.length()), 30, InterfaceTheme.CYAN)
+	if pilot.flying or (game.aboard and is_instance_valid(game.coasting_hull)):
+		var thrust_g: float = pilot.thrust_g if pilot.flying else game.coasting_hull.thrust_g
+		_word(Vector2(w - 250, h - 131), "THRUST %.1f g" % thrust_g, 14, InterfaceTheme.GOLD)
 	_word(Vector2(w - 250, h - 78), "CARGO  %d / %d" % [state.cargo_total(), int(stats.cargo_capacity)], 14, InterfaceTheme.MUTED)
 	_word(Vector2(w - 250, h - 54), ("CRUISE AUTOPILOT" if pilot.autopilot_active else "FLIGHT ASSIST  ON") if pilot.flying else "MAG BOOTS  ACTIVE", 13, InterfaceTheme.MUTED)
 	_word(Vector2(w * 0.5 - 260, h - 24), "TAB  Command    E  Interact / dock    J  Navigation    F5  Save", 14, InterfaceTheme.MUTED)

@@ -120,3 +120,5 @@ Unassigned hired crew and your assigned ship gunner now appear aboard as named c
 Ocean worlds with atmospheres now have separate, drifting procedural cloud shells with day/night lighting, plus a softer atmosphere limb. Clouds remain non-colliding and now dim the orbital and streamed terrain using the same weather pattern. Volumetric weather and cloud shading on buildings or vessels are not implemented.
 
 ![Current in-engine procedural cloud layer; placeholder planet art](docs/planet-weather.png)
+
+Manual flight and cruise now use bounded thruster acceleration: 3 g normally, 6 g under manual boost. Cruise approach speed accounts for braking distance. The HUD displays translational **THRUST** load, including while walking aboard a cruising ship; free coasting reads zero. These are flight-assist tuning limits, not crew survivability claims. Emergency stops and collisions still use the existing simplified handling; gravitational and rotational crew loads remain unimplemented.
