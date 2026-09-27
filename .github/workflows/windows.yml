@@ -39,6 +39,8 @@ jobs:
       - name: Test simulation, actors and loopback visits
         run: |
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_state.gd
+          timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_calendar.gd
+          timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_calendar_gameplay.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_actors.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_network.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_pvp_hits.gd

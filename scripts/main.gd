@@ -1116,6 +1116,11 @@ func _process(delta: float) -> void:
 		else:
 			cruise_address = null
 			cruise_waypoints.clear()
+	var elapsed_days: int = state.advance_time(delta)
+	if elapsed_days > 0:
+		apply_ship_stats()
+		if ui_open and jump_charge <= 0: deck.show_page(deck.page)
+		notify("Day %d / payroll and company accounts settled." % state.day)
 	var local_patrols: Array[String] = _sync_fleet_actors()
 	var reports: Array = crew_operations().tick(delta, local_patrols)
 	if not reports.is_empty():
@@ -1139,10 +1144,10 @@ func _process(delta: float) -> void:
 			if aboard: safe_spawn = interior.spawn_on_deck(interior_deck)
 			if pilot.position.y < safe_spawn.y - 150: pilot.teleport(safe_spawn)
 
-		autosave_clock += delta
-		if autosave_clock > 60 and not automation:
-			autosave_clock = 0
-			save_commander(false)
+	autosave_clock += delta
+	if autosave_clock > 60 and not automation:
+		autosave_clock = 0
+		save_commander(false)
 	sound.flight(pilot.velocity.length() / maxf(pilot.flight_speed, 1), pilot.flying)
 	_network_clock += delta
 	if session != null and session.connected and _network_clock > 0.05:
@@ -1568,6 +1573,10 @@ func _integration_check() -> void:
 	pilot.teleport(_ship_pad() + landed_ship_normal * 2)
 	_interact()
 	if not _check(pilot.flying and manual_planet == -1, "surface port departure"): return
+	var calendar_day: int = state.day
+	state.day_progress = GameState.DAY_SECONDS - 0.01
+	_process(0.02)
+	if not _check(state.day == calendar_day + 1 and state.day_progress < 1, "active world calendar advances without travel"): return
 	DirAccess.remove_absolute(save_path)
 	DirAccess.remove_absolute(save_path + ".bak")
 	await get_tree().create_timer(0.5).timeout

@@ -27,6 +27,7 @@ func _run() -> void:
 	root.add_child(main)
 	await process_frame
 	main.save_path = home_path
+	main.state.day_progress = 320.0
 	main.state.credits = 30000
 	if not _check(main.state.found_faction("Home Cooperative") == "", "found home faction"): return
 	if not _check(main.state.faction_deposit(3000) == "", "fund home faction treasury"): return
@@ -50,6 +51,8 @@ func _run() -> void:
 	if not _check(main.state.credits == 18000 and main.state.ship_modules == original_modules and main.state.cargo.ore == 4, "new visitor receives starting wallet plus carried ship and cargo"): return
 	if not _check(main.state.faction == PlayerFactionScript.empty_data(), "new visitor starts with a separate faction and treasury"): return
 	if not _check(main.state.ship_layout == original_layout, "room and hull refits travel with incoming ship"): return
+	if not _check(main.state.day_progress == 0 and main.home_state.day_progress == 320.0, "new visit starts its own calendar and suspends home time"): return
+	main.state.day_progress = 640.0
 	main.state.credits = 22222
 	if not _check(main.state.found_faction("Visiting Ventures") == "", "found visiting faction"): return
 	if not _check(main.state.faction_deposit(2222) == "", "fund visiting faction treasury"): return
@@ -69,6 +72,7 @@ func _run() -> void:
 	var visitor_credits: int = main.state.credits
 	var visiting_modules: Array[Dictionary] = main.state.ship_modules.duplicate(true)
 	main.leave_visit()
+	if not _check(main.state.day_progress == 320.0, "return restores home calendar without importing visiting time"): return
 	if not _check(main.home_state == null and main.state.world_id == host_state_id, "leaving restores home identity"): return
 	if not _check(main.state.credits == home_credits and main.state.shares == {"NOVA": 7} and main.state.company_name == "Home Cooperative" and main.state.company_balance == 650 and main.state.wanted == 2 and main.state.faction == home_faction, "visitor economics and faction do not leak into home"): return
 	if not _check(main.state.ship_modules == visiting_modules and main.state.cargo.alloys == 6 and main.state.hull == 72.0 and main.state.shield == 61.0 and main.state.fuel == 43.0, "only carried ship, cargo, and vitals transfer home"): return
@@ -80,6 +84,7 @@ func _run() -> void:
 	main.session.world_id = remote_id
 	main._visit_host(7919)
 	if not _check(main.state.world_id == remote_id and main.state.credits == visitor_credits and main.state.shares == {"HELI": 3} and main.state.company_name == "Visiting Ventures" and main.state.company_balance == 987 and main.state.wanted == 9 and main.state.faction == visitor_faction, "rejoining restores visitor finances, faction treasury and reputation"): return
+	if not _check(main.state.day_progress == 640.0, "visitor calendar resumes saved progress"): return
 	if not _check(main.state.ship_modules == visiting_modules and main.state.cargo.alloys == 6, "rejoining carries the updated home ship"): return
 	main.leave_visit()
 	_cleanup()

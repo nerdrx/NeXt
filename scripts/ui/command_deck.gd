@@ -10,6 +10,7 @@ var subtitle: Label
 var tabs: Dictionary = {}
 var destination: int = 0
 var navigation_info: Label
+var _clock_label := ""
 var balance_label: Label
 
 func _ready() -> void:
@@ -83,8 +84,8 @@ func show_page(value: String = "overview") -> void:
 	for key: String in tabs:
 		tabs[key].modulate = InterfaceTheme.CYAN if key == page else Color.WHITE
 	feedback.text = ""
-	var state: GameState = game.state
-	subtitle.text = "%s  /  %s  /  DAY %03d" % [Universe.system_data(state.system_index).name, game.location_title(), state.day]
+	_clock_label = ""
+	_update_clock()
 	match page:
 		"overview": _overview()
 		"navigation": _navigation()
@@ -97,6 +98,16 @@ func show_page(value: String = "overview") -> void:
 		"factions": _factions()
 		"stations": _stations()
 		"settings": _settings()
+
+func _process(_delta: float) -> void:
+	if visible: _update_clock()
+
+func _update_clock() -> void:
+	var state: GameState = game.state
+	var text := "%03d %s" % [state.day, state.clock_text()]
+	if text == _clock_label: return
+	_clock_label = text
+	subtitle.text = "%s  /  %s  /  DAY %s" % [Universe.system_data(state.system_index).name, game.location_title(), text]
 
 func refresh() -> void:
 	show_page(page)
@@ -333,7 +344,7 @@ func _company() -> void:
 	var hires := _row()
 	for role in ["engineer", "gunner", "trader"]:
 		hires.add_child(InterfaceTheme.button("HIRE " + role.to_upper() + " / 500 CR", _act.bind(s.hire.bind(role), "Crew member hired.")))
-	_text("Share prices change with simulation days. Crew wages and company production settle on travel; check your reserves before expanding.", 14, InterfaceTheme.MUTED)
+	_text("A day lasts 20 minutes while this world is open, including menus. Hyperdrive also advances one day. Daily payroll, company income and market prices follow this clock. Assigned crew are paid on their operation timers. Closed worlds do not advance.", 14, InterfaceTheme.MUTED)
 
 func _factions() -> void:
 	heading.text = "ALLEGIANCES & LAW"

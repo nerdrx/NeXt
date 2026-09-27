@@ -6,6 +6,8 @@ const ShipRecovery = preload("res://scripts/ship_recovery.gd")
 const ShipLayout = preload("res://scripts/ship_layout.gd")
 const PlayerFactionDomain = preload("res://scripts/player_faction.gd")
 const SYSTEM_LIMIT: int = 1_000_000_000
+const DAY_SECONDS: float = 1200.0
+const MAX_ELAPSED_SECONDS: float = 86400.0
 const MAX_ITEMS: int = 1000
 const MAX_WORLD_FLAGS: int = 10000
 const GOODS: Dictionary = {"ore": 35, "alloys": 115, "food": 18, "fuel": 52, "medicine": 95, "electronics": 140, "luxuries": 210}
@@ -42,6 +44,7 @@ var shield: float = 100.0
 var fuel: float = 100.0
 var kills: int = 0
 var day: int = 0
+var day_progress: float = 0.0
 var visited: Array[int] = [0]
 var reputation: Dictionary = {}
 var wanted: int = 0
@@ -172,13 +175,28 @@ func jump(destination: int) -> String:
 	fuel -= 10.0
 	system_index = destination
 	location = {}
-	day += 1
 	if not visited.has(destination):
 		visited.append(destination)
 		if visited.size() > MAX_ITEMS: visited.pop_front()
+	_advance_day()
+	return ""
+
+func advance_time(elapsed_seconds: float) -> int:
+	if not is_finite(elapsed_seconds) or elapsed_seconds < 0.0 or elapsed_seconds > MAX_ELAPSED_SECONDS: return 0
+	var total: float = day_progress + elapsed_seconds
+	var days_elapsed: int = int(floor(total / DAY_SECONDS))
+	day_progress = fmod(total, DAY_SECONDS)
+	for _index: int in range(days_elapsed): _advance_day()
+	return days_elapsed
+
+func clock_text() -> String:
+	var minute_of_day: int = int(floor(day_progress / DAY_SECONDS * 1440.0))
+	return "%02d:%02d" % [minute_of_day / 60, minute_of_day % 60]
+
+func _advance_day() -> void:
+	day += 1
 	_pay_crew_and_company()
 	_refresh_contracts()
-	return ""
 
 func refuel() -> String:
 	var units: int = ceili((100.0 - fuel) / 10.0)
@@ -410,6 +428,8 @@ func load_save(path: String) -> String:
 	return ""
 
 func _load_v1(data: Dictionary) -> String:
+	if data.has("day_progress") and (not _is_number(data.day_progress) or not is_finite(float(data.day_progress)) or float(data.day_progress) < 0.0 or float(data.day_progress) >= DAY_SECONDS): return "Invalid day progress."
+	if data.has("day_progress"): day_progress = float(data.day_progress)
 	for key: String in ["system", "credits", "modules", "hull", "kills", "cargo"]:
 		if not data.has(key): return "Legacy save is missing required fields."
 	if not _is_int(data.system) or not _is_int(data.credits) or not _is_int(data.modules) or not _is_number(data.hull) or not _is_int(data.kills) or not data.cargo is Dictionary:
@@ -443,11 +463,16 @@ func _load_v2(data: Dictionary) -> String:
 		expected.erase("faction")
 	if missing_location:
 		expected.erase("location")
-	if data.size() != expected.size() - (1 if missing_world_id else 0): return "Save fields do not match schema."
+	var has_day_progress: bool = data.has("day_progress")
+	if data.size() != expected.size() - (1 if missing_world_id else 0) + (1 if has_day_progress else 0): return "Save fields do not match schema."
 	for key: String in expected:
 		if key == "world_id" and missing_world_id: continue
 		if not data.has(key): return "Save is missing %s." % key
 	if not missing_world_id and not _valid_world_id(data.world_id): return "Invalid world identity."
+	var loaded_day_progress: float = 0.0
+	if has_day_progress:
+		if not _is_number(data.day_progress) or not is_finite(float(data.day_progress)) or float(data.day_progress) < 0.0 or float(data.day_progress) >= DAY_SECONDS: return "Invalid day progress."
+		loaded_day_progress = float(data.day_progress)
 	for key: String in ["system_index", "credits", "kills", "day", "wanted", "company_balance"]:
 		if not _is_int(data[key]): return "Invalid integer field: %s." % key
 	for key: String in ["hull", "shield", "fuel"]:
@@ -596,6 +621,7 @@ func _load_v2(data: Dictionary) -> String:
 	fuel = float(data.fuel)
 	kills = int(data.kills)
 	day = int(data.day)
+	day_progress = loaded_day_progress
 	visited = loaded_visited
 	reputation = data.reputation.duplicate(true)
 	wanted = int(data.wanted)
@@ -701,10 +727,10 @@ func _normalize_location(value: Dictionary) -> Dictionary:
 	return result
 
 func _save_data() -> Dictionary:
-	return {"version": SAVE_VERSION, "system_index": system_index, "world_id": world_id, "location": location, "credits": credits, "cargo": cargo, "hull": hull, "shield": shield, "fuel": fuel, "kills": kills, "day": day, "visited": visited, "reputation": reputation, "wanted": wanted, "ship_modules": ship_modules, "stations": stations, "shares": shares, "crew": crew, "world_flags": world_flags, "company_name": company_name, "company_balance": company_balance, "crew_paid": crew_paid, "contracts": contracts, "fleet_ships": fleet_ships, "crew_orders": crew_orders, "recovery": recovery, "ship_layout": ship_layout, "faction": faction}
+	return {"version": SAVE_VERSION, "system_index": system_index, "world_id": world_id, "location": location, "credits": credits, "cargo": cargo, "hull": hull, "shield": shield, "fuel": fuel, "kills": kills, "day": day, "day_progress": day_progress, "visited": visited, "reputation": reputation, "wanted": wanted, "ship_modules": ship_modules, "stations": stations, "shares": shares, "crew": crew, "world_flags": world_flags, "company_name": company_name, "company_balance": company_balance, "crew_paid": crew_paid, "contracts": contracts, "fleet_ships": fleet_ships, "crew_orders": crew_orders, "recovery": recovery, "ship_layout": ship_layout, "faction": faction}
 
 func _copy_from(other: GameState) -> void:
-	for key: String in ["system_index", "world_id", "location", "credits", "cargo", "hull", "shield", "fuel", "kills", "day", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout", "faction"]:
+	for key: String in ["system_index", "world_id", "location", "credits", "cargo", "hull", "shield", "fuel", "kills", "day", "day_progress", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout", "faction"]:
 		set(key, other.get(key).duplicate(true) if other.get(key) is Array or other.get(key) is Dictionary else other.get(key))
 
 func _pay_crew_and_company() -> void:

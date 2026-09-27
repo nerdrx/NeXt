@@ -38,7 +38,7 @@ func _draw() -> void:
 	_word(Vector2(178, 33), str(data.name).to_upper(), 18)
 	_word(Vector2(178, 58), "%s   /   %s" % [data.star_type, data.faction], 13, InterfaceTheme.MUTED)
 	_word(Vector2(w - 365, 32), "%s CR" % String.num_int64(state.credits), 21, InterfaceTheme.GOLD)
-	_word(Vector2(w - 365, 57), "DAY %03d     •     %d SYSTEMS CHARTED" % [state.day, state.visited.size()], 12, InterfaceTheme.MUTED)
+	_word(Vector2(w - 365, 57), "DAY %03d  %s   •   %d SYSTEMS CHARTED" % [state.day, state.clock_text(), state.visited.size()], 12, InterfaceTheme.MUTED)
 	if game.ui_open: return
 	var center := size * 0.5
 	draw_line(center + Vector2(-10, 0), center + Vector2(-4, 0), InterfaceTheme.CYAN, 1.2)

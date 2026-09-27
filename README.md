@@ -27,7 +27,7 @@ Open `project.godot` in **Godot 4.7.2** and press F5 (Run Project). On a Linux d
 | F5 / F9 | Save / load |
 | Page Up / Page Down | Change decks while inside your ship |
 
-Start in the orbital concourse. The ship is on the central pad. Approach it, press E, and launch. Use the command deck for navigation, trade, contracts, construction, hiring and company management. Crew salaries and production settle on simulation-day advances from interstellar travel. Cruise autopilot handles local approaches and cancels when you take manual control.
+Start in the orbital concourse. The ship is on the central pad. Approach it, press E, and launch. Use the command deck for navigation, trade, contracts, construction, hiring and company management. The calendar advances one day per 20 minutes of active world time, including menus; hyperdrive also advances one day. Daily salaries and company income follow this calendar, while assigned crew retain their operation timers. Closed worlds do not advance. Cruise autopilot handles local approaches and cancels when you take manual control.
 
 ## Implemented systems
 
@@ -65,6 +65,8 @@ The complete target is substantially larger than the implemented systems above:
 godot --headless --path . --editor --quit
 godot --headless --path . -s tests/test_universe.gd
 godot --headless --path . -s tests/test_state.gd
+godot --headless --path . -s tests/test_calendar.gd
+godot --headless --path . -s tests/test_calendar_gameplay.gd -- --capture-only
 godot --headless --path . -s tests/test_actors.gd
 godot --headless --path . -s tests/test_network.gd
 godot --headless --path . -s tests/test_visit.gd -- --capture-only

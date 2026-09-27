@@ -163,3 +163,32 @@ posts. The Windows export completed the expanded normal Proton smoke, including
 room services and interior save restoration. The full walking/capsule route checks
 ran natively. The known SDR warning and post-success wrapper cleanup remain;
 the hidden native render reported texture RID leaks at teardown.
+
+
+## Active world calendar
+
+Twenty minutes of active world time advances the simulation day, daily passive
+payroll, station/company income, market dates and contract refresh. Assigned crew
+keep their existing operation timers and are excluded from daily payroll.
+Hyperdrive still advances one day and preserves partial-day progress. The clock
+runs alongside crew timers while menus are open; HUD and command-deck clocks show
+HH:MM. Open menus refresh on day rollover so displayed prices follow the new day.
+No wall-clock timestamp is used and closed profiles receive no offline catch-up.
+
+Calendar tests verify exact single settlements, assigned-worker payroll using an
+actual station assignment, jump interactions, fractional save continuation,
+legacy defaults and transactional invalid-field rejection. Main-scene tests
+verify timed settlement without travel, live menu time and continued time outside
+menus. Visit regressions verify home and visiting-world clocks remain separate;
+crew and state tests pass. This does not synchronize a shared host-authoritative
+calendar or economy between remote players; visiting economies remain local as
+previously documented. Values over 24 hours of elapsed time in a single calendar
+call are rejected to bound catch-up work.
+
+The calendar-enabled Windows build reached normal integrated Proton smoke success,
+including the new calendar rollover assertion. The wrapper required its usual
+post-success timeout cleanup. The native hidden menu render was inspected and
+reported texture RID leaks during teardown. A subsequent autosave adjustment keeps
+saving every minute in menus as well as in active play; its native gameplay check
+loads the written save and verifies persisted clock/account values. The Windows
+export was rebuilt after that adjustment.
