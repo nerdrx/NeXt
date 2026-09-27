@@ -185,7 +185,7 @@ func _navigation() -> void:
 	controls.add_child(InterfaceTheme.button("ENGAGE HYPERDRIVE", func(): game.request_jump(destination)))
 	_button("RECOVERY BEACONS", show_page.bind("recovery"))
 	_text("LOCAL SYSTEM / SURFACE APPROACH", 13, InterfaceTheme.CYAN)
-	_button("CRUISE TO ORBITAL DOCK", game.cruise_system_to.bind(game.world.launch_position), not game.pilot.flying or game.aboard)
+	_button("CRUISE TO ORBITAL DOCK", game.approach_public_station, not game.pilot.flying or game.aboard)
 	for index in game.world.planets.size():
 		var planet: Dictionary = game.world.planets[index]
 		var row := _row()

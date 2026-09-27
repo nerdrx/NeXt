@@ -376,3 +376,35 @@ This is an open static berth with assisted docking/boarding transitions. It does
 not implement moving airlocks, shared occupancy reservations, custom station
 blueprints or large-ship facilities at every public orbital hangar. Those remain
 separate requirements; this result is specific to owned stations.
+
+## Public orbital large berths
+
+Public orbital stations now select an exterior 120 m berth using the same hull
+bounds as owned stations. The selected position drives ship display, default
+commander spawn/reload, boarding range and prompt, fall recovery, cruise target,
+docking and departure, and hyperdrive arrival. Public docking gains the existing
+35 m/s owned-station speed guard. Cruise resolves the berth in the current spatial
+frame, including after origin rebasing. Existing compact-hull positions remain.
+
+The public berth has a collision-backed walking connector through the hangar
+mouth, passing beyond the approach spars. The kiosk was moved outside the maximum
+hull envelope and duplicated seam geometry removed during review. This supersedes
+the previous limitation that public orbital hangars have no large-ship facility.
+Docking still uses assisted placement, not physical airlock alignment or shared
+berth occupancy. Public-station reload still uses the selected berth's default
+boarding position, rather than preserving an arbitrary position in the hangar.
+
+The focused gameplay check constructs a wide/tall hull, checks docking speed,
+walks from the berth to the hangar with normal movement controls, reloads its save,
+boards and checks physical launch clearance, then validates the cruise destination
+after a spatial rebase and clearance after hyperdrive arrival. The main integration
+smoke passed. The user-facing maximum 100-module count remains unchanged.
+
+The final public-berth route passed in hidden Gamescope/Vulkan at 1440x900;
+the exterior capture was inspected. Seven texture RID leaks remain at teardown.
+The Windows executable and pack exported successfully and were repackaged.
+
+The exported Windows build reached `NEXT_INTEGRATION_OK` under Proton Experimental
+and hidden Gamescope/Vulkan. The SDR white-level warning persists. The wrapper
+remained alive after game completion and ended on the timeout with exit 143;
+this is not a clean wrapper exit or a dedicated Windows berth test.

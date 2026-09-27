@@ -134,7 +134,7 @@ func _build_system() -> void:
 	world.build(state.system_index)
 	_rebuild_colonies()
 	pilot.set_flight(false)
-	pilot.teleport(world.to_global(world.spawn_position))
+	pilot.teleport(_public_berth_point("stand"))
 	pilot.reset_view()
 	_spawn_actors()
 	rebuild_player_ship()
@@ -842,18 +842,30 @@ func _station_berth_point(station: OwnedStation, point: String) -> Vector3:
 	var property := ("large_" if _uses_large_berth() else "") + point + "_position"
 	return station.to_global(station.get(property))
 
+func _public_berth_point(point: String) -> Vector3:
+	if surface_index < 0 and _uses_large_berth():
+		return world.to_global(world.get("large_" + point + "_position"))
+	if point == "stand": return world.to_global(world.spawn_position)
+	if point == "launch": return world.to_global(world.launch_position)
+	return world.to_global(Vector3(0, 0, -22))
+
 func _ship_pad() -> Vector3:
 	if manual_planet >= 0 and landed_ship_address != null:
 		var point: Variant = landed_ship_address.relative_to(flight_origin, 60000)
 		if point != null: return point
 	var station := _station_node(docked_station)
-	return _station_berth_point(station, "dock") if station != null else world.to_global(Vector3(0, 0, -22))
+	return _station_berth_point(station, "dock") if station != null else _public_berth_point("dock")
 
 func _near_ship_boarding() -> bool:
 	var station := _station_node(docked_station)
 	if station != null and _uses_large_berth():
 		return pilot.position.distance_to(_station_berth_point(station, "stand")) <= 8
+	if station == null and manual_planet < 0 and surface_index < 0 and _uses_large_berth():
+		return pilot.position.distance_to(_public_berth_point("stand")) <= 8
 	return pilot.position.distance_to(_ship_pad()) <= 20
+
+func approach_public_station() -> void:
+	cruise_to(_public_berth_point("launch"))
 
 func approach_owned_station(index: int) -> void:
 	var station := _station_node(index)
@@ -1042,12 +1054,15 @@ func _interact() -> void:
 		if _dock_owned_station(): return
 		if _try_colony_landing(): return
 		if _try_planet_landing(): return
-		if bool(world.get_meta("spatial_culled", false)) or pilot.position.distance_to(world.to_global(world.launch_position)) > 250:
+		if bool(world.get_meta("spatial_culled", false)) or pilot.position.distance_to(_public_berth_point("launch")) > 250:
 			notify("Approach the orbital dock to within 250 m.")
+			return
+		if pilot.velocity.length() > 35:
+			notify("Reduce speed below 35 m/s to engage docking clamps.")
 			return
 		docked_station = -1
 		pilot.set_flight(false)
-		pilot.teleport(world.to_global(world.spawn_position))
+		pilot.teleport(_public_berth_point("stand"))
 		pilot.reset_view()
 		rebuild_player_ship()
 		save_commander(false)
@@ -1078,7 +1093,7 @@ func _interact() -> void:
 	if surface_index >= 0:
 		_build_system()
 	var station := _station_node(docked_station)
-	var departure: Vector3 = _station_berth_point(station, "launch") if station != null else world.to_global(world.launch_position)
+	var departure: Vector3 = _station_berth_point(station, "launch") if station != null else _public_berth_point("launch")
 	docked_station = -1
 	pilot.set_flight(true)
 	pilot.teleport(departure)
@@ -1116,7 +1131,7 @@ func _complete_jump() -> void:
 		return
 	_build_system()
 	pilot.set_flight(true)
-	pilot.teleport(world.launch_position)
+	pilot.teleport(_public_berth_point("launch"))
 	ship_display.hide()
 	apply_ship_stats()
 	close_menu()
@@ -1145,7 +1160,7 @@ func land(planet_index: int) -> void:
 	_clear_colonies()
 	world.build_surface(planet_index)
 	pilot.set_flight(false)
-	pilot.teleport(world.to_global(world.spawn_position))
+	pilot.teleport(_public_berth_point("stand"))
 	pilot.reset_view()
 	suit_health = 100
 	_spawn_actors()
@@ -1246,7 +1261,7 @@ func _process(delta: float) -> void:
 		shield_delay -= delta
 		if shield_delay <= 0: state.shield = minf(float(_last_stats.get("max_shield", 100)), state.shield + delta * 5)
 		if not pilot.flying and manual_planet < 0:
-			var safe_spawn: Vector3 = world.to_global(world.spawn_position)
+			var safe_spawn: Vector3 = _public_berth_point("stand")
 			var dock := _station_node(docked_station)
 			if dock != null: safe_spawn = _station_berth_point(dock, "stand")
 			if aboard: safe_spawn = interior.spawn_on_deck(interior_deck)
@@ -1503,7 +1518,7 @@ func _integration_check() -> void:
 	if not _check(error.is_empty(), "hyperdrive travel: " + error): return
 	_build_system()
 	pilot.set_flight(true)
-	pilot.teleport(world.launch_position)
+	pilot.teleport(_public_berth_point("launch"))
 	ship_display.hide()
 	if not _check(state.system_index == 7919, "hyperdrive destination"): return
 	open_menu("overview")

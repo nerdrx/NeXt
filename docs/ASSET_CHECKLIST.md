@@ -71,3 +71,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Replace ship architect grid initials with authored module glyphs/thumbnails where they improve selection. Preserve readable coordinate, deck, count and occupied-cell states in `scripts/ui/ship_designer.gd`.
 
 - [ ] Replace large owned-station berth plates, edge lamps, service-lane marking and boarding signage with authored industrial assets; preserve the 120 m deck, clear hull envelope and continuous pedestrian connector.
+
+- [ ] Replace public large-berth deck, connector, markings, boarding kiosk and directional signs with authored station assets; preserve the maximum hull clearance and continuous walkway around approach spars.

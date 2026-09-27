@@ -10,6 +10,10 @@ var planets: Array[Dictionary] = []
 var system_index: int = 0
 var spawn_position: Vector3 = Vector3(0, 2, 20)
 var launch_position: Vector3 = Vector3(0, 12, -110)
+var large_dock_position: Vector3 = Vector3(-180, 0, -180)
+var large_stand_position: Vector3 = Vector3(-123, 0.15, -180)
+var large_launch_position: Vector3 = Vector3(-180, 116, -180)
+var large_berth_route: Array[Vector3] = []
 var _rng := RandomNumberGenerator.new()
 var _world_environment: WorldEnvironment
 var _material_cache: Dictionary = {}
@@ -39,6 +43,7 @@ func build(system_index: int) -> void:
 		planets.append(planet)
 	_build_environment()
 	_build_hangar()
+	_build_large_berth()
 	_build_star()
 	_build_planets()
 	_build_distant_stars()
@@ -139,6 +144,48 @@ func _build_hangar() -> void:
 		sign.modulate = Color("b9c0be")
 		add_child(sign)
 	_build_external_station()
+
+func _build_large_berth() -> void:
+	var deck := ShaderMaterial.new()
+	deck.shader = preload("res://shaders/deck_plating.gdshader")
+	_box("Large public berth apron", Vector3(120, 1.4, 120), Vector3(-180, -0.7, -180), deck, true)
+	# The connector runs beyond the existing approach spars before turning to the hangar mouth.
+	_box("Berth connector west leg", Vector3(24, 1.4, 22), Vector3(-112, -0.7, -169), deck, true)
+	_box("Berth connector crosswalk", Vector3(124, 1.4, 12), Vector3(-54, -0.7, -158), deck, true)
+	_box("Berth connector approach", Vector3(12, 1.4, 116), Vector3(0, -0.7, -100), deck, true)
+	for side in [-1.0, 1.0]:
+		_box("Berth envelope guide", Vector3(0.22, 0.05, 104), Vector3(-180 + side * 48, 0.04, -180), _emissive(Color("63c9d7"), 0.65))
+		_box("Berth service stripe", Vector3(0.3, 0.08, 116), Vector3(-180 + side * 58, 0.04, -180), _standard_material(Color("4c5b60"), 0.8, 0.3))
+		if side < 0:
+			_box("Berth perimeter rail", Vector3(0.5, 2.4, 120), Vector3(-240, 1.2, -180), _standard_material(Color("39484e"), 0.65, 0.55), true)
+		else:
+			for rail: Dictionary in [{"z": -215.0, "length": 50.0}, {"z": -135.0, "length": 30.0}]:
+				_box("Berth perimeter rail", Vector3(0.5, 2.4, rail.length), Vector3(-120, 1.2, rail.z), _standard_material(Color("39484e"), 0.65, 0.55), true)
+	for rib in range(7):
+		_box("Berth apron seam", Vector3(108, 0.025, 0.08), Vector3(-180, 0.015, -228 + rib * 16), _standard_material(Color("26333a"), 0.9, 0.25))
+	for x in [-228.0, -204.0, -180.0, -156.0, -132.0]:
+		_box("Berth edge marker", Vector3(2.4, 0.12, 0.9), Vector3(x, 0.12, -239), _emissive(Color("ffb65d"), 0.7))
+	_box("Berth boarding kiosk", Vector3(2.4, 2.2, 1.6), Vector3(-235, 1.1, -220), _standard_material(Color("34474f"), 0.55, 0.65))
+	_box("Berth kiosk display", Vector3(1.6, 0.8, 0.08), Vector3(-235, 1.55, -219.16), _emissive(Color("65d8de"), 1.0))
+	for sign_spec: Dictionary in [
+		{"text": "LARGE BERTH  /  BOARDING", "position": Vector3(-112, 4, -180)},
+		{"text": "LARGE BERTH  ←", "position": Vector3(0, 4, -54)},
+	]:
+		var sign := Label3D.new()
+		sign.text = sign_spec.text
+		sign.font_size = 72
+		sign.pixel_size = 0.025
+		sign.modulate = Color("bde4e1")
+		sign.position = sign_spec.position
+		add_child(sign)
+	large_berth_route = [
+		large_stand_position,
+		Vector3(-112, 0.15, -180),
+		Vector3(-112, 0.15, -158),
+		Vector3(0, 0.15, -158),
+		Vector3(0, 0.15, -42),
+		spawn_position,
+	]
 
 func _add_hangar_lights() -> void:
 	for x in [-24.0, 24.0]:

@@ -100,3 +100,5 @@ Saves normally live at `%APPDATA%/Godot/app_userdata/NeXt/` on Windows. `command
 No generated bitmap artwork is used. Procedural meshes, shaders and synthesized audio are placeholders implemented in code. Final authored replacements should preserve units, collision boundaries, pivots and functional attachment points.
 
 Owned stations now provide a separate 120 m open berth for ships exceeding the compact pad envelope (32 m width/depth or 12 m height). Approach selects the suitable berth; use its marked service lane to board. The lane connects on foot to the station concourse.
+
+Public orbital stations also assign oversized ships to an exterior 120 m berth, connected on foot to the hangar. Navigation cruise, docking, boarding, commander reload and hyperdrive arrival select its approach automatically. Public docking requires speed below 35 m/s.
