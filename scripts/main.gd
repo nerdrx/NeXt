@@ -1626,6 +1626,12 @@ func _integration_check() -> void:
 	await get_tree().process_frame
 	await get_tree().physics_frame
 	if not _check(world.planets.size() > 0, "home system planets"): return
+	var physical_patch := PlanetTerrain.new()
+	physical_patch.build(CelestialPhysics.EARTH_RADIUS_M, Vector3.UP, 341, Color("8d8877"))
+	var physical_vertices: PackedVector3Array = physical_patch.terrain_mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var physical_height := PlanetTerrain.surface_height(Vector3.UP, 341)
+	if not _check(absf(physical_vertices[24 * 49 + 24].y - physical_height) < 0.0001 and physical_patch.anchor_address != null, "Earth-radius patch retains local surface precision in release build"): return
+	physical_patch.free()
 	open_menu("navigation")
 	deck.show_page("survey")
 	if not _check(deck.survey_labels.size() == world.planets.size() and "Equilibrium" in deck.survey_labels[0].text, "physical system survey is available in release build"): return

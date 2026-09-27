@@ -753,3 +753,13 @@ Native and exported Windows normal-entrypoint integration now explicitly restore
 The bounded Proton wrapper ended 137 after the integration marker; clean wrapper shutdown is not claimed.
 
 Final review also found that remote cruise directions omitted within-sector offsets beyond the relative-position cap. The shared direction helper now includes them; a regression checks the transverse offset just beyond 1,000 km. The corrected helper and far-region gameplay tests pass.
+
+## Large-radius terrain precision
+
+The new terrain test builds an Earth-radius patch in a local surface frame and checks finite bounded vertices, sub-millimetre centre height, a double-normalized anchor on the sphere, outward collision and a resting walking capsule. It also checks the curvature formula with a small elevation at a 38,000 km radius. Seven material noise origins remain bounded below 256 lattice cells. The test passes in hidden Gamescope; its ground capture was inspected. This is a renderer/collision preparation check, not evidence that the main flight scene now uses physical planet sizes or meets the frame-rate target.
+
+Existing compact-planet terrain and landing/liftoff tests pass with the new geometry formula. Procedural rocks and materials remain placeholders listed in ASSET_CHECKLIST.md.
+
+Large-radius geology checks cover the longitude seam, north and south poles, a near-pole patch, repeatability and shared rock positions across recentering within 1 mm. An initial local run measured 1–36 ms. Tightening large-world candidate selection reduced the slow 38,000 km near-pole query from 36 ms to 2 ms in the next run; the first query, including height-field initialization, remained 31 ms and subsequent queries took 1–5 ms. These are individual placement-query timings, not frame-rate measurements. Compact-world visual/collision transforms retain the original path and the existing geology regression passes.
+
+The native integration and final exported Windows executable both reach NEXT_INTEGRATION_OK, including a release-safe Earth-radius patch check. The Windows run used hidden Gamescope/Proton; its logs contain no script or shader compilation errors. The bounded wrapper ended 137 after the marker, so clean wrapper shutdown is not claimed. The Windows ZIP was rebuilt from this export. The weather shadow render comparison also passes with the bounded material coordinates; existing SDR and texture shutdown warnings remain.

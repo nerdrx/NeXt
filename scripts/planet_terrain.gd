@@ -5,6 +5,7 @@ const GRID: int = 48
 const MAX_EXTENT: float = 200.0
 
 var anchor: Vector3 = Vector3.ZERO
+var anchor_address: SectorPosition
 var normal_at_patch: Vector3:
 	get: return _normal
 var patch_extent: float = 0.0
@@ -20,8 +21,13 @@ func build(radius: float, normal: Vector3, seed: int, tint: Color, has_ocean: bo
 	terrain_mesh = null
 	terrain_body = null
 	var safe_radius: float = maxf(radius, 1.0) if is_finite(radius) else 1.0
-	_normal = normal.normalized() if normal.is_finite() and normal.length_squared() > 0.000001 else Vector3.UP
+	_normal = (normal if normal.is_normalized() else normal.normalized()) if normal.is_finite() and normal.length_squared() > 0.000001 else Vector3.UP
 	anchor = _normal * safe_radius
+	var normal_length := sqrt(float(_normal.x) * _normal.x + float(_normal.y) * _normal.y + float(_normal.z) * _normal.z)
+	var anchor_x := float(_normal.x) / normal_length * safe_radius
+	var anchor_y := float(_normal.y) / normal_length * safe_radius
+	var anchor_z := float(_normal.z) / normal_length * safe_radius
+	anchor_address = SectorPosition.from_meters(anchor_x, anchor_y, anchor_z)
 	patch_extent = minf(MAX_EXTENT, safe_radius * 0.35)
 	var reference := Vector3.UP if absf(_normal.dot(Vector3.UP)) < 0.95 else Vector3.FORWARD
 	var tangent := _normal.cross(reference).normalized()
@@ -36,11 +42,11 @@ func build(radius: float, normal: Vector3, seed: int, tint: Color, has_ocean: bo
 		for x: int in side:
 			var u: float = -patch_extent + float(x) * step
 			var v: float = -patch_extent + float(z) * step
-			var direction := (anchor + tangent * u + bitangent * v).normalized()
+			var direction := (_normal + (tangent * u + bitangent * v) / safe_radius).normalized()
 			var height: float = PlanetHeightField.surface_height(direction, seed)
 			var index: int = z * side + x
 			heights[index] = height
-			vertices[index] = direction * (safe_radius + height) - anchor
+			vertices[index] = patch_vertex(safe_radius, _normal, tangent, bitangent, u, v, height)
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for z: int in side:
@@ -75,6 +81,10 @@ func build(radius: float, normal: Vector3, seed: int, tint: Color, has_ocean: bo
 	terrain_material = material
 	material.shader = preload("res://shaders/terrain_rock.gdshader")
 	material.set_shader_parameter("planet_anchor", anchor)
+	var noise_origins := PackedVector3Array()
+	for frequency: Vector3 in [Vector3.ONE * 0.035, Vector3.ONE * 0.11, Vector3(0.13, 0.045, 0.13), Vector3.ONE * 0.42, Vector3.ONE * 1.15, Vector3.ONE * 5.0, Vector3.ONE * 18.0]:
+		noise_origins.append(Vector3(fposmod(anchor_x * frequency.x, 256.0), fposmod(anchor_y * frequency.y, 256.0), fposmod(anchor_z * frequency.z, 256.0)))
+	material.set_shader_parameter("noise_origins", noise_origins)
 	var visual := MeshInstance3D.new()
 	visual.name = "Planet terrain patch"
 	visual.mesh = terrain_mesh
@@ -96,3 +106,11 @@ func build(radius: float, normal: Vector3, seed: int, tint: Color, has_ocean: bo
 
 static func surface_height(direction: Vector3, seed: int) -> float:
 	return PlanetHeightField.surface_height(direction, seed)
+
+static func patch_vertex(radius: float, normal: Vector3, tangent: Vector3, bitangent: Vector3, u: float, v: float, height: float) -> Vector3:
+	# Rationalized sagitta avoids subtracting two planet-sized float vectors.
+	var lateral_squared := u * u + v * v
+	var distance := sqrt(radius * radius + lateral_squared)
+	var sagitta := lateral_squared / (distance + radius)
+	var radial := radius / distance * (height - sagitta)
+	return (tangent * u + bitangent * v) * ((radius + height) / distance) + normal * radial

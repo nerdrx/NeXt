@@ -9,10 +9,11 @@ uniform float weather_shell_radius = 1.0;
 uniform vec3 weather_sun_direction = vec3(-0.5, 0.47, 0.73);
 
 uniform vec3 planet_anchor;
+uniform vec3 noise_origins[7];
 varying vec3 rock_position;
 
 float hash(vec3 p) {
-	return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453);
+	return fract(sin(dot(mod(p, vec3(256.0)), vec3(127.1, 311.7, 74.7))) * 43758.5453);
 }
 
 float noise(vec3 p) {
@@ -32,22 +33,22 @@ float detail_fade(float scale) {
 }
 
 void vertex() {
-	rock_position = VERTEX + planet_anchor;
+	rock_position = VERTEX;
 }
 
 void fragment() {
 	// Broad mineral clouds, warped bedding, and chipped stone planes.
-	float macro = noise(rock_position * 0.035);
-	float warp = noise(rock_position * 0.11 + vec3(7.1, 2.4, 9.3));
+	float macro = noise(rock_position * 0.035 + noise_origins[0]);
+	float warp = noise(rock_position * 0.11 + noise_origins[1] + vec3(7.1, 2.4, 9.3));
 	vec3 bed = rock_position + vec3(warp - 0.5) * 2.2;
-	float strata = noise(bed * vec3(0.13, 0.045, 0.13));
-	float stone = noise(bed * 0.42 + vec3(3.7, 8.2, 1.4));
-	float fracture = noise(bed * 1.15 + vec3(11.0, 4.0, 6.0));
+	float strata = noise(bed * vec3(0.13, 0.045, 0.13) + noise_origins[2]);
+	float stone = noise(bed * 0.42 + noise_origins[3] + vec3(3.7, 8.2, 1.4));
+	float fracture = noise(bed * 1.15 + noise_origins[4] + vec3(11.0, 4.0, 6.0));
 
 	float fade_coarse = detail_fade(5.0);
 	float fade_fine = detail_fade(18.0);
-	float grain = noise(rock_position * 5.0) * fade_coarse;
-	float grit = noise(rock_position * 18.0 + vec3(2.0, 13.0, 5.0)) * fade_fine;
+	float grain = noise(rock_position * 5.0 + noise_origins[5]) * fade_coarse;
+	float grit = noise(rock_position * 18.0 + noise_origins[6] + vec3(2.0, 13.0, 5.0)) * fade_fine;
 	float bump_height = grain * 0.035 + grit * 0.012;
 
 	vec3 mineral_dark = vec3(0.16, 0.17, 0.17);
@@ -61,7 +62,7 @@ void fragment() {
 
 	ALBEDO = COLOR.rgb * mineral * plates * chips * (0.94 + grain * 0.12 + grit * 0.08);
 	if (weather_enabled) {
-		ALBEDO *= 1.0 - 0.4 * weather_shadow(rock_position, weather_sun_direction, weather_shell_radius, weather_seed, TIME);
+		ALBEDO *= 1.0 - 0.4 * weather_shadow(rock_position + planet_anchor, weather_sun_direction, weather_shell_radius, weather_seed, TIME);
 	}
 	ROUGHNESS = roughness;
 	SPECULAR = 0.18;

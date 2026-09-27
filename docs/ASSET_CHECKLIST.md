@@ -65,7 +65,7 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Replace owned-station bridge, concourse, room shells, glazing, fixtures and furniture (`OwnedStation`). Retain door clearances, floor support, collision-backed windows, `interior_services` and save-position bounds. Current rooms are procedural placeholders; huge multi-deck populated stations remain open.
 
 - [ ] Replace the four procedural boulder meshes in `scripts/planet_geology.gd` with authored rock variants and matching convex hulls. Preserve stable placement IDs, radial transforms, clearance bounds, north-port reserve and ocean filtering. Small pebbles have no collision; larger boulders do.
-- [ ] Replace/refine `shaders/terrain_rock.gdshader` mineral layers and grain with authored biome material sets. Preserve planet-local sampling and distance filtering so streamed patches and origin shifts do not move the surface pattern.
+- [ ] Replace/refine `shaders/terrain_rock.gdshader` mineral layers and grain with authored biome material sets. Preserve per-frequency bounded noise origins, planet-local sampling and distance filtering so large-radius coordinates and origin shifts do not move or quantize the surface pattern.
 
 - [ ] Keep replacement ship assets aligned to the 2.8 m module grid and centred module bounds. Player flight now uses one box collider per occupied module; decorative panels/engines outside those cells need authored collision extensions when their final geometry is available. Walking retains a separate capsule.
 

@@ -64,3 +64,11 @@ entry are still required. Local actors freeze when culled; distant fleet patrols
 continue through the existing strategic simulation. Stationary scene roots can
 contain children offset from their root, so the current 60 km culling radius is
 chosen beyond the camera's 30 km draw distance and current content bounds.
+
+## Large-radius surface patch preparation
+
+PlanetTerrain now constructs local mesh vertices with a rationalized curvature formula instead of subtracting planet-sized Vector3 values. Its `anchor_address` uses scalar-double normalization and SectorPosition conversion. The existing `anchor` Vector3 remains a compatibility value for the compact flight scene; physical-scale callers must place the patch using `anchor_address`, not that rounded vector. Collision uses the same bounded mesh as rendering.
+
+Ground material detail uses seven CPU-derived, wrapped noise origins. The shader samples bounded local coordinates and periodic lattice hashes; it no longer adds a multi-million-metre anchor before sampling fine grain. The separate weather position retains the existing cloud-shadow approximation. Physical-scale weather, terrain LOD, moving body frames and runtime placement at full radii remain separate requirements.
+
+Rock queries select conservative longitude ranges around the local patch instead of walking every column on each latitude ring. Large-radius polar rings use their actual circumference; the old density floor is retained for existing compact planets. Large rocks use scalar-double anchor subtraction and share placement IDs across patch recentering. The legacy absolute `position` descriptor is retained for compact-world callers; large-radius rendering/collision uses `local_position`.
