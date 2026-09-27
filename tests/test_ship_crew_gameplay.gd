@@ -47,7 +47,7 @@ func _run() -> void:
 	if DisplayServer.get_name() != "headless":
 		var capture_camera := Camera3D.new()
 		game.interior.add_child(capture_camera)
-		capture_camera.position = Vector3(-2.8, 1.6, 2.5)
+		capture_camera.position = (member.position / ShipInterior.CELL).round() * ShipInterior.CELL + Vector3(0.6, 1.65, 0.9)
 		capture_camera.look_at(member.global_position + member.global_basis.y * 1.2, game.interior.global_basis.y)
 		capture_camera.make_current()
 		await RenderingServer.frame_post_draw

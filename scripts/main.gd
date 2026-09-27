@@ -1980,7 +1980,9 @@ func _populate_ship_crew() -> void:
 	for record: Dictionary in state.crew:
 		var order: Dictionary = state.crew_orders.get(record.id, {})
 		if order.is_empty() or order.kind == "defend": available.append(record)
-	var berths: Array[Vector3] = cabin.crew_positions(available.size())
+	var roles: Array[String] = []
+	for record: Dictionary in available: roles.append(str(record.role))
+	var berths: Array[Vector3] = cabin.crew_positions(available.size(), roles)
 	for index in mini(available.size(), berths.size()):
 		var record: Dictionary = available[index]
 		var member := ShipCrew.new()
@@ -1988,6 +1990,10 @@ func _populate_ship_crew() -> void:
 		member.display_name = str(record.name)
 		member.role = str(record.role)
 		member.position = berths[index]
+		var cell_center := (member.position / ShipInterior.CELL).round() * ShipInterior.CELL
+		var facing := cell_center - member.position
+		facing.y = 0
+		if facing.length_squared() > 0.01: member.rotation.y = atan2(-facing.x, -facing.z)
 		cabin.add_child(member)
 		member.destroyed.connect(_ship_crew_lost)
 		ship_crew.append(member)

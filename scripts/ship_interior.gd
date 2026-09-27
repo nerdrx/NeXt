@@ -187,7 +187,7 @@ func spawn_on_deck(deck: int) -> Vector3:
 	var pos: Vector3 = lift_positions.get(deck, cockpit_position)
 	return to_global(pos + Vector3(0, 0.15, 0))
 
-func crew_positions(limit: int) -> Array[Vector3]:
+func crew_positions(limit: int, roles: Array[String] = []) -> Array[Vector3]:
 	var result: Array[Vector3] = []
 	if limit <= 0 or not is_inside_tree() or get_world_3d() == null:
 		return result
@@ -207,18 +207,12 @@ func crew_positions(limit: int) -> Array[Vector3]:
 		Vector2(0.0, 0.9), Vector2(-0.9, 0.0),
 	]
 	var space := get_world_3d().direct_space_state
+	var candidates: Array[Dictionary] = []
 	for module: Dictionary in ordered:
 		var center := Vector3(int(module.x), int(module.y), int(module.z)) * CELL
 		for offset: Vector2 in offsets:
 			var foot := center + Vector3(offset.x, 0.08, offset.y)
 			if Vector2(foot.x, foot.z).distance_to(Vector2(center.x, center.z)) < 0.8:
-				continue
-			var overlaps := false
-			for chosen: Vector3 in result:
-				if foot.distance_to(chosen) < 0.9:
-					overlaps = true
-					break
-			if overlaps:
 				continue
 			var query := PhysicsShapeQueryParameters3D.new()
 			query.shape = capsule
@@ -229,9 +223,39 @@ func crew_positions(limit: int) -> Array[Vector3]:
 			query.margin = 0.0
 			if not space.intersect_shape(query, 1).is_empty():
 				continue
-			result.append(foot)
-			if result.size() >= mini(limit, 12):
-				return result
+			candidates.append({"foot": foot, "cell": Vector3i(module.x, module.y, module.z), "kind": str(module.kind), "room": str(_layout.rooms.get(ShipLayout.cell_key(Vector3i(module.x, module.y, module.z)), ShipLayout.default_room(str(module.kind))))})
+	var occupancy: Dictionary = {}
+	for index in mini(limit, 12):
+		var role: String = roles[index] if index < roles.size() else ""
+		var best := -1
+		var best_score := 100000
+		for candidate_index in candidates.size():
+			var candidate: Dictionary = candidates[candidate_index]
+			var overlaps := false
+			for chosen: Vector3 in result:
+				if chosen.distance_to(candidate.foot) < 0.9:
+					overlaps = true
+					break
+			if overlaps: continue
+			var preference := 2
+			match role:
+				"gunner":
+					if candidate.kind == "weapon": preference = 0
+					elif candidate.room == "bridge": preference = 1
+				"engineer":
+					if candidate.room in ["engineering", "workshop"]: preference = 0
+				"trader":
+					if candidate.room == "cargo": preference = 0
+					elif candidate.room == "bridge": preference = 1
+			var score: int = int(occupancy.get(candidate.cell, 0)) * 100 + preference
+			if score < best_score:
+				best = candidate_index
+				best_score = score
+		if best < 0: break
+		var selected: Dictionary = candidates[best]
+		result.append(selected.foot)
+		occupancy[selected.cell] = int(occupancy.get(selected.cell, 0)) + 1
+		candidates.remove_at(best)
 	return result
 
 func _has_cell(cell: Vector3i) -> bool:

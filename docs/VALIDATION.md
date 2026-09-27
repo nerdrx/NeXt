@@ -677,3 +677,11 @@ Crew bodies are children of the moving interior, with gravity along the local de
 Crew currently remain at their posts. This does not implement crew piloting, work schedules, shared boarding or authored character art. Nonfatal character health is not persisted between interior visits. The existing seven Texture RID warnings still appear during graphical shutdown.
 
 The Windows release export succeeded. Its normal-entrypoint integration check reached `NEXT_INTEGRATION_OK` under Proton Experimental in hidden Gamescope, including the new moving-deck crew assertion. The SDR white-level warning remains. This is functional evidence, not proof of target frame rate or live Steam multiplayer.
+
+## Crew room placement
+
+Crew standing positions now prefer unoccupied modules before sharing a room. Within that constraint, gunners prefer weapon modules then bridges, engineers prefer engineering/workshops, and traders prefer cargo then bridges. Other clear rooms are valid fallbacks. Existing capsule clearance, spacing, deterministic ordering and the 12-body limit remain. Bodies face their room center.
+
+The rotating/coasting gameplay test passes headlessly and in hidden Gamescope after this change. The Windows release export and its normal-entrypoint integration check pass under Proton Experimental in hidden Gamescope. The existing SDR and graphical shutdown Texture RID warnings remain; no new graphics-performance claim is made.
+
+The placement test validates its room layout before building, then covers role preferences, repeated-role distribution and fallback when preferred rooms do not exist, alongside real floor support and spacing. The corrected fixture passes in hidden Gamescope. CI for the preceding physical-crew commit `93a2d3c` completed successfully.
