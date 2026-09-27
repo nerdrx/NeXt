@@ -41,6 +41,7 @@ var fleet_actors: Dictionary = {}
 var flight_origin := SectorPosition.new()
 var flight_frame := FlightFrame.new()
 var cruise_address: SectorPosition
+var colonies: Array[Node3D] = []
 var planet_terrain: PlanetTerrain
 var terrain_planet: int = -1
 var manual_planet: int = -1
@@ -119,6 +120,7 @@ func _build_system() -> void:
 	surface_index = -1
 	docked_station = -1
 	world.build(state.system_index)
+	_rebuild_colonies()
 	pilot.set_flight(false)
 	pilot.teleport(world.to_global(world.spawn_position))
 	pilot.reset_view()
@@ -221,6 +223,60 @@ func _start_address_cruise(address: SectorPosition) -> void:
 	close_menu()
 	pilot.autopilot_to(_cruise_point(address))
 	notify("Cruise autopilot engaged. Movement or mouse input returns manual control.")
+
+func _clear_colonies() -> void:
+	for colony in colonies:
+		if is_instance_valid(colony):
+			remove_child(colony)
+			colony.queue_free()
+	colonies.clear()
+
+func _rebuild_colonies() -> void:
+	_clear_colonies()
+	for index in world.planets.size():
+		var body: Dictionary = world.planets[index]
+		var colony := SurfaceColony.new()
+		add_child(colony)
+		colony.build(float(body.visual_radius), _terrain_seed(index), str(body.name) + " PORT")
+		flight_frame.track(colony, flight_origin, SectorPosition.new(Vector3i.ZERO, Vector3(body.position) + Vector3.UP * (float(body.visual_radius) + 14.0)))
+		colonies.append(colony)
+
+func approach_colony(index: int) -> void:
+	if index < 0 or index >= world.planets.size(): return
+	var body: Dictionary = world.planets[index]
+	cruise_system_to(Vector3(body.position) + Vector3.UP * (float(body.visual_radius) + 39.0))
+
+func _try_colony_landing() -> bool:
+	for index in colonies.size():
+		var colony: Node3D = colonies[index]
+		if bool(colony.get_meta("spatial_culled", false)): continue
+		var pad: Vector3 = colony.to_global(colony.landing_position)
+		if pilot.position.distance_to(pad + colony.basis.y * 25) > 40: continue
+		if session.connected:
+			notify("Leave the current multiplayer visit before docking at a surface port.")
+			return true
+		if pilot.velocity.length() > 20:
+			notify("Reduce speed below 20 m/s to dock at the surface port.")
+			return true
+		manual_planet = index
+		landed_ship_normal = colony.basis.y
+		landed_ship_address = SectorPosition.new(flight_origin.sector, flight_origin.local)
+		landed_ship_address.move_delta(pad)
+		pilot.set_flight(false)
+		pilot.teleport(colony.to_global(colony.stand_position))
+		pilot.set_walk_up((pilot.position - _planet_center(index)).normalized())
+		docked_station = -1
+		_update_planet_terrain()
+		rebuild_player_ship()
+		save_commander(false)
+		notify("Docked at %s port. Walk the streets or visit the service terminal." % world.planets[index].name)
+		return true
+	return false
+
+func _near_colony_terminal() -> bool:
+	if manual_planet < 0 or manual_planet >= colonies.size() or aboard: return false
+	var colony: Node3D = colonies[manual_planet]
+	return pilot.position.distance_to(colony.to_global(colony.service_position)) < 4.0
 
 func _planet_center(index: int) -> Variant:
 	if index < 0 or index >= world.planets.size(): return null
@@ -711,6 +767,7 @@ func _rescue() -> void:
 	_rescuing = false
 
 func interaction_hint() -> String:
+	if _near_colony_terminal(): return "Port services"
 	if aboard: return "Return to helm  /  PgUp/PgDn change deck"
 	if surface_index >= 0: return "Board ship / return to orbit" if _near_person() == null else "Talk to " + _near_person().display_name
 	var person: Node3D = _near_person()
@@ -729,6 +786,7 @@ func _interact() -> void:
 	if jump_charge > 0: return
 	if pilot.flying:
 		if _dock_owned_station(): return
+		if _try_colony_landing(): return
 		if _try_planet_landing(): return
 		if bool(world.get_meta("spatial_culled", false)) or pilot.position.distance_to(world.to_global(world.launch_position)) > 250:
 			notify("Approach the orbital dock to within 250 m.")
@@ -740,6 +798,9 @@ func _interact() -> void:
 		rebuild_player_ship()
 		save_commander(false)
 		notify("Docking complete. Welcome aboard.")
+		return
+	if _near_colony_terminal():
+		open_menu("market")
 		return
 	var person: Node3D = _near_person()
 	if person != null:
@@ -825,6 +886,7 @@ func land(planet_index: int) -> void:
 	cruise_address = null
 	docked_station = -1
 	surface_index = planet_index
+	_clear_colonies()
 	world.build_surface(planet_index)
 	pilot.set_flight(false)
 	pilot.teleport(world.to_global(world.spawn_position))
@@ -1247,10 +1309,30 @@ func _integration_check() -> void:
 	pilot.teleport(_ship_pad() + landed_ship_normal * 2)
 	_interact()
 	if not _check(pilot.flying and manual_planet == -1 and world.get_instance_id() == landing_world_id, "same-scene planetary liftoff"): return
+	var port: Node3D = colonies[0]
+	pilot.teleport(port.to_global(port.landing_position + Vector3.UP * 25))
+	_interact()
+	if not _check(manual_planet == 0 and not pilot.flying, "surface port docking"): return
+	await get_tree().create_timer(0.5).timeout
+	if not _check(pilot.is_on_floor(), "surface port deck collision"): return
+	pilot.teleport(port.to_global(port.service_position + Vector3(0, 1, 2)))
+	_interact()
+	if not _check(ui_open, "surface port service terminal"): return
+	close_menu()
+	pilot.teleport(port.to_global(port.stand_position))
+	pilot.reset_view()
+	await _capture("surface-city")
+	if not _check(save_commander(false), "save surface port"): return
+	load_commander()
+	close_menu()
+	if not _check(manual_planet == 0 and _ship_pad().distance_to(colonies[0].to_global(colonies[0].landing_position)) < 0.1, "restore surface port ship"): return
+	pilot.teleport(_ship_pad() + landed_ship_normal * 2)
+	_interact()
+	if not _check(pilot.flying and manual_planet == -1, "surface port departure"): return
 	DirAccess.remove_absolute(save_path)
 	DirAccess.remove_absolute(save_path + ".bak")
 	await get_tree().create_timer(0.5).timeout
-	print("NEXT_INTEGRATION_OK: trading, stock, construction, persistent combat, save/load, hyperdrive, landing, walkable interior, crew orders, insured wreck recovery, factions, owned docks, local fleet, spatial rebasing, manual planetary landing, menu safety")
+	print("NEXT_INTEGRATION_OK: trading, stock, construction, persistent combat, save/load, hyperdrive, landing, walkable interior, crew orders, insured wreck recovery, factions, owned docks, local fleet, spatial rebasing, manual planetary landing, surface ports, menu safety")
 	sound.shutdown()
 	await get_tree().process_frame
 	get_tree().quit()

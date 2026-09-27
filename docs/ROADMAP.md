@@ -16,7 +16,7 @@ These are bounded development systems. README lists their limits. Placeholder vi
 ## Next: continuous space and complete visits
 
 - Origin rebasing and bounded local-scene culling are integrated. Add distant celestial LODs and populated sector streaming before increasing physical body scale.
-- Expand the current same-scene manual landings on small spherical bodies into planet-scale terrain streaming, continuous colonies and manual hangar approaches.
+- Expand the current same-scene manual landings on small spherical bodies into planet-scale terrain streaming, larger populated settlements, building interiors and manual hangar approaches. Compact continuous surface ports now exist.
 - Move combat, property and economic decisions to host authority; implement owner permissions and agreed PvP.
 - Add durable ship/cargo transfer transactions, reconnect recovery and duplicate prevention.
 - Integrate and validate Steam friends, invitations and relay using configured Steamworks credentials.

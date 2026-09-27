@@ -184,7 +184,7 @@ func _navigation() -> void:
 		var approach := InterfaceTheme.button("SURFACE APPROACH", game.approach_planet_surface.bind(index))
 		approach.disabled = not game.pilot.flying or game.surface_index >= 0
 		row.add_child(approach)
-		var land_button := InterfaceTheme.button("COLONY TRANSFER", game.land.bind(index))
+		var land_button := InterfaceTheme.button("COLONY APPROACH", game.approach_colony.bind(index))
 		land_button.disabled = not game.pilot.flying or game.surface_index >= 0
 		row.add_child(land_button)
 

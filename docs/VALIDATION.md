@@ -47,3 +47,9 @@ Hidden Gamescope/Vulkan rendered the planetary walking test and its capture was 
 The normal Windows entrypoint now exercises same-scene planetary landing, radial floor contact, grounded save/load and liftoff. Its exported executable completed these checks under hidden Gamescope/Proton with `NEXT_INTEGRATION_OK`; the manual surface capture was inspected. The SDR warning remains; the wrapper required timeout termination (exit 137) after game checks finished. Additional native testing walks over 70 m across terrain patch replacement and returns from a ship interior without losing radial position, heading or ground contact. These checks do not establish long-session stability or target frame rate.
 
 A CI patrol test intermittently expected combat after a quiet transit had already arrived and become locally simulated. The corrected deterministic fixture checks quiet arrival, the switch to local wages, and remote encounter damage/reward separately; six fresh process runs passed. Production patrol behavior was unchanged.
+
+## Continuous surface ports
+
+SurfaceColony geometry checks cover apron, ramps and building collisions on radius 170 and 850 bodies, including a sideways transform. A main-scene colony test passes approach targeting, landing speed rejection, physical deck walking, service-terminal interaction, grounded save/load preserving the parked ship, and departure without scene replacement. The hidden Gamescope capture shows the generated industrial port and was inspected; these buildings are placeholders and have no inhabitable interiors yet. The graphical test reports seven texture RIDs at teardown.
+
+The normal-entrypoint Windows export also passed port docking, physical deck contact, terminal access, save/load of the port ship anchor and departure under Proton. Its surface-city capture was inspected. As before, the game completed its checks before the wrapper was timeout-terminated (137); the SDR warning remains.

@@ -32,7 +32,7 @@ rebase. Surface and interstellar transitions reset the local frame deliberately.
 The former 28 km flight snap-back is removed. Nearby spherical planets now generate
 a curved collision patch that follows surface walking, with radial gravity and
 atmosphere fog blending during approach. Landing and liftoff stay in the orbital
-scene. This does not increase physical planet sizes or connect colony scenes.
+scene. Compact industrial ports now share that orbital scene and can be approached, docked at and explored on foot. This does not increase physical planet sizes; the old larger colony scene remains a legacy path.
 Content remains the existing compact system;
 there is no generated content in newly crossed empty sectors. Celestial LODs,
 planet-scale terrain LOD, moving reference frames and physically based atmosphere

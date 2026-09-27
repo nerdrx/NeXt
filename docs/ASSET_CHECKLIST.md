@@ -46,3 +46,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 
 - [ ] Replace the cyan fleet patrol exterior and floating ship/captain labels with authored patrol ship variants and diegetic identification. Preserve the ShipActor damage/fire signals and fleet ID metadata when changing the visual scene.
 - [ ] Author fleet disabled-ship and recovery assets when physical fleet salvage replaces the present service-repair flow.
+
+- [ ] Replace `scripts/surface_colony.gd` industrial port buildings, landing lights, pylons, service kiosk and signs with authored modular city assets. Preserve landing_position, stand_position, service_position, deck collision and terrain ramp interfaces.

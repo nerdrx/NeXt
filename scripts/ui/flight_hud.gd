@@ -55,6 +55,10 @@ func _draw() -> void:
 	_word(Vector2(w * 0.5 - 260, h - 24), "TAB  Command    E  Interact / dock    J  Navigation    F5  Save", 14, InterfaceTheme.MUTED)
 	if pilot.flying:
 		_draw_radar(Vector2(w - 130, 220))
+		for index in game.colonies.size():
+			var colony: Node3D = game.colonies[index]
+			if not bool(colony.get_meta("spatial_culled", false)):
+				_draw_marker(colony.to_global(colony.landing_position), str(game.world.planets[index].name).to_upper() + " PORT", InterfaceTheme.GOLD, pilot.camera)
 		if game.terrain_planet >= 0:
 			var body: Dictionary = game.world.planets[game.terrain_planet]
 			var planet_center: Variant = game._planet_center(game.terrain_planet)
