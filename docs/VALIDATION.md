@@ -100,3 +100,16 @@ NPC fire are not replicated by this event.
 The feedback-enabled Windows export completed normal integrated smoke under
 Proton. Dedicated feedback/authority tests ran natively. The known SDR warning
 and post-success wrapper timeout remain. The gold marker capture was inspected.
+
+## Cockpit instruments
+
+The procedural cockpit now has dark consoles, an open forward canopy and two
+physical displays. The controls test verifies fuel/shield readouts use current
+ship state and cruise indication follows engagement/manual cancellation. Existing
+walking, flight, weapon occlusion and bounty checks pass. Main integrated smoke
+and hidden Gamescope PvP checks pass. The rendered view was inspected and display
+positions adjusted so console geometry does not hide the fuel or mode rows.
+These are replaceable procedural primitives, not final photoreal cockpit art.
+
+The cockpit-enabled Windows export reached the normal Proton integration success
+marker. As before, the SDR warning remains and the wrapper needs timeout cleanup.

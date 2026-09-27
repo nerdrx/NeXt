@@ -45,6 +45,7 @@ var cruise_address: SectorPosition
 var colonies: Array[Node3D] = []
 var planet_terrain: PlanetTerrain
 var terrain_planet: int = -1
+var cockpit_instruments: CockpitInstruments
 var manual_planet: int = -1
 var landed_ship_address: SectorPosition
 var landed_ship_normal := Vector3.UP
@@ -61,6 +62,9 @@ func _ready() -> void:
 	add_child(world)
 	pilot = Pilot.new()
 	add_child(pilot)
+	cockpit_instruments = CockpitInstruments.new()
+	cockpit_instruments.game = self
+	add_child(cockpit_instruments)
 	pilot.fired.connect(_player_fire)
 	pilot.autopilot_arrived.connect(_cruise_arrived)
 	sound = Soundscape.new()

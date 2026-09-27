@@ -233,24 +233,34 @@ func teleport(pos: Vector3) -> void:
 
 func _make_cockpit() -> Node3D:
 	var cockpit := Node3D.new()
-	var frame_mat := _mat(Color("172a3d"), 0.0, 0.0)
-	var trim_mat := _mat(Color("43d9dc"), 0.0, 1.8)
-	var glass_mat := _mat(Color(0.12, 0.65, 0.82, 0.26), 0.0, 0.5)
-	# Keep the windscreen center open; the frame and angled consoles stay low.
-	_add_box(cockpit, Vector3(-0.72, -0.14, -1.08), Vector3(0.08, 0.62, 0.09), frame_mat)
-	_add_box(cockpit, Vector3(0.72, -0.14, -1.08), Vector3(0.08, 0.62, 0.09), frame_mat)
-	_add_box(cockpit, Vector3(0.0, 0.19, -1.08), Vector3(1.42, 0.06, 0.09), frame_mat)
-	_add_box(cockpit, Vector3(-0.48, -0.45, -0.82), Vector3(0.68, 0.12, 0.48), frame_mat, Vector3(0, -0.2, -0.16))
-	_add_box(cockpit, Vector3(0.48, -0.45, -0.82), Vector3(0.68, 0.12, 0.48), frame_mat, Vector3(0, 0.2, 0.16))
-	_add_box(cockpit, Vector3(-0.48, -0.365, -0.82), Vector3(0.5, 0.012, 0.27), trim_mat, Vector3(0, -0.2, -0.16))
-	_add_box(cockpit, Vector3(0.48, -0.365, -0.82), Vector3(0.5, 0.012, 0.27), trim_mat, Vector3(0, 0.2, 0.16))
-	_add_box(cockpit, Vector3(0, -0.48, -1.0), Vector3(0.32, 0.16, 0.38), frame_mat)
-	_add_box(cockpit, Vector3(0, -0.385, -1.0), Vector3(0.22, 0.025, 0.2), glass_mat)
-	_add_box(cockpit, Vector3(-0.67, 0.1, -1.0), Vector3(0.055, 0.04, 0.04), trim_mat)
-	_add_box(cockpit, Vector3(0.67, 0.1, -1.0), Vector3(0.055, 0.04, 0.04), trim_mat)
-	for index in range(5):
-		_add_box(cockpit, Vector3(-0.63 + index * 0.07, -0.38, -0.68), Vector3(0.025, 0.014, 0.025), _mat(Color("9ffff0"), 0.0, 2.5))
-		_add_box(cockpit, Vector3(0.35 + index * 0.07, -0.38, -0.68), Vector3(0.025, 0.014, 0.025), _mat(Color("ffb45e"), 0.0, 1.8))
+	var shell := _mat(Color("171b20"), 0.48, 0.0)
+	var edge := _mat(Color("39434a"), 0.32, 0.0)
+	var inset := _mat(Color("090d10"), 0.26, 0.0)
+	var amber := _mat(Color("c07a3c"), 0.38, 0.12)
+	# Low instrument cowl and paired consoles leave the forward view open.
+	_add_box(cockpit, Vector3(0, -0.56, -0.91), Vector3(1.48, 0.11, 0.4), shell)
+	_add_box(cockpit, Vector3(0, -0.495, -1.07), Vector3(1.22, 0.025, 0.055), edge)
+	for side: float in [-1.0, 1.0]:
+		var x := side * 0.48
+		var yaw := -side * 0.12
+		_add_box(cockpit, Vector3(x, -0.465, -0.86), Vector3(0.53, 0.11, 0.43), shell, Vector3(-0.14, yaw, -side * 0.08))
+		_add_box(cockpit, Vector3(x, -0.405, -0.88), Vector3(0.37, 0.012, 0.29), edge, Vector3(-0.14, yaw, -side * 0.08))
+		var display := Node3D.new()
+		display.name = "LeftDisplay" if side < 0.0 else "RightDisplay"
+		display.position = Vector3(x, -0.29, -0.9)
+		display.rotation.y = yaw
+		cockpit.add_child(display)
+		_add_box(display, Vector3(0, 0, -0.025), Vector3(0.36, 0.18, 0.03), edge)
+		_add_box(display, Vector3(0, 0, -0.007), Vector3(0.34, 0.16, 0.012), inset)
+		_add_box(cockpit, Vector3(x, -0.41, -0.94), Vector3(0.08, 0.17, 0.065), shell)
+	# Slim angled canopy pillars sit at the outer edges; there is no crossbar.
+	for side: float in [-1.0, 1.0]:
+		_add_box(cockpit, Vector3(side * 1.04, 0.22, -1.12), Vector3(0.055, 1.55, 0.085), shell, Vector3(0, 0, -side * 0.22))
+		_add_box(cockpit, Vector3(side * 1.065, 0.22, -1.075), Vector3(0.012, 1.53, 0.012), edge, Vector3(0, 0, -side * 0.22))
+	# Recessed warm status lamps add scale without lighting up the whole cockpit.
+	for side: float in [-1.0, 1.0]:
+		for index in range(3):
+			_add_box(cockpit, Vector3(side * (0.67 + index * 0.055), -0.49, -0.68), Vector3(0.018, 0.008, 0.012), amber)
 	return cockpit
 
 

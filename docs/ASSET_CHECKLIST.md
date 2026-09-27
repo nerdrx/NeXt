@@ -56,3 +56,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Keep authored port collision geometry represented in navigation bake input; verify doorway width, counter clearance and continuous street floors with the capsule-sweep tests.
 
 - [ ] Replace confirmed PvP tracer/impact primitives and gold hit marker (`main.gd::_receive_pvp_hit`, `FlightHUD`) with authored VFX/UI. Preserve host-confirmed event timing, sector coordinates and separation from damage.
+
+- [ ] Replace graphite cockpit shell in `Pilot._make_cockpit` with authored geometry. Keep `LeftDisplay` and `RightDisplay` anchors (local +Z faces pilot) or remap `CockpitInstruments`; current displays show live vitals, speed and cruise state. Avoid emissive full-panel surfaces obscuring dark vistas.

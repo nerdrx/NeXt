@@ -31,6 +31,10 @@ func _run() -> void:
 	if not _check(main.pilot.is_on_floor() and absf(main.pilot.global_position.y) < 0.2, "station collision floor supports the walking pilot"): return
 
 	main.pilot.set_flight(true)
+	main.state.fuel = 37.0
+	main.state.shield = 0.0
+	main.cockpit_instruments.refresh()
+	if not _check(main.cockpit_instruments.readouts[2].text == "FUEL   037%" and main.cockpit_instruments.readouts[1].text == "SHIELD   000%", "physical displays use actual ship vitals"): return
 	main.pilot.teleport(Vector3(0, 80, -180))
 	await physics_frame
 	var destination := Vector3(0, 80, -340)
@@ -39,12 +43,14 @@ func _run() -> void:
 	await create_timer(0.45).timeout
 	var progressing_distance: float = main.pilot.global_position.distance_to(destination)
 	if not _check(main.pilot.autopilot_active and progressing_distance < initial_distance - 2.0, "cruise autopilot progresses outside the station"): return
+	if not _check(main.cockpit_instruments.mode_label.text == "CRUISE ENGAGED", "physical cruise indicator follows autopilot"): return
 	var cancel_position: Vector3 = main.pilot.global_position
 	Input.action_press("move_right")
 	await create_timer(0.3).timeout
 	Input.action_release("move_right")
 	if not _check(not main.pilot.autopilot_active and main.pilot.global_position.distance_to(cancel_position) > 0.5, "manual flight input cancels cruise and takes control"): return
 
+	if not _check(main.cockpit_instruments.mode_label.text == "FLIGHT ASSIST", "physical cruise indicator clears on manual input"): return
 	main.pilot.teleport(Vector3(0, 120, -240))
 	main.pilot.reset_view()
 	main.pilot.set_flight(true)
