@@ -585,6 +585,8 @@ func _fleet() -> void:
 	_text("ISSUE ORDER", 13, InterfaceTheme.CYAN)
 	var assignment := _row()
 	var crew_choice := _choice(assignment, s.crew, "name", "id")
+	for index in crew_choice.item_count:
+		if str(crew_choice.get_item_metadata(index)) == game.crew_focus_id: crew_choice.select(index)
 	var ship_choice := _choice(assignment, s.fleet_ships, "name", "id")
 	var defense := _row()
 	defense.add_child(InterfaceTheme.button("DEFEND MY SHIP", func():

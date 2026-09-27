@@ -80,3 +80,9 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Replace ship interior kits within the exterior-compatible 2.8 m cell spacing and 2.45 m room height; preserve capsule clearance, deck-up orientation, window apertures and floor anchors 1.23 m below each module center.
 
 - [ ] Author horizontal ship-window frames and glass shading around the 1.85 m clear aperture, preserving floor/ceiling collision and removing opaque backing from the visible opening.
+
+## Named crew aboard
+
+- [ ] Replace `scripts/ship_crew.gd` inherited procedural humanoids with authored crew suits, faces and idle animations. Preserve the 0.42 m radius / 1.75 m height collision capsule, local deck gravity and persistent crew identity.
+- [ ] Author diegetic name/role identification and duty indicators; the current billboard label sits 2.1 m above the feet.
+- [ ] Add bridge, engineering and habitation workstations with authored standing/seated sockets. Current placement queries clear floor space and keeps module centers available for passage.

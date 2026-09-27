@@ -1,0 +1,80 @@
+extends SceneTree
+
+var game: Node
+
+func _initialize() -> void: _run.call_deferred()
+
+func _run() -> void:
+	game = load("res://scenes/main.tscn").instantiate()
+	root.add_child(game)
+	await process_frame
+	game.set_process(false)
+	game._clear_actors()
+	var path := "user://ship-crew-%d.json" % OS.get_process_id()
+	game.save_path = path
+	game.state.credits = 50000
+	assert(game.state.add_module("habitat", Vector3i(0, 0, 3)).is_empty())
+	for role in ["gunner", "engineer", "trader"]: assert(game.state.hire(role).is_empty())
+	game.apply_ship_stats()
+	game.pilot.set_flight(true)
+	game.pilot.teleport(Vector3(4090, 1800, 1000))
+	game.pilot.restore_flight_velocity(Vector3(90, 0, 0))
+	game.close_menu()
+	game.enter_interior()
+	await create_timer(0.5).timeout
+	assert(game.ship_crew.size() == 3, "hired crew materialize aboard")
+	var member: ShipCrew = game.ship_crew[0]
+	var member_id: String = member.actor_id
+	assert(member.display_name == game.state.crew[0].name and member.role == "gunner")
+	assert(member.is_on_floor() and game.flight_origin.sector.x == 1, "crew stand on coasting rebased ship")
+	var local: Vector3 = member.position
+	game.aboard_cruise = true
+	game.aboard_cruise_target = game.coasting_hull.position + Vector3(180, 70, -100)
+	await create_timer(0.8).timeout
+	assert(member.is_on_floor() and member.position.distance_to(local) < 0.06, "rotating deck carries stationed crew")
+	game.stop_cruise()
+	game.pilot.teleport(member.global_position + game.interior.global_basis * Vector3(0.5, 0.1, 0.0))
+	game.pilot.set_walk_up(game.interior.global_basis.y)
+	game.pilot.camera.look_at(member.global_position + member.global_basis.y * 1.3, game.interior.global_basis.y)
+	await physics_frame
+	assert(game._near_ship_crew() == member and "Talk to" in game.interaction_hint())
+	var talk := InputEventKey.new()
+	talk.pressed = true
+	talk.keycode = KEY_F
+	game._unhandled_key_input(talk)
+	assert(game.ui_open and game.deck.page == "fleet" and game.crew_focus_id == member_id, "nearby crew interaction opens their operations")
+	game.close_menu()
+	if DisplayServer.get_name() != "headless":
+		var capture_camera := Camera3D.new()
+		game.interior.add_child(capture_camera)
+		capture_camera.position = Vector3(-2.8, 1.6, 2.5)
+		capture_camera.look_at(member.global_position + member.global_basis.y * 1.2, game.interior.global_basis.y)
+		capture_camera.make_current()
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png("res://build/ship-crew-aboard.png")
+		game.pilot.camera.make_current()
+		capture_camera.queue_free()
+	assert(game.crew_operations().assign_ship_defense(member_id).is_empty())
+	game._process(0)
+	assert("Defending ship" in member.get_node("DutyLabel").text)
+	member.take_damage(1000)
+	await create_timer(0.2).timeout
+	assert(game.state.crew.size() == 2 and not game.state.crew_orders.has(member_id), "crew casualty removes their duty and roster entry")
+	var saved := GameState.new()
+	assert(saved.load_save(path).is_empty() and saved.crew.size() == 2)
+	game.exit_interior()
+	assert(game.ship_crew.is_empty())
+	game.enter_interior()
+	game.exit_interior()
+	await physics_frame
+	await physics_frame
+	assert(game.ship_crew.is_empty(), "delayed spawn cannot recreate crew after exit")
+	game.sound.shutdown()
+	game.session.leave()
+	game.queue_free()
+	await process_frame
+	await process_frame
+	for filename in [path, path + ".bak"]:
+		if FileAccess.file_exists(filename): DirAccess.remove_absolute(ProjectSettings.globalize_path(filename))
+	print("SHIP_CREW_GAMEPLAY_OK: named bodies, coasting and turning floor support, interaction, duty label, saved casualty and exit cleanup")
+	quit()

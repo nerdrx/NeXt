@@ -89,7 +89,7 @@ func _draw() -> void:
 			if is_instance_valid(actor) and not bool(actor.get_meta("spatial_culled", false)) and actor.position.distance_to(pilot.position) < 2800:
 				_draw_marker(actor.position, str(actor.get_meta("contact_name", actor.faction)).to_upper(), Color("f08670") if actor.faction == "pirate" else Color("75b9f1"), pilot.camera)
 	else:
-		_word(Vector2(w * 0.5 - 180, h - 90), "[E] " + game.interaction_hint(), 17, InterfaceTheme.CYAN)
+		_word(Vector2(w * 0.5 - 180, h - 90), ("" if game.aboard else "[E] ") + game.interaction_hint(), 17, InterfaceTheme.CYAN)
 	if state.wanted > 0:
 		_word(Vector2(w * 0.5 - 100, 113), "WANTED  /  %d" % state.wanted, 17, Color("ff8a70"))
 	if message_time > 0:

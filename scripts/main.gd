@@ -19,6 +19,9 @@ var aboard_cruise: bool = false
 var aboard_cruise_target := Vector3.ZERO
 var _defense_cooldown: float = 0.0
 var _crew_controller: CrewOrders
+var ship_crew: Array[ShipCrew] = []
+var _crew_spawn_serial: int = 0
+var crew_focus_id: String = ""
 var _coasting_deck_bodies: Array[StaticBody3D] = []
 var aboard: bool = false
 var interior_deck: int = 0
@@ -845,6 +848,7 @@ func apply_ship_stats() -> void:
 	pilot.flight_speed = float(_last_stats.speed)
 	state.hull = minf(state.hull, float(_last_stats.max_hull))
 	state.shield = minf(state.shield, float(_last_stats.max_shield))
+	if aboard: _populate_ship_crew()
 	if session != null:
 		session.ship_modules = state.ship_modules.duplicate(true)
 		session.ship_layout = state.ship_layout.duplicate(true)
@@ -1013,6 +1017,8 @@ func _enemy_fire(actor: Node3D, origin: Vector3, direction: Vector3) -> void:
 		# Space weapons hit the outer vessel, not the passenger or cabin furniture.
 		excluded.append(pilot.get_rid())
 		for body: StaticBody3D in _coasting_deck_bodies: excluded.append(body.get_rid())
+		for member: ShipCrew in ship_crew:
+			if is_instance_valid(member): excluded.append(member.get_rid())
 	var hit: Dictionary = _ray(origin, direction, 2400 if actor is ShipActor else 120, excluded)
 	var endpoint: Vector3 = hit.get("position", origin + direction * 180)
 	_beam(origin, endpoint, Color("ff9673"))
@@ -1125,7 +1131,9 @@ func _rescue() -> void:
 func interaction_hint() -> String:
 	var service := _station_service() if docked_station >= 0 else _colony_service()
 	if not service.is_empty(): return str(service.label)
-	if aboard: return "Return to helm  /  PgUp/PgDn change deck" + (("  /  Cruise %d m/s" if aboard_cruise else "  /  Ship coasting %d m/s") % roundi(coasting_hull.velocity.length()) if is_instance_valid(coasting_hull) else "")
+	if aboard:
+		var member := _near_ship_crew()
+		return ("F: Talk to %s  /  " % member.display_name if member != null else "") + "E: Return to helm  /  PgUp/PgDn change deck" + (("  /  Cruise %d m/s" if aboard_cruise else "  /  Ship coasting %d m/s") % roundi(coasting_hull.velocity.length()) if is_instance_valid(coasting_hull) else "")
 	if surface_index >= 0: return "Board ship / return to orbit" if _near_person() == null else "Talk to " + _near_person().display_name
 	var person: Node3D = _near_person()
 	if person != null: return "Talk to " + person.display_name
@@ -1316,6 +1324,12 @@ func _unhandled_key_input(event: InputEvent) -> void:
 				notify("Lift arrived at deck %d." % interior_deck)
 		KEY_E:
 			if not ui_open: _interact()
+		KEY_F:
+			if aboard and not ui_open:
+				var member := _near_ship_crew()
+				if member != null:
+					crew_focus_id = member.actor_id
+					open_menu("fleet")
 		KEY_J: open_menu("navigation")
 		KEY_F5: save_commander(true)
 		KEY_F9: load_commander()
@@ -1378,6 +1392,10 @@ func _process(delta: float) -> void:
 		if actor.has_meta("colony_index") and actor.position.distance_to(pilot.position) > 250: actor.active = false
 		if actor.faction == "police": actor.hostile = PlayerFaction.police_hostile(state.faction, str(world.data.faction), state.wanted)
 	_update_combat_targets()
+	for member: ShipCrew in ship_crew:
+		if is_instance_valid(member):
+			var order: Dictionary = state.crew_orders.get(member.actor_id, {})
+			member.update_duty("Awaiting wages" if bool(order.get("paused", false)) else ("Defending ship" if order.get("kind", "") == "defend" else "Ship crew"))
 	if jump_charge > 0:
 		jump_charge = maxf(0, jump_charge - delta)
 		if jump_charge == 0: _complete_jump()
@@ -1716,6 +1734,12 @@ func _integration_check() -> void:
 	if not _check(state.shield < shield_before_raid and aboard, "space weapons hit occupied hull"): return
 	if not _check(state.hire("gunner").is_empty(), "hire ship defense gunner"): return
 	var defense_id: String = state.crew.back().id
+	_populate_ship_crew()
+	await get_tree().create_timer(0.3).timeout
+	var embodied_gunner := false
+	for member: ShipCrew in ship_crew:
+		if member.actor_id == defense_id and member.is_on_floor(): embodied_gunner = true
+	if not _check(embodied_gunner, "named gunner stands on moving deck"): return
 	if not _check(crew_operations().assign_ship_defense(defense_id).is_empty(), "assign ship defense"): return
 	var defense_probe := ShipActor.new()
 	add_child(defense_probe)
@@ -1939,10 +1963,65 @@ func enter_interior() -> void:
 	pilot.set_walk_up(interior.global_basis.y)
 	pilot.teleport(interior.spawn_on_deck(interior_deck))
 	close_menu()
+	_populate_ship_crew()
 	notify("Aboard your ship. E returns to helm; PgUp/PgDn use the deck lift." + ((" Cruise continues at %d m/s." if aboard_cruise else " Ship coasting at %d m/s.") % roundi(coasting_hull.velocity.length()) if return_flying else ""))
+
+func _populate_ship_crew() -> void:
+	_crew_spawn_serial += 1
+	var serial := _crew_spawn_serial
+	for member: ShipCrew in ship_crew:
+		if is_instance_valid(member): member.queue_free()
+	ship_crew.clear()
+	if not aboard or not is_instance_valid(interior): return
+	var cabin: ShipInterior = interior
+	await get_tree().physics_frame
+	if serial != _crew_spawn_serial or not aboard or not is_instance_valid(cabin) or cabin != interior: return
+	var available: Array[Dictionary] = []
+	for record: Dictionary in state.crew:
+		var order: Dictionary = state.crew_orders.get(record.id, {})
+		if order.is_empty() or order.kind == "defend": available.append(record)
+	var berths: Array[Vector3] = cabin.crew_positions(available.size())
+	for index in mini(available.size(), berths.size()):
+		var record: Dictionary = available[index]
+		var member := ShipCrew.new()
+		member.actor_id = str(record.id)
+		member.display_name = str(record.name)
+		member.role = str(record.role)
+		member.position = berths[index]
+		cabin.add_child(member)
+		member.destroyed.connect(_ship_crew_lost)
+		ship_crew.append(member)
+
+func _near_ship_crew() -> ShipCrew:
+	if not aboard: return null
+	var nearest: ShipCrew
+	var distance := 3.0
+	for member: ShipCrew in ship_crew:
+		if not is_instance_valid(member) or member.is_queued_for_deletion(): continue
+		var candidate: float = member.global_position.distance_to(pilot.global_position)
+		if candidate >= distance: continue
+		var eye: Vector3 = member.global_position + member.global_basis.y * 1.5
+		var query := PhysicsRayQueryParameters3D.create(pilot.camera.global_position, eye, 1, [pilot.get_rid()])
+		if get_world_3d().direct_space_state.intersect_ray(query).is_empty():
+			nearest = member
+			distance = candidate
+	return nearest
+
+func _ship_crew_lost(member: GroundActor) -> void:
+	ship_crew.erase(member)
+	for index in state.crew.size():
+		if str(state.crew[index].id) != member.actor_id: continue
+		if state.crew_orders.has(member.actor_id): crew_operations().cancel(member.actor_id)
+		state.dismiss_crew(index)
+		apply_ship_stats()
+		var saved := save_commander(false)
+		notify("%s has died. Their duty has ended.%s" % [member.display_name, "" if saved else " Crew loss NOT SAVED; check storage."])
+		break
 
 func exit_interior() -> void:
 	if not aboard: return
+	_crew_spawn_serial += 1
+	ship_crew.clear()
 	var ship_velocity := Vector3.ZERO
 	if is_instance_valid(coasting_hull):
 		return_position = coasting_hull.position

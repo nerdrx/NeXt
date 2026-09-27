@@ -114,3 +114,5 @@ Space combat continues while you walk aboard: pirates and hostile police target 
 Hire a gunner and choose **Defend My Ship** in Crew Operations for autonomous defense at the helm or while aboard. The gunner uses exposed weapon modules, respects hull obstructions and external cover, and attacks hostile NPC ships within 720 m. Defense orders persist; wages are due every five hosted minutes, unpaid crew stop firing, and cancelling the order holds fire.
 
 Editable floor and ceiling window panels now have transparent apertures with solid collision barriers. You can see outside while walking on the glass; room lights and trim no longer cover the opening.
+
+Unassigned hired crew and your assigned ship gunner now appear aboard as named characters, where the layout has clear standing space (up to 12 bodies). Approach and press **F** to select their Crew Operations entry; **E** returns to the helm. Crew stay supported while the ship coasts, turns and crosses sector boundaries. They currently stand at their posts rather than walking schedules. Fatal personal damage removes that crew member and ends their order; ship weapons strike the outer hull instead.

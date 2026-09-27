@@ -187,6 +187,53 @@ func spawn_on_deck(deck: int) -> Vector3:
 	var pos: Vector3 = lift_positions.get(deck, cockpit_position)
 	return to_global(pos + Vector3(0, 0.15, 0))
 
+func crew_positions(limit: int) -> Array[Vector3]:
+	var result: Array[Vector3] = []
+	if limit <= 0 or not is_inside_tree() or get_world_3d() == null:
+		return result
+	var ordered := modules.duplicate(true)
+	ordered.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if int(a.y) != int(b.y): return int(a.y) < int(b.y)
+		if int(a.x) != int(b.x): return int(a.x) < int(b.x)
+		return int(a.z) < int(b.z)
+	)
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = 0.42
+	capsule.height = 1.75
+	var offsets: Array[Vector2] = [
+		Vector2(-0.65, -0.65), Vector2(0.65, -0.65),
+		Vector2(-0.65, 0.65), Vector2(0.65, 0.65),
+		Vector2(0.0, -0.9), Vector2(0.9, 0.0),
+		Vector2(0.0, 0.9), Vector2(-0.9, 0.0),
+	]
+	var space := get_world_3d().direct_space_state
+	for module: Dictionary in ordered:
+		var center := Vector3(int(module.x), int(module.y), int(module.z)) * CELL
+		for offset: Vector2 in offsets:
+			var foot := center + Vector3(offset.x, 0.08, offset.y)
+			if Vector2(foot.x, foot.z).distance_to(Vector2(center.x, center.z)) < 0.8:
+				continue
+			var overlaps := false
+			for chosen: Vector3 in result:
+				if foot.distance_to(chosen) < 0.9:
+					overlaps = true
+					break
+			if overlaps:
+				continue
+			var query := PhysicsShapeQueryParameters3D.new()
+			query.shape = capsule
+			query.transform = global_transform * Transform3D(Basis.IDENTITY, foot + Vector3.UP * 0.875)
+			query.collision_mask = 1
+			query.collide_with_areas = false
+			query.collide_with_bodies = true
+			query.margin = 0.0
+			if not space.intersect_shape(query, 1).is_empty():
+				continue
+			result.append(foot)
+			if result.size() >= mini(limit, 12):
+				return result
+	return result
+
 func _has_cell(cell: Vector3i) -> bool:
 	for item: Dictionary in modules:
 		if int(item.x) == cell.x and int(item.y) == cell.y and int(item.z) == cell.z: return true

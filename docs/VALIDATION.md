@@ -667,3 +667,13 @@ Windows export and ZIP packaging completed. The release reported
 `NEXT_INTEGRATION_OK` under Proton in hidden Gamescope, including observed gunner
 damage while aboard. The existing SDR warning remains; these checks do not establish
 the target frame rate or remove previously documented renderer warnings.
+
+## Physical named crew aboard
+
+Crew bodies are children of the moving interior, with gravity along the local deck normal. Deterministic capsule clearance selects standing positions through furnished, rotated, multi-deck layouts, up to 12 bodies. Unassigned crew and ship-defense gunners appear aboard; crew assigned to remote operations do not. F opens Crew Operations with the nearby visible crew member selected. Menu actions rebuild the roster representation. Fatal body damage cancels the order, dismisses the named crew member and saves the loss. Exit invalidates delayed spawning.
+
+`test_ship_crew`, `test_crew_positions` and `test_ship_crew_gameplay` pass headlessly. The gameplay test also passes in hidden Gamescope, covering named identity, floor support during coasting/turning/rebasing, interaction, defense status, saved casualty and rapid exit cleanup. The earlier interaction assertion stood nearer another crew member; the corrected placement verifies the intended nearest character. Ship-defense gameplay regression and normal-entrypoint smoke pass. The normal-entrypoint check now also requires a hired gunner to stand on the moving deck. These checks are included in Windows CI.
+
+Crew currently remain at their posts. This does not implement crew piloting, work schedules, shared boarding or authored character art. Nonfatal character health is not persisted between interior visits. The existing seven Texture RID warnings still appear during graphical shutdown.
+
+The Windows release export succeeded. Its normal-entrypoint integration check reached `NEXT_INTEGRATION_OK` under Proton Experimental in hidden Gamescope, including the new moving-deck crew assertion. The SDR white-level warning remains. This is functional evidence, not proof of target frame rate or live Steam multiplayer.
