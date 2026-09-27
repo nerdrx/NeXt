@@ -6,11 +6,14 @@ var landing_position := Vector3.ZERO
 var stand_position := Vector3(12, 1, 0)
 var service_position := Vector3(17, 0, -19)
 var footprint: float = 1.0
+var _navigation := PortNavigation.new()
 var door_positions: Array[Vector3] = []
 var interior_positions: Array[Vector3] = []
 var interior_services: Array[Dictionary] = []
 
 func build(radius: float, colony_seed: int, colony_name: String) -> void:
+	_navigation.dispose()
+	_navigation = PortNavigation.new()
 	for child in get_children():
 		remove_child(child)
 		child.queue_free()
@@ -158,6 +161,7 @@ func _box(at: Vector3, size: Vector3, material: Material, solid: bool = false, o
 	mesh.transform = Transform3D(orientation, at)
 	add_child(mesh)
 	if solid:
+		_navigation.add_box(shape, mesh.transform)
 		var body := StaticBody3D.new()
 		body.collision_layer = 1
 		body.collision_mask = 0
@@ -168,3 +172,13 @@ func _box(at: Vector3, size: Vector3, material: Material, solid: bool = false, o
 		collision.shape = box
 		body.add_child(collision)
 		add_child(body)
+
+func navigation_path(from_world: Vector3, to_world: Vector3) -> PackedVector3Array:
+	var local_path := _navigation.path(to_local(from_world), to_local(to_world))
+	var result := PackedVector3Array()
+	for point in local_path:
+		result.append(to_global(point))
+	return result
+
+func _exit_tree() -> void:
+	_navigation.dispose()

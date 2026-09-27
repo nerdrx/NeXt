@@ -520,7 +520,8 @@ func _spawn_colony_people(eliminated: Array) -> void:
 			person.hostile = false
 			person.follow_when_friendly = false
 			person.patrol_radius = 3.0
-			person.pursuit_radius = 35.0
+			person.pursuit_radius = 100.0
+			person.navigation_source = colony
 			if slot < 4:
 				person.faction = "civilian"
 				person.role = str(colony.interior_services[slot].label)

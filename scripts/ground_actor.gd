@@ -17,6 +17,10 @@ var hold_position: bool = false
 var follow_when_friendly: bool = true
 var patrol_radius: float = 8.0
 var pursuit_radius: float = INF
+var navigation_source: Node3D
+var _navigation_path := PackedVector3Array()
+var _navigation_goal := Vector3.INF
+var _navigation_timer: float = 0.0
 
 var _home: Vector3
 var _waypoint: Vector3
@@ -68,7 +72,7 @@ func _physics_process(delta: float) -> void:
 		var origin := global_position + Vector3.UP * 1.28 + (-global_basis.z * 0.48)
 		fired.emit(self, origin, (target.global_position + Vector3.UP * 0.9 - origin).normalized())
 	if chasing:
-		if target_distance > 9.0:
+		if target_distance > 9.0 or not _has_line_of_sight():
 			move_to = target.global_position
 		elif target_distance > 4.0:
 			move_to = global_position
@@ -84,12 +88,15 @@ func _physics_process(delta: float) -> void:
 		var radius := sqrt(randf()) * maxf(0.0, patrol_radius)
 		_waypoint = _home + Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
 		move_to = _waypoint
+	var navigating := is_instance_valid(navigation_source) and not hold_position
+	if navigating: move_to = _navigation_step(move_to, delta)
 	var offset := move_to - global_position
 	offset.y = 0.0
 	var direction := offset.normalized() if offset.length_squared() > 0.01 else Vector3.ZERO
-	if not hold_position and direction != Vector3.ZERO and _path_blocked(direction):
+	if not navigating and not hold_position and direction != Vector3.ZERO and _path_blocked(direction):
 		direction = direction.rotated(Vector3.UP, PI * 0.5)
 	var wanted := direction * speed * (1.2 if chasing else 1.0) if not hold_position else Vector3.ZERO
+	if navigating: wanted = wanted.limit_length(offset.length() * 2.5)
 	velocity.x = 0.0 if hold_position else move_toward(velocity.x, wanted.x, delta * 8.0)
 	velocity.z = 0.0 if hold_position else move_toward(velocity.z, wanted.z, delta * 8.0)
 	if not is_on_floor():
@@ -100,6 +107,19 @@ func _physics_process(delta: float) -> void:
 		rotation.y = atan2(-direction.x, -direction.z)
 	move_and_slide()
 	_animate()
+
+func _navigation_step(goal: Vector3, delta: float) -> Vector3:
+	_navigation_timer -= delta
+	if _navigation_timer <= 0 or not _navigation_goal.is_finite() or goal.distance_to(_navigation_goal) > 1.0:
+		_navigation_timer = 0.5
+		_navigation_goal = goal
+		_navigation_path = navigation_source.navigation_path(global_position, goal)
+	while not _navigation_path.is_empty():
+		var offset: Vector3 = _navigation_path[0] - global_position
+		offset.y = 0
+		if offset.length() > 0.35: return _navigation_path[0]
+		_navigation_path.remove_at(0)
+	return global_position
 
 
 func take_damage(amount: float) -> void:
@@ -325,6 +345,8 @@ func _mat(color: Color, roughness: float, glow: float, metallic: float = 0.0) ->
 	return material
 
 func apply_origin_shift(delta: Vector3) -> void:
+	for index in _navigation_path.size(): _navigation_path[index] -= delta
+	if _navigation_goal.is_finite(): _navigation_goal -= delta
 	_home -= delta
 	_waypoint -= delta
 	reset_physics_interpolation()

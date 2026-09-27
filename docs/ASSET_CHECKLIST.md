@@ -52,3 +52,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Replace surface-port room walls, counters, chairs and service signs with authored interior kits; retain clear 3.2 m doorways and physical service access. Upper floors remain sealed.
 
 - [ ] Replace port clerk/security procedural humanoids with authored characters, clothing variants and idle/patrol animations. Keep stable actor IDs, service metadata and collision/weapon interfaces.
+
+- [ ] Keep authored port collision geometry represented in navigation bake input; verify doorway width, counter clearance and continuous street floors with the capsule-sweep tests.

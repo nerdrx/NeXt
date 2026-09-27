@@ -69,3 +69,11 @@ The route planner checks direct, antipodal, polar, multiple-obstacle, invalid-in
 A real-scene staff test checks six residents per port, four grounded stationary clerks, named service interactions, stable identities across rebuild/load and distant simulation suspension. Actual player weapon rays verify nonlethal assault raises wanted status, local police become hostile, lethal damage persists the casualty and surviving identities do not change after loading. A separate actor test covers stationary duty, disabled friendly following and pursuit limits. Native headless and hidden Gamescope tests pass; the named clerk capture was inspected. Existing actor and integrated smoke checks pass. This does not implement full civilian schedules, navigation meshes or staffed upper floors.
 
 The staff-enabled Windows export completed its normal integrated smoke under Proton. As in earlier runs, the wrapper required timeout cleanup after the success marker; the SDR warning persists. Staff assault and identity checks were exercised by the native dedicated test, not the Windows smoke.
+
+## Port pedestrian navigation
+
+Port collision boxes feed a lazy native Godot navigation bake in a private local map. It uses 0.25 m cells, 0.5 m agent radius and 1.8 m height, excluding upper roofs. Capsule sweeps verify all four room paths at both current planet sizes, including paths behind counters. Translation/rotation preserve local paths; off-deck, elevated and disconnected destinations are rejected. Maps and regions are freed on rebuild/exit.
+
+The actual GroundActor pursuit test traverses all four rooms at normal movement speed, stays supported, obtains firing line of sight, handles an origin shift during pursuit and stops for an unreachable target. It runs accelerated simulation, not a performance benchmark. Existing actor, staff and integrated smoke checks pass. Pedestrian navigation covers static port geometry, not moving-crowd avoidance or general planetary terrain. The bake uses the [official NavigationServer3D source-geometry workflow](https://docs.godotengine.org/en/latest/classes/class_navigationserver3d.html).
+
+The navigation-enabled Windows export completed the normal Proton smoke. Dedicated guard pursuit was verified in the native test. The known SDR warning and post-success wrapper timeout cleanup remain.
