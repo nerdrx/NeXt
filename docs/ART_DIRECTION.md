@@ -23,3 +23,22 @@ Current code-generated assets belong to `ShipVisual`, `ShipInterior`, `SpaceWorl
 ## Performance target
 
 High-end PC, 1440p at 60 FPS. Budget for gameplay, cockpit/interiors, planets, city scenes and up to eight network players. Windows is the shipping target and Proton is the Linux play path. Measure representative scenes after shader warmup; a single screenshot or headless script is not a performance result.
+
+
+## User-supplied ship references
+
+The three supplied ship images establish a much higher model target than the current procedural blockouts. They guide original designs rather than exact reproductions:
+
+- Industrial combat craft: broad angular armor surfaces, an inset mechanical spine, articulated panel boundaries and distinct engine housings. Large surfaces establish the silhouette; smaller mechanisms explain how it works.
+- Civilian craft: a streamlined cockpit and continuous body, framed glazing, blended propulsion structures and a limited painted livery. A smooth silhouette still needs convincing hard-surface transitions.
+- Utility craft: visible structural connections, separated nacelles, working equipment and layered mechanical depth. Exposed machinery must connect to the hull rather than float as decoration.
+
+Reject rounded slab hulls with attached boxes, flat glowing discs presented as engine bells, arbitrary panel grids, or detail consisting mostly of emissive strips. Inspect a close three-quarter front view and rear view, then check the ship in gameplay lighting. Both the unlit silhouette and material separation must remain readable. Presentation renders must not substitute for integrated game geometry.
+
+These images specify ship quality and form language. Station architecture and character appearance still await their own user references. The existing ship, station and character blockouts have not been accepted as meeting the target.
+
+## Material review status
+
+The fleet material draft separates dielectric paint, exposed metal and non-emissive livery, with subtle filtered roughness variation. Hard armor faces use flat normals; curved engine segments retain smoothing within each profile section. Navigation lamps and exhaust are the intentional emissive surfaces. The standalone capture uses a neutral studio reflection sky, so its glass response is not proof of the in-game space or hangar appearance.
+
+The current fleet remains below the reference quality. The main gaps are integrated canopy/interior detail, believable panel construction, authored surface wear and material variation at appropriate scales. Small noise and post-processing cannot substitute for these. Verify front/rear studio captures and gameplay lighting before accepting the assets.

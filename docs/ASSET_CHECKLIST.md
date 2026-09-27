@@ -47,6 +47,7 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 ## Local crew patrols
 
 - [ ] Replace the cyan fleet patrol exterior and floating ship/captain labels with authored patrol ship variants and diegetic identification. Preserve the ShipActor damage/fire signals and fleet ID metadata when changing the visual scene.
+- [ ] Replace/refine the native procedural trade freighter and patrol hulls (`scripts/fleet_ship_visual.gd`): keep the 2.8 m module scale and compact NPC collision, preserve `_visual.set_thrust`, and retain separate cargo and weapon silhouettes.
 - [ ] Author fleet disabled-ship and recovery assets when physical fleet salvage replaces the present service-repair flow.
 
 - [ ] Replace `scripts/surface_colony.gd` industrial port buildings, landing lights, pylons, service kiosk and signs with authored modular city assets. Preserve landing_position, stand_position, service_position, deck collision and terrain ramp interfaces.

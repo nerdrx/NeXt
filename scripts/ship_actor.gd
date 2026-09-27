@@ -23,7 +23,7 @@ var search_seconds_remaining: float = 0.0
 var travel_active: bool = false
 var travel_target := Vector3.ZERO
 
-var _visual: ShipVisual
+var _visual: FleetShipVisual
 var _attack_cooldown: float = 0.0
 var _patrol_phase: float = 0.0
 var _desired_velocity: Vector3 = Vector3.ZERO
@@ -44,14 +44,25 @@ func _ready() -> void:
 	if not _patrol_center_set:
 		_home = global_position
 	var collision := CollisionShape3D.new()
-	var shape := SphereShape3D.new()
-	shape.radius = 2.3
-	collision.shape = shape
 	add_child(collision)
-	_visual = ShipVisual.new()
+	_visual = FleetShipVisual.new()
 	add_child(_visual)
-	var side_module := "cargo" if get_meta("fleet_order_kind", "") == "trade" else "weapon"
-	_visual.build([{"cell": Vector3i.ZERO, "kind": "cockpit"}, {"cell": Vector3i(0, 0, 1), "kind": "engine"}, {"cell": Vector3i(-1, 0, 1), "kind": side_module}, {"cell": Vector3i(1, 0, 1), "kind": side_module}], faction)
+	_visual.build(str(get_meta("fleet_order_kind", "patrol")), faction)
+	# Convex exterior proxy follows the model; cavities remain an approximation.
+	var hull_points := PackedVector3Array()
+	var radius := 0.0
+	for mesh: MeshInstance3D in _visual.find_children("*", "MeshInstance3D", true, false):
+		if mesh.mesh == null: continue
+		var relative := global_transform.affine_inverse() * mesh.global_transform
+		for vertex: Vector3 in mesh.mesh.get_faces():
+			var point := relative * vertex
+			hull_points.append(point)
+			radius = maxf(radius, point.length())
+	var shape := ConvexPolygonShape3D.new()
+	shape.points = hull_points
+	collision.shape = shape
+	_avoidance_shape.radius = radius + 0.3
+
 
 
 func _physics_process(delta: float) -> void:

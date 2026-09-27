@@ -927,3 +927,12 @@ Windows/Proton main-entrypoint integration passed under hidden Gamescope. The ex
 The existing multi-process network test now verifies that the joined panel layout remains unchanged across host travel; it still checks normal pose relay, world identity and departures. PvP transport and actual-scene gameplay regressions pass, including consent, occlusion, shield/hull effects and hit feedback. This is a protocol boundary for joined designs, not authoritative health or ownership verification. The preceding freight-recovery commit completed both public CI runs successfully.
 
 NETWORK_LOADOUT_OK verifies separate module-only and layout-only mutation attempts through both normal publishing and forged ENet RPCs, unchanged host timestamps on rejection, harmless module reordering, subsequent normal pose relay, bilateral PvP and fresh-design negotiation after reconnect. All pass natively. Windows export succeeds, but direct exported-script Proton attempts did not reach a test marker before their bounded timeout; Windows protocol execution remains unverified for this increment. Visual drafts are separate uncommitted work and were not accepted by the owner.
+
+
+## Fleet material and geometry draft — 2026-09-27
+
+Fleet actors now use separate procedural patrol/freight models and a convex exterior collision proxy fitted to their meshes. Dielectric paint and exposed metal use distinct roughness/metalness values; painted trim does not emit light. Armor and engine normals, concave panel triangulation, structural bevels and canopy placement were corrected during front/rear capture review.
+
+Native Godot checks passed: main integration smoke, NPC thermal behavior, obstacle avoidance, and the new fleet geometry/collision regression. The regression checks closed bevel topology, outward normals, concave panel area, wing ray hits, exterior misses and rotated collision. Hidden Gamescope captured both models from front/rear plus patrol materials under the actual game hangar environment without script or shader errors. The Windows export succeeded; this pass has no fresh Windows/Proton runtime or frame-rate result.
+
+These are work-in-progress procedural assets, still below the supplied reference quality. Studio reflection lighting is deliberately separate from the gameplay hangar capture. Detailed wear, integrated equipment design, interiors visible through glazing and final authored art remain incomplete. Station and character drafts are not part of this ship increment.
