@@ -93,6 +93,29 @@ func _initialize() -> void:
 	var load_error: String = loaded.load_save(path)
 	assert(load_error == "", load_error)
 	assert(loaded._save_data() == state._save_data(), "all persistent fields round-trip: %s | %s" % [loaded._save_data(), state._save_data()])
+	state.location = {"system": state.system_index, "surface": 4, "address": SectorPosition.new(Vector3i(7, 2, -1), Vector3(18, 5, 26)).to_save(), "ship_address": SectorPosition.new(Vector3i(7, 2, -1), Vector3(20, 0, 32)).to_save(), "rotation": [0.0, 0.5, 0.0], "flying": false}
+	assert(state.save(path) == "")
+	assert(loaded.load_save(path) == "" and loaded.location.ship_address == state.location.ship_address, "grounded planetary ship address round-trips")
+	var prior_ground_location: Dictionary = loaded.location.duplicate(true)
+	var bad_ship_location: Dictionary = state._save_data().duplicate(true)
+	var bad_ship_file: FileAccess
+	bad_ship_location.location.ship_address = {"version": 1, "sector": [2147483648, 0, 0], "local": [0, 0, 0]}
+	bad_ship_file = FileAccess.open(path, FileAccess.WRITE)
+	bad_ship_file.store_string(JSON.stringify(bad_ship_location))
+	bad_ship_file.close()
+	assert(loaded.load_save(path) != "" and loaded.location == prior_ground_location, "malformed ship address is rejected transactionally")
+	bad_ship_location = state._save_data().duplicate(true)
+	bad_ship_location.location.surface = -1
+	bad_ship_file = FileAccess.open(path, FileAccess.WRITE)
+	bad_ship_file.store_string(JSON.stringify(bad_ship_location))
+	bad_ship_file.close()
+	assert(loaded.load_save(path) != "" and loaded.location == prior_ground_location, "planetary ship address is rejected in orbit")
+	bad_ship_location = state._save_data().duplicate(true)
+	bad_ship_location.location.flying = true
+	bad_ship_file = FileAccess.open(path, FileAccess.WRITE)
+	bad_ship_file.store_string(JSON.stringify(bad_ship_location))
+	bad_ship_file.close()
+	assert(loaded.load_save(path) != "" and loaded.location == prior_ground_location, "planetary ship address is rejected for a flying save")
 	var old_v2: Dictionary = state._save_data().duplicate(true)
 	old_v2.erase("world_id")
 	old_v2.erase("location")

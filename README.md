@@ -50,7 +50,7 @@ Start in the orbital concourse. The ship is on the central pad. Approach it, pre
 
 The complete target is substantially larger than the implemented systems above:
 
-- Planet landing currently changes to a generated surface scene. Continuous planet-scale terrain streaming and seamless surface/orbit travel are **not implemented**.
+- Manual landing on the existing small spherical planets now stays in the orbital scene: approach the surface, slow below 20 m/s, press E within 35 m, walk with radial gravity, and return to the ship to lift off. Navigation offers a surface approach autopilot. Ground saves preserve your walking position and parked ship separately. Colony visits still use a separate scene; realistic planet-scale streaming and continuous city/hangar travel remain unfinished.
 - Steam lobby adapter code and lifecycle tests are present, but native Steam build configuration and a production AppID are still required. Real invites/relay, shared authoritative combat/economy, property permissions, consensual PvP and durable transfer transactions are **not verified or complete**. ENet visits are an explicitly limited development feature, not finished Steam co-op.
 - Freeform hull shaping, movable interior walls/furniture, physical trade routes, fleet wreck salvage and territorial sovereignty/negotiated diplomacy remain unimplemented. Current room and panel refits are bounded grid choices.
 - Cities are generated colony districts; they are not complete populated urban simulations. Ship interiors currently pause local threats after requiring a safe flight zone. They do not simulate unattended ships under attack.

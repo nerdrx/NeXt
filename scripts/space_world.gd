@@ -456,3 +456,13 @@ func _standard_material(color: Color, roughness: float, metallic: float, emissio
 
 func _emissive(color: Color, strength: float) -> StandardMaterial3D:
 	return _standard_material(color, 0.3, 0.15, color, strength)
+
+func set_flight_atmosphere(amount: float, tint: Color) -> void:
+	if not is_instance_valid(_world_environment): return
+	var env := _world_environment.environment
+	var blend := clampf(amount, 0, 1)
+	env.fog_enabled = blend > 0.001
+	env.fog_density = blend * 0.002
+	env.fog_light_color = tint
+	env.fog_sky_affect = blend
+	env.ambient_light_energy = 0.2 + blend * 0.4

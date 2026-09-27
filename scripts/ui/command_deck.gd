@@ -181,10 +181,10 @@ func _navigation() -> void:
 		var title := InterfaceTheme.label("%s / %s" % [planet.name, "Atmosphere" if planet.atmosphere else "Airless"], 15)
 		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(title)
-		var approach := InterfaceTheme.button("CRUISE APPROACH", game.approach_planet.bind(index))
+		var approach := InterfaceTheme.button("SURFACE APPROACH", game.approach_planet_surface.bind(index))
 		approach.disabled = not game.pilot.flying or game.surface_index >= 0
 		row.add_child(approach)
-		var land_button := InterfaceTheme.button("LAND AT COLONY", game.land.bind(index))
+		var land_button := InterfaceTheme.button("COLONY TRANSFER", game.land.bind(index))
 		land_button.disabled = not game.pilot.flying or game.surface_index >= 0
 		row.add_child(land_button)
 

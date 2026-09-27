@@ -61,7 +61,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 			return
 		var motion := event as InputEventMouseMotion
-		rotate_y(-motion.relative.x * mouse_sensitivity)
+		if flying:
+			rotate_y(-motion.relative.x * mouse_sensitivity)
+		else:
+			rotate_object_local(Vector3.UP, -motion.relative.x * mouse_sensitivity)
 		var y_sign := 1.0 if inverted_y else -1.0
 		_pitch = clampf(_pitch + motion.relative.y * mouse_sensitivity * y_sign, -1.45, 1.45)
 		camera.rotation.x = _pitch
@@ -88,15 +91,17 @@ func _physics_process(delta: float) -> void:
 
 
 func _walk(delta: float) -> void:
+	var up: Vector3 = up_direction
 	if not is_on_floor():
-		_walk_velocity.y -= 18.0 * delta
+		_walk_velocity -= up * 18.0 * delta
 	elif Input.is_action_just_pressed("move_up"):
-		_walk_velocity.y = 6.0
+		_walk_velocity += up * maxf(0.0, 6.0 - _walk_velocity.dot(up))
 	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-	var direction := (transform.basis * Vector3(input.x, 0.0, input.y)).normalized()
+	var direction := (global_basis * Vector3(input.x, 0.0, input.y)).slide(up).normalized()
 	var target_speed := speed * (1.8 if Input.is_action_pressed("boost") else 1.0)
-	_walk_velocity.x = move_toward(_walk_velocity.x, direction.x * target_speed, 32.0 * delta)
-	_walk_velocity.z = move_toward(_walk_velocity.z, direction.z * target_speed, 32.0 * delta)
+	var tangent_velocity: Vector3 = _walk_velocity.slide(up)
+	tangent_velocity = tangent_velocity.move_toward(direction * target_speed, 32.0 * delta)
+	_walk_velocity = tangent_velocity + up * _walk_velocity.dot(up)
 	velocity = _walk_velocity
 	move_and_slide()
 	_walk_velocity = velocity
@@ -186,6 +191,7 @@ func reset_view() -> void:
 
 
 func set_flight(value: bool) -> void:
+	if value: set_walk_up(Vector3.UP)
 	flying = value
 	cancel_autopilot()
 	_flight_velocity = Vector3.ZERO
@@ -196,6 +202,25 @@ func set_flight(value: bool) -> void:
 		_gun.visible = not flying
 	if camera != null:
 		camera.rotation.x = _pitch
+
+
+func set_walk_up(up: Vector3) -> void:
+	var length: float = up.length()
+	if not up.is_finite() or not is_finite(length) or length < 0.001:
+		return
+	var normal := up / length
+	var forward := (-global_basis.z).slide(normal)
+	if forward.length_squared() < 0.000001:
+		var right := global_basis.x.slide(normal)
+		if right.length_squared() < 0.000001:
+			var fallback: Vector3 = Vector3.FORWARD if absf(normal.dot(Vector3.FORWARD)) < 0.9 else Vector3.RIGHT
+			right = fallback.slide(normal)
+		forward = normal.cross(right.normalized())
+	forward = forward.normalized()
+	var right_axis := forward.cross(normal).normalized()
+	forward = normal.cross(right_axis).normalized()
+	global_basis = Basis(right_axis, normal, -forward)
+	up_direction = normal
 
 
 func teleport(pos: Vector3) -> void:

@@ -19,6 +19,8 @@ var interior_deck: int = 0
 var return_position := Vector3.ZERO
 var return_flying: bool = false
 var return_view := Vector3.ZERO
+var return_basis := Basis.IDENTITY
+var return_up := Vector3.UP
 var ui_open: bool = true
 var surface_index: int = -1
 var jump_charge: float = 0.0
@@ -39,6 +41,11 @@ var fleet_actors: Dictionary = {}
 var flight_origin := SectorPosition.new()
 var flight_frame := FlightFrame.new()
 var cruise_address: SectorPosition
+var planet_terrain: PlanetTerrain
+var terrain_planet: int = -1
+var manual_planet: int = -1
+var landed_ship_address: SectorPosition
+var landed_ship_normal := Vector3.UP
 
 func _ready() -> void:
 	automation = "--smoke" in OS.get_cmdline_user_args() or "--visual-tour" in OS.get_cmdline_user_args() or "--capture-only" in OS.get_cmdline_user_args()
@@ -101,6 +108,9 @@ func _input_actions() -> void:
 
 func _build_system() -> void:
 	if aboard: exit_interior()
+	_clear_planet_terrain()
+	manual_planet = -1
+	landed_ship_address = null
 	flight_frame.clear()
 	flight_origin = SectorPosition.new()
 	cruise_address = null
@@ -141,25 +151,57 @@ func _rebase_flight() -> void:
 
 func _capture_flight_location() -> void:
 	state.location = {}
-	if surface_index >= 0 or (not pilot.flying and not (aboard and return_flying)): return
+	if surface_index >= 0 or (manual_planet < 0 and not pilot.flying and not (aboard and return_flying)): return
 	var address := SectorPosition.new(flight_origin.sector, flight_origin.local)
 	if not address.move_delta(return_position if aboard else pilot.position): return
 	var angles: Vector3 = return_view if aboard else Vector3(pilot.camera.rotation.x, pilot.rotation.y, pilot.camera.rotation.z)
 	state.location = {"system": state.system_index, "surface": -1, "address": address.to_save(), "rotation": [angles.x, angles.y, angles.z], "flying": true}
+	if manual_planet >= 0 and landed_ship_address != null:
+		var up: Vector3 = return_up if aboard else pilot.up_direction
+		var body_basis: Basis = return_basis if aboard else pilot.basis
+		angles.y = (Basis(Quaternion(Vector3.UP, up)).inverse() * body_basis).get_euler().y
+		state.location.surface = manual_planet
+		state.location.flying = false
+		state.location.rotation = [angles.x, angles.y, angles.z]
+		state.location.ship_address = landed_ship_address.to_save()
 
 func _restore_flight_location() -> void:
 	var location: Dictionary = state.location
-	if location.is_empty() or not bool(location.flying) or int(location.surface) != -1: return
+	if location.is_empty(): return
+	if int(location.surface) >= world.planets.size(): return
+	if not bool(location.flying) and not location.has("ship_address"): return
 	var address: SectorPosition = SectorPosition.from_save(location.address)
 	if address == null: return
 	var new_origin := SectorPosition.new(address.sector)
+	if not bool(location.flying):
+		var index: int = int(location.surface)
+		if index < 0: return
+		var body: Dictionary = world.planets[index]
+		var center_check: Variant = SectorPosition.new(Vector3i.ZERO, body.position).relative_to(new_origin, 60000)
+		var ship_check: SectorPosition = SectorPosition.from_save(location.ship_address)
+		if center_check == null or ship_check == null: return
+		var ship_point: Variant = ship_check.relative_to(new_origin, 60000)
+		if ship_point == null: return
+		var radius: float = float(body.visual_radius)
+		if absf(address.local.distance_to(center_check) - radius) > 100 or absf(ship_point.distance_to(center_check) - radius) > 100: return
 	_register_spatial_nodes()
 	flight_frame.rebase(flight_origin, new_origin)
 	flight_origin = new_origin
-	pilot.set_flight(true)
+	pilot.set_flight(bool(location.flying))
 	pilot.teleport(address.local)
 	pilot.restore_view(Vector3(location.rotation[0], location.rotation[1], location.rotation[2]))
-	ship_display.hide()
+	if bool(location.flying):
+		ship_display.hide()
+	else:
+		manual_planet = int(location.surface)
+		landed_ship_address = SectorPosition.from_save(location.ship_address)
+		var center: Variant = _planet_center(manual_planet)
+		landed_ship_normal = (landed_ship_address.relative_to(flight_origin, 60000) - center).normalized()
+		var up: Vector3 = (pilot.position - center).normalized()
+		pilot.set_walk_up(up)
+		pilot.basis = Basis(Quaternion(Vector3.UP, up)) * Basis(Vector3.UP, float(location.rotation[1]))
+		_update_planet_terrain()
+		rebuild_player_ship()
 	rebuild_wrecks()
 
 func _cruise_point(address: SectorPosition) -> Vector3:
@@ -179,6 +221,91 @@ func _start_address_cruise(address: SectorPosition) -> void:
 	close_menu()
 	pilot.autopilot_to(_cruise_point(address))
 	notify("Cruise autopilot engaged. Movement or mouse input returns manual control.")
+
+func _planet_center(index: int) -> Variant:
+	if index < 0 or index >= world.planets.size(): return null
+	return SectorPosition.new(Vector3i.ZERO, world.planets[index].position).relative_to(flight_origin, 60000)
+
+func _terrain_seed(index: int) -> int:
+	return Universe._seed_for(state.system_index, 900 + index)
+
+func _clear_planet_terrain() -> void:
+	if is_instance_valid(planet_terrain):
+		remove_child(planet_terrain)
+		planet_terrain.queue_free()
+	planet_terrain = null
+	terrain_planet = -1
+
+func _update_planet_terrain() -> void:
+	if surface_index >= 0 or aboard: return
+	var chosen: int = -1
+	var altitude: float = INF
+	var radial := Vector3.UP
+	for index in world.planets.size():
+		var center: Variant = _planet_center(index)
+		if center == null: continue
+		var offset: Vector3 = pilot.position - center
+		var candidate: float = offset.length() - float(world.planets[index].visual_radius)
+		if candidate < altitude and candidate > -80:
+			chosen = index
+			altitude = candidate
+			radial = offset.normalized()
+	var atmosphere: float = 0.0
+	if chosen >= 0 and bool(world.planets[chosen].atmosphere): atmosphere = clampf(1.0 - altitude / 220.0, 0.0, 1.0)
+	world.set_flight_atmosphere(atmosphere, Color("829eae"))
+	if chosen < 0 or altitude > 250:
+		_clear_planet_terrain()
+		return
+	if manual_planet >= 0 and not pilot.flying:
+		pilot.set_walk_up(radial)
+	var body: Dictionary = world.planets[chosen]
+	var refresh_distance: float = minf(60.0, float(body.visual_radius) * 0.10)
+	if not is_instance_valid(planet_terrain) or terrain_planet != chosen or planet_terrain.normal_at_patch.distance_to(radial) * float(body.visual_radius) > refresh_distance:
+		_clear_planet_terrain()
+		terrain_planet = chosen
+		planet_terrain = PlanetTerrain.new()
+		add_child(planet_terrain)
+		planet_terrain.build(float(body.visual_radius), radial, _terrain_seed(chosen), Color(body.color).lerp(Color("7d8174"), 0.55))
+		flight_frame.track(planet_terrain, flight_origin, SectorPosition.new(Vector3i.ZERO, Vector3(body.position) + planet_terrain.anchor))
+
+func _try_planet_landing() -> bool:
+	if terrain_planet < 0 or not is_instance_valid(planet_terrain): return false
+	var center: Variant = _planet_center(terrain_planet)
+	if center == null: return false
+	var up: Vector3 = (pilot.position - center).normalized()
+	var body: Dictionary = world.planets[terrain_planet]
+	var height: float = PlanetTerrain.surface_height(up, _terrain_seed(terrain_planet))
+	var altitude: float = pilot.position.distance_to(center) - float(body.visual_radius) - height
+	if altitude > 35: return false
+	if session.connected:
+		notify("Leave the current multiplayer visit before walking a planetary surface.")
+		return true
+	if pilot.velocity.length() > 20:
+		notify("Reduce speed below 20 m/s for surface landing.")
+		return true
+	manual_planet = terrain_planet
+	landed_ship_normal = up
+	landed_ship_address = SectorPosition.new(Vector3i.ZERO, Vector3(body.position) + up * (float(body.visual_radius) + height))
+	var tangent := up.cross(Vector3.FORWARD).normalized()
+	if tangent.length_squared() < 0.1: tangent = up.cross(Vector3.RIGHT).normalized()
+	var stand_up: Vector3 = (up * float(body.visual_radius) + tangent * 13).normalized()
+	var stand_height: float = PlanetTerrain.surface_height(stand_up, _terrain_seed(manual_planet))
+	pilot.set_flight(false)
+	pilot.teleport(center + stand_up * (float(body.visual_radius) + stand_height + 0.5))
+	pilot.set_walk_up(stand_up)
+	docked_station = -1
+	rebuild_player_ship()
+	save_commander(false)
+	notify("Landed on %s. Walk the terrain; return to your ship to lift off." % body.name)
+	return true
+
+func approach_planet_surface(index: int) -> void:
+	if index < 0 or index >= world.planets.size(): return
+	var body: Dictionary = world.planets[index]
+	var center: Variant = _planet_center(index)
+	var up: Vector3 = (pilot.position - center).normalized() if center != null else Vector3.BACK
+	var height: float = PlanetTerrain.surface_height(up, _terrain_seed(index))
+	cruise_system_to(Vector3(body.position) + up * (float(body.visual_radius) + height + 25))
 
 func _clear_actors() -> void:
 	for actor in actors:
@@ -370,7 +497,9 @@ func rebuild_player_ship() -> void:
 		high = high.max(cell)
 	var center := (low + high) * 0.5 * ShipVisual.CELL_SIZE
 	var bottom := (high.y - low.y) * 0.5 * ShipVisual.CELL_SIZE + 1.28
-	ship_display.position = _ship_pad() + Vector3(0, bottom + 0.7, 0)
+	var pad_up: Vector3 = landed_ship_normal if manual_planet >= 0 else Vector3.UP
+	ship_display.position = _ship_pad() + pad_up * (bottom + 0.7)
+	ship_display.basis = Basis(Quaternion(Vector3.UP, pad_up))
 	for module: Dictionary in state.ship_modules:
 		if float(module.y) != low.y: continue
 		var cell := Vector3(module.x, module.y, module.z) * ShipVisual.CELL_SIZE - center
@@ -415,6 +544,9 @@ func _station_node(index: int) -> Node3D:
 	return null
 
 func _ship_pad() -> Vector3:
+	if manual_planet >= 0 and landed_ship_address != null:
+		var point: Variant = landed_ship_address.relative_to(flight_origin, 60000)
+		if point != null: return point
 	var station := _station_node(docked_station)
 	return station.to_global(station.dock_position) if station != null else world.to_global(Vector3(0, 0, -22))
 
@@ -597,6 +729,7 @@ func _interact() -> void:
 	if jump_charge > 0: return
 	if pilot.flying:
 		if _dock_owned_station(): return
+		if _try_planet_landing(): return
 		if bool(world.get_meta("spatial_culled", false)) or pilot.position.distance_to(world.to_global(world.launch_position)) > 250:
 			notify("Approach the orbital dock to within 250 m.")
 			return
@@ -614,6 +747,17 @@ func _interact() -> void:
 		return
 	if pilot.position.distance_to(_ship_pad()) > 20:
 		notify("Approach your ship on the landing pad to board.")
+		return
+	if manual_planet >= 0:
+		var departure: Vector3 = _ship_pad() + landed_ship_normal * 25
+		manual_planet = -1
+		landed_ship_address = null
+		pilot.set_flight(true)
+		pilot.teleport(departure)
+		pilot.reset_view()
+		ship_display.hide()
+		save_commander(false)
+		notify("Lift-off complete. Manual flight control restored.")
 		return
 	if surface_index >= 0:
 		_build_system()
@@ -672,6 +816,9 @@ func land(planet_index: int) -> void:
 		notify("Surface excursions require leaving the current multiplayer visit.")
 		return
 	_clear_actors()
+	_clear_planet_terrain()
+	manual_planet = -1
+	landed_ship_address = null
 	flight_frame.clear()
 	flight_origin = SectorPosition.new()
 	world.position = Vector3.ZERO
@@ -705,6 +852,7 @@ func pay_fines() -> void:
 
 func location_title() -> String:
 	if aboard: return "Ship interior / deck %d" % interior_deck
+	if manual_planet >= 0: return str(world.planets[manual_planet].name) + " surface"
 	if surface_index >= 0 and surface_index < world.planets.size(): return str(world.planets[surface_index].name) + " colony"
 	if not pilot.flying and docked_station >= 0: return str(state.stations[docked_station].name)
 	return "Free flight" if pilot.flying else "Orbital concourse"
@@ -737,6 +885,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 				var index: int = interior.decks.find(interior_deck)
 				index = clampi(index + (1 if event.keycode == KEY_PAGEUP else -1), 0, interior.decks.size() - 1)
 				interior_deck = interior.decks[index]
+				pilot.set_walk_up(Vector3.UP)
 				pilot.teleport(interior.spawn_on_deck(interior_deck))
 				notify("Lift arrived at deck %d." % interior_deck)
 		KEY_E:
@@ -750,6 +899,7 @@ func _process(delta: float) -> void:
 	if home_state != null and not session.connected: _return_home()
 	_register_spatial_nodes()
 	_rebase_flight()
+	_update_planet_terrain()
 	if cruise_address != null:
 		if pilot.autopilot_active: pilot.autopilot_target = _cruise_point(cruise_address)
 		else: cruise_address = null
@@ -768,7 +918,7 @@ func _process(delta: float) -> void:
 	if not ui_open and jump_charge <= 0:
 		shield_delay -= delta
 		if shield_delay <= 0: state.shield = minf(float(_last_stats.get("max_shield", 100)), state.shield + delta * 5)
-		if not pilot.flying:
+		if not pilot.flying and manual_planet < 0:
 			var safe_spawn: Vector3 = world.to_global(world.spawn_position)
 			var dock := _station_node(docked_station)
 			if dock != null: safe_spawn = dock.to_global(dock.stand_position)
@@ -813,7 +963,7 @@ func load_commander() -> void:
 	apply_ship_stats()
 	_restore_flight_location()
 	open_menu()
-	notify("Commander restored at the saved flight location." if pilot.flying else "Commander restored at the orbital station.")
+	notify("Commander restored on " + location_title() + "." if manual_planet >= 0 else ("Commander restored at the saved flight location." if pilot.flying else "Commander restored at the orbital station."))
 
 func quit_game() -> void:
 	if home_state != null:
@@ -1105,6 +1255,8 @@ func enter_interior() -> void:
 	return_position = pilot.position
 	return_flying = pilot.flying
 	return_view = Vector3(pilot.camera.rotation.x, pilot.rotation.y, pilot.camera.rotation.z)
+	return_basis = pilot.basis
+	return_up = pilot.up_direction
 	interior = ShipInterior.new()
 	add_child(interior)
 	interior.position = Vector3(0, 6000, 0)
@@ -1112,6 +1264,7 @@ func enter_interior() -> void:
 	aboard = true
 	interior_deck = 0 if 0 in interior.decks else interior.decks[0]
 	pilot.set_flight(false)
+	pilot.set_walk_up(Vector3.UP)
 	pilot.teleport(interior.spawn_on_deck(interior_deck))
 	pilot.reset_view()
 	close_menu()
@@ -1125,6 +1278,8 @@ func exit_interior() -> void:
 	pilot.set_flight(return_flying)
 	pilot.teleport(return_position)
 	pilot.restore_view(return_view)
+	pilot.set_walk_up(return_up)
+	pilot.basis = return_basis
 	close_menu()
 
 func _copy_carried_ship(source: GameState, destination: GameState) -> void:

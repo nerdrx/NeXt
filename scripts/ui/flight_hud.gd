@@ -55,6 +55,17 @@ func _draw() -> void:
 	_word(Vector2(w * 0.5 - 260, h - 24), "TAB  Command    E  Interact / dock    J  Navigation    F5  Save", 14, InterfaceTheme.MUTED)
 	if pilot.flying:
 		_draw_radar(Vector2(w - 130, 220))
+		if game.terrain_planet >= 0:
+			var body: Dictionary = game.world.planets[game.terrain_planet]
+			var planet_center: Variant = game._planet_center(game.terrain_planet)
+			if planet_center != null:
+				var up: Vector3 = (pilot.position - planet_center).normalized()
+				var altitude: float = pilot.position.distance_to(planet_center) - float(body.visual_radius) - PlanetTerrain.surface_height(up, game._terrain_seed(game.terrain_planet))
+				_word(Vector2(w * 0.5 - 180, h - 120), "%s   ALT %d m" % [str(body.name).to_upper(), maxi(0, int(altitude))], 16, InterfaceTheme.CYAN)
+				var landing_hint: String = "DESCEND BELOW 35 m TO LAND"
+				if altitude <= 35:
+					landing_hint = "REDUCE SPEED BELOW 20 m/s" if pilot.velocity.length() > 20 else "[E] LAND ON SURFACE"
+				_word(Vector2(w * 0.5 - 180, h - 90), landing_hint, 16, InterfaceTheme.CYAN)
 		if not bool(game.world.get_meta("spatial_culled", false)):
 			_draw_marker(game.world.to_global(Vector3(0, 12, -70)), "ORBITAL DOCK", InterfaceTheme.CYAN, pilot.camera)
 		for actor: Node3D in game.actors:
