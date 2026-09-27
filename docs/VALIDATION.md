@@ -279,3 +279,41 @@ The Windows export containing flight safety completed normal-entrypoint Proton
 smoke (`NEXT_INTEGRATION_OK`). The specific physical crash/rescue check was run
 natively, including hidden Vulkan; the normal Proton tour is regression coverage.
 The known SDR warning remains.
+
+
+## Modular player flight collision
+
+Configured player ships now use a box per occupied 2.8 m module cell, centred with
+the same bounds as ShipVisual. Gaps are preserved. Collision orientation follows
+the flight camera's pitch and roll under the pilot's yaw; camera translation and
+shake do not move the hull. Walking switches back to the capsule. Geometry rebuilds
+only when module cells change, and physics-callback changes are deferred while
+movement waits for the new shapes. This supersedes the capsule-only limitation
+for configured ships in the preceding flight safety update.
+
+Planetary route obstacles include the conservative hull radius. Surface approach
+and liftoff heights grow for larger ships, as does the disembarkation offset.
+The current surface port rejects module spans above 42 m in either horizontal
+axis. Builder edits and saved-design loading rebuild the actual collision geometry.
+The large-design test uses valid save-supported cells beyond the current builder
+UI's smaller grid; the UI construction limits have not changed in this increment.
+
+Main-scene checks pass for geometry save/restore, higher large-ship approach, port
+size rejection and disembark clearance. Existing controls, crash/rescue, ENet PvP
+and planetary cruise checks pass (39.00 m minimum planet clearance in the cruise
+fixture). Hidden Gamescope/Vulkan planetary walking, interior return and surface
+save/load pass after flight/walk collision switching.
+
+The colliders approximate module volumes rather than final decorative geometry.
+Rotation is updated discretely, without a continuous rotational sweep. Existing
+collision masks still govern contact: this does not add authoritative multiplayer
+ramming or NPC ship-to-ship rigid-body physics. Station docking for arbitrary
+capital-ship sizes and final performance targets remain unfinished.
+
+The physical shape test passes for a wing contacting a wall outside the old
+capsule, roll-dependent wall contact, preserved centre gaps, removed-wing
+clearance, walking through a narrow doorway and cruise's modular-body sweep.
+The Windows export reached `NEXT_INTEGRATION_OK` under hidden Proton; the known
+SDR warning remains.
+The Proton/Gamescope wrapper again required timeout cleanup (exit 137) after the
+game checks completed.

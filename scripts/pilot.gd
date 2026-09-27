@@ -28,18 +28,25 @@ var _shake: float = 0.0
 var _roll: float = 0.0
 var _look_sway: Vector2 = Vector2.ZERO
 var _flight_impact_cooldown: float = 0.0
+var hull_radius: float = 0.9
+var _walk_shape: CollisionShape3D
+var _module_shapes: Array[CollisionShape3D] = []
+var _module_centers: Array[Vector3] = []
+var _module_collision_hash: String = ""
+var _collision_update_pending: bool = false
+var _has_configured_ship: bool = false
 
 
 func _ready() -> void:
 	collision_layer = 2
 	collision_mask = 1
-	var capsule := CollisionShape3D.new()
+	_walk_shape = CollisionShape3D.new()
 	var capsule_shape := CapsuleShape3D.new()
 	capsule_shape.radius = 0.38
 	capsule_shape.height = 1.8
-	capsule.shape = capsule_shape
-	capsule.position.y = 0.9
-	add_child(capsule)
+	_walk_shape.shape = capsule_shape
+	_walk_shape.position.y = 0.9
+	add_child(_walk_shape)
 
 	camera = Camera3D.new()
 	camera.position.y = 1.55
@@ -83,6 +90,10 @@ func _physics_process(delta: float) -> void:
 	if not enabled:
 		velocity = Vector3.ZERO
 		return
+	if _collision_update_pending:
+		velocity = Vector3.ZERO
+		return
+	_update_module_collision_basis()
 	if flying:
 		_fly(delta)
 	else:
@@ -148,6 +159,7 @@ func _fly(delta: float) -> void:
 	if not _flight_velocity.is_finite():
 		_flight_velocity = Vector3.ZERO
 	if autopilot_active:
+		_update_module_collision_basis()
 		var remaining := (autopilot_target - global_position).length()
 		var lookahead := minf(maxf(5.0, _flight_velocity.length() * 0.8), remaining)
 		if lookahead > 0.0 and _flight_velocity.length_squared() > 0.0 and test_move(global_transform, _flight_velocity.normalized() * lookahead):
@@ -164,6 +176,7 @@ func _fly(delta: float) -> void:
 	else:
 		_roll = move_toward(_roll, 0.0, delta * 0.8)
 	camera.rotation.z = _roll
+	_update_module_collision_basis()
 	move_and_slide()
 	var incoming := _flight_velocity
 	_flight_velocity = velocity
@@ -227,6 +240,109 @@ func set_flight(value: bool) -> void:
 		_gun.visible = not flying
 	if camera != null:
 		camera.rotation.x = _pitch
+	_sync_collision_mode()
+
+
+func configure_ship_collision(modules: Array) -> void:
+	_has_configured_ship = not modules.is_empty()
+	var cells: Array[Vector3i] = []
+	for module: Dictionary in modules:
+		var cell := Vector3i(int(module.x), int(module.y), int(module.z))
+		if cell not in cells:
+			cells.append(cell)
+	cells.sort()
+	var keys: Array[String] = []
+	for cell: Vector3i in cells:
+		keys.append("%d:%d:%d" % [cell.x, cell.y, cell.z])
+	keys.sort()
+	var signature := ",".join(keys)
+	if signature == _module_collision_hash:
+		return
+	_module_collision_hash = signature
+	hull_radius = 0.9
+	if not cells.is_empty():
+		var low := cells[0]
+		var high := cells[0]
+		for cell: Vector3i in cells:
+			low = Vector3i(mini(low.x, cell.x), mini(low.y, cell.y), mini(low.z, cell.z))
+			high = Vector3i(maxi(high.x, cell.x), maxi(high.y, cell.y), maxi(high.z, cell.z))
+		var center := (Vector3(low) + Vector3(high)) * 0.5 * ShipVisual.CELL_SIZE
+		for cell: Vector3i in cells:
+			var p := Vector3(cell) * ShipVisual.CELL_SIZE - center
+			var half_cell := ShipVisual.CELL_SIZE * 0.5
+			for x in [-half_cell, half_cell]:
+				for y in [-half_cell, half_cell]:
+					for z in [-half_cell, half_cell]:
+						hull_radius = maxf(hull_radius, (p + Vector3(x, y, z)).length())
+	_collision_update_pending = true
+	_queue_collision_update(cells, cells.is_empty())
+
+
+func _queue_collision_update(cells: Array[Vector3i], clear: bool) -> void:
+	_collision_update_pending = true
+	if Engine.is_in_physics_frame():
+		_apply_ship_collision.call_deferred(cells, clear)
+	else:
+		_apply_ship_collision(cells, clear)
+
+
+func _apply_ship_collision(cells: Array[Vector3i], clear: bool) -> void:
+	for shape: CollisionShape3D in _module_shapes:
+		remove_child(shape)
+		shape.queue_free()
+	_module_shapes.clear()
+	_module_centers.clear()
+	if not clear:
+		var low := cells[0]
+		var high := cells[0]
+		for cell: Vector3i in cells:
+			low = Vector3i(mini(low.x, cell.x), mini(low.y, cell.y), mini(low.z, cell.z))
+			high = Vector3i(maxi(high.x, cell.x), maxi(high.y, cell.y), maxi(high.z, cell.z))
+		var center := (Vector3(low) + Vector3(high)) * 0.5 * ShipVisual.CELL_SIZE
+		for cell: Vector3i in cells:
+			var shape := CollisionShape3D.new()
+			var box := BoxShape3D.new()
+			box.size = Vector3.ONE * ShipVisual.CELL_SIZE
+			shape.shape = box
+			_module_centers.append(Vector3(cell) * ShipVisual.CELL_SIZE - center)
+			shape.position = _module_centers[-1]
+			shape.disabled = not flying
+			add_child(shape)
+			_module_shapes.append(shape)
+	_collision_update_pending = false
+	_sync_collision_mode()
+	_update_module_collision_basis()
+
+
+func _sync_collision_mode() -> void:
+	if _walk_shape == null:
+		return
+	if Engine.is_in_physics_frame():
+		_collision_update_pending = true
+		_sync_collision_mode_deferred.call_deferred()
+	else:
+		_apply_collision_mode()
+
+
+func _sync_collision_mode_deferred() -> void:
+	_apply_collision_mode()
+	_collision_update_pending = false
+
+
+func _apply_collision_mode() -> void:
+	_walk_shape.disabled = flying and _has_configured_ship
+	for shape: CollisionShape3D in _module_shapes:
+		shape.disabled = not flying
+
+
+func _update_module_collision_basis() -> void:
+	if camera == null:
+		return
+	var basis := camera.basis
+	for index in _module_shapes.size():
+		var shape: CollisionShape3D = _module_shapes[index]
+		shape.basis = basis
+		shape.position = basis * _module_centers[index]
 
 
 func set_walk_up(up: Vector3) -> void:

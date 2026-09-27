@@ -65,3 +65,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 
 - [ ] Replace the four procedural boulder meshes in `scripts/planet_geology.gd` with authored rock variants and matching convex hulls. Preserve stable placement IDs, radial transforms, clearance bounds, north-port reserve and ocean filtering. Small pebbles have no collision; larger boulders do.
 - [ ] Replace/refine `shaders/terrain_rock.gdshader` mineral layers and grain with authored biome material sets. Preserve planet-local sampling and distance filtering so streamed patches and origin shifts do not move the surface pattern.
+
+- [ ] Keep replacement ship assets aligned to the 2.8 m module grid and centred module bounds. Player flight now uses one box collider per occupied module; decorative panels/engines outside those cells need authored collision extensions when their final geometry is available. Walking retains a separate capsule.

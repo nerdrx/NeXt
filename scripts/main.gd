@@ -268,7 +268,7 @@ func _plan_cruise_leg() -> bool:
 	var obstacles: Array[Dictionary] = []
 	for index in world.planets.size():
 		var center: Variant = _planet_center(index)
-		if center != null: obstacles.append({"center": center, "radius": float(world.planets[index].visual_radius)})
+		if center != null: obstacles.append({"center": center, "radius": float(world.planets[index].visual_radius) + pilot.hull_radius})
 	var route: Dictionary = CruiseRoute.plan(pilot.position, _cruise_point(cruise_address), obstacles)
 	if not bool(route.ok):
 		pilot.cancel_autopilot()
@@ -329,17 +329,30 @@ func _rebuild_colonies() -> void:
 		flight_frame.track(colony, flight_origin, SectorPosition.new(Vector3i.ZERO, Vector3(body.position) + Vector3.UP * (float(body.visual_radius) + 14.0)))
 		colonies.append(colony)
 
+func _surface_approach_height() -> float:
+	return maxf(25.0, pilot.hull_radius + 15.0)
+
 func approach_colony(index: int) -> void:
 	if index < 0 or index >= world.planets.size(): return
 	var body: Dictionary = world.planets[index]
-	cruise_system_to(Vector3(body.position) + Vector3.UP * (float(body.visual_radius) + 39.0))
+	cruise_system_to(Vector3(body.position) + Vector3.UP * (float(body.visual_radius) + 14.0 + _surface_approach_height()))
 
 func _try_colony_landing() -> bool:
 	for index in colonies.size():
 		var colony: Node3D = colonies[index]
 		if bool(colony.get_meta("spatial_culled", false)): continue
 		var pad: Vector3 = colony.to_global(colony.landing_position)
-		if pilot.position.distance_to(pad + colony.basis.y * 25) > 40: continue
+		if pilot.position.distance_to(pad + colony.basis.y * _surface_approach_height()) > 40: continue
+		var low := Vector3(INF, INF, INF)
+		var high := Vector3(-INF, -INF, -INF)
+		for module: Dictionary in state.ship_modules:
+			var cell := Vector3(module.x, module.y, module.z)
+			low = low.min(cell)
+			high = high.max(cell)
+		var size := (high - low + Vector3.ONE) * ShipVisual.CELL_SIZE
+		if size.x > 42.0 or size.z > 42.0:
+			notify("Ship exceeds this port's landing pad. Find a clear planetary site.")
+			return true
 		if session.connected:
 			notify("Leave the current multiplayer visit before docking at a surface port.")
 			return true
@@ -450,7 +463,7 @@ func _try_planet_landing() -> bool:
 	var body: Dictionary = world.planets[terrain_planet]
 	var height: float = PlanetTerrain.surface_height(up, _terrain_seed(terrain_planet))
 	var altitude: float = pilot.position.distance_to(center) - float(body.visual_radius) - height
-	if altitude > 35: return false
+	if altitude > maxf(35.0, _surface_approach_height() + 10.0): return false
 	var site_issue := _surface_site_issue(terrain_planet, up)
 	if not site_issue.is_empty():
 		notify(site_issue)
@@ -461,9 +474,7 @@ func _try_planet_landing() -> bool:
 	if pilot.velocity.length() > 20:
 		notify("Reduce speed below 20 m/s for surface landing.")
 		return true
-	var tangent := up.cross(Vector3.FORWARD).normalized()
-	if tangent.length_squared() < 0.1: tangent = up.cross(Vector3.RIGHT).normalized()
-	var stand_up: Vector3 = (up * float(body.visual_radius) + tangent * 13).normalized()
+	var stand_up := _surface_disembark_direction(up, float(body.visual_radius))
 	var stand_height: float = PlanetTerrain.surface_height(stand_up, _terrain_seed(terrain_planet))
 	manual_planet = terrain_planet
 	landed_ship_normal = up
@@ -477,6 +488,12 @@ func _try_planet_landing() -> bool:
 	notify("Landed on %s. Walk the terrain; return to your ship to lift off." % body.name)
 	return true
 
+func _surface_disembark_direction(up: Vector3, radius: float) -> Vector3:
+	var tangent := up.cross(Vector3.FORWARD).normalized()
+	if tangent.length_squared() < 0.1: tangent = up.cross(Vector3.RIGHT).normalized()
+	var distance := minf(radius * 0.8, maxf(13.0, pilot.hull_radius + 3.0))
+	return (up * sqrt(radius * radius - distance * distance) + tangent * distance).normalized()
+
 func _surface_site_issue(index: int, up: Vector3) -> String:
 	var body: Dictionary = world.planets[index]
 	var radius := float(body.visual_radius)
@@ -485,9 +502,7 @@ func _surface_site_issue(index: int, up: Vector3) -> String:
 	var height := PlanetTerrain.surface_height(up, seed)
 	if ocean and height < PlanetHeightField.SEA_LEVEL + 0.05:
 		return "Water below. Find dry ground or use a surface port."
-	var tangent := up.cross(Vector3.FORWARD).normalized()
-	if tangent.length_squared() < 0.1: tangent = up.cross(Vector3.RIGHT).normalized()
-	var foot_up := (up * radius + tangent * 13).normalized()
+	var foot_up := _surface_disembark_direction(up, radius)
 	if ocean and PlanetTerrain.surface_height(foot_up, seed) < PlanetHeightField.SEA_LEVEL + 0.05:
 		return "Shoreline too close. Move farther inland before landing."
 	var low := Vector3(INF, INF, INF)
@@ -498,7 +513,7 @@ func _surface_site_issue(index: int, up: Vector3) -> String:
 		high = high.max(cell)
 	var size := (high - low + Vector3.ONE) * ShipVisual.CELL_SIZE
 	var ship_clearance := maxf(3.0, Vector2(size.x, size.z).length() * 0.5 + 1.0)
-	for rock: Dictionary in PlanetGeology.placements(radius, up, ship_clearance + 20.0, seed, ocean):
+	for rock: Dictionary in PlanetGeology.placements(radius, up, maxf(ship_clearance + 20.0, pilot.hull_radius + 10.0), seed, ocean):
 		var rock_up := Vector3(rock.position).normalized()
 		var clearance := float(rock.clearance_radius)
 		if rock_up.distance_to(up) * radius < ship_clearance + clearance or rock_up.distance_to(foot_up) * radius < 1.0 + clearance:
@@ -527,7 +542,7 @@ func approach_planet_surface(index: int) -> void:
 		notify("No clear landing site found. Approach a surface port instead.")
 		return
 	var height: float = PlanetTerrain.surface_height(up, _terrain_seed(index))
-	cruise_system_to(Vector3(body.position) + up * (float(body.visual_radius) + height + 25))
+	cruise_system_to(Vector3(body.position) + up * (float(body.visual_radius) + height + _surface_approach_height()))
 
 func _clear_actors() -> void:
 	for actor in actors:
@@ -770,6 +785,7 @@ func rebuild_player_ship() -> void:
 	flight_frame.track(ship_display, flight_origin)
 
 func apply_ship_stats() -> void:
+	pilot.configure_ship_collision(state.ship_modules)
 	_last_stats = state.ship_stats()
 	pilot.flight_speed = float(_last_stats.speed)
 	state.hull = minf(state.hull, float(_last_stats.max_hull))
@@ -1020,7 +1036,7 @@ func _interact() -> void:
 		notify("Approach your ship on the landing pad to board.")
 		return
 	if manual_planet >= 0:
-		var departure: Vector3 = _ship_pad() + landed_ship_normal * 25
+		var departure: Vector3 = _ship_pad() + landed_ship_normal * _surface_approach_height()
 		manual_planet = -1
 		landed_ship_address = null
 		pilot.set_flight(true)
