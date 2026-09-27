@@ -238,16 +238,17 @@ func publish_pose(position: Vector3, rotation: Vector3, origin_data: Dictionary 
 	if not normalized.ok: return
 	var normalized_layout := _normalize_layout(ship_layout, normalized.modules)
 	if not normalized_layout.ok: return
+	var id := multiplayer.get_unique_id()
+	var profile: Dictionary = presence.get(id, _make_presence(Vector3.ZERO, Vector3.ZERO, normalized.modules, normalized_layout.layout, display_name))
+	if not _same_loadout(profile, normalized.modules, normalized_layout.layout): return
 	ship_modules = normalized.modules
 	ship_layout = normalized_layout.layout
 	_local_flying = flying
-	if presence.has(multiplayer.get_unique_id()): presence[multiplayer.get_unique_id()].flying = flying
+	if presence.has(id): presence[id].flying = flying
 	var now := Time.get_ticks_msec()
 	if now - _last_pose_msec < 50:
 		return
 	_last_pose_msec = now
-	var id := multiplayer.get_unique_id()
-	var profile: Dictionary = presence.get(id, _make_presence(Vector3.ZERO, Vector3.ZERO, ship_modules, ship_layout, display_name))
 	profile.flying = flying
 	profile.position = position
 	profile.rotation = rotation
@@ -371,11 +372,12 @@ func _rpc_publish_pose(position: Vector3, rotation: Vector3, raw_modules: Array,
 	if not normalized.ok: return
 	var normalized_layout := _normalize_layout(raw_layout, normalized.modules)
 	if not normalized_layout.ok: return
+	var profile: Dictionary = presence[sender]
+	if not _same_loadout(profile, normalized.modules, normalized_layout.layout): return
 	var now := Time.get_ticks_msec()
 	if now - int(_last_remote_pose_msec.get(sender, 0)) < 50:
 		return
 	_last_remote_pose_msec[sender] = now
-	var profile: Dictionary = presence[sender]
 	profile.flying = flying
 	profile.position = position
 	profile.rotation = rotation
@@ -385,6 +387,19 @@ func _rpc_publish_pose(position: Vector3, rotation: Vector3, raw_modules: Array,
 	presence[sender] = profile
 	_broadcast_presence(sender, profile)
 	peers_changed.emit()
+
+
+func _same_loadout(profile: Dictionary, modules: Array, layout: Dictionary) -> bool:
+	if not profile.has("ship_modules") or not profile.has("ship_layout") or profile.ship_layout != layout:
+		return false
+	var saved: Dictionary = {}
+	for module: Dictionary in profile.ship_modules:
+		saved[Vector3i(int(module.x), int(module.y), int(module.z))] = str(module.kind)
+	if saved.size() != modules.size(): return false
+	for module: Dictionary in modules:
+		if saved.get(Vector3i(int(module.x), int(module.y), int(module.z)), "") != str(module.kind):
+			return false
+	return true
 
 
 @rpc("authority", "call_remote", "reliable")

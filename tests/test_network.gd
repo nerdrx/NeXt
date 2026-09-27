@@ -107,8 +107,8 @@ func _run_host() -> void:
 		return guest_profile.get("position", Vector3.ZERO).is_equal_approx(Vector3(13, 4, 5)) and guest_profile.get("address", {}).get("sector", []) == [10, -2, 3] and guest_profile.get("address", {}).get("local", []) == [14.0, 6.0, 8.0], 6.0):
 		_fail("guest pose was not relayed after shared travel")
 		return
-	if _guest_profile().get("ship_layout", {}).get("panels", {}).get("0,0,0", {}).get("-x", "") != "armored":
-		_fail("edited guest panel did not reach the host with pose presence")
+	if _guest_profile().get("ship_layout", {}).get("panels", {}).get("0,0,0", {}).get("-x", "") != "window":
+		_fail("joined guest panel changed during the session")
 		return
 	if not await _wait_for(func() -> bool: return saw_one_guest_depart, 6.0):
 		_fail("leaving guest was not removed from host presence")
@@ -220,8 +220,7 @@ func _on_world_joined(index: int) -> void:
 	if index == SYSTEM:
 		travel_received = true
 		if session.display_name == "Guestscript":
-			session.ship_layout = GUEST_UPDATED_LAYOUT.duplicate(true)
-			session._rpc_publish_pose.rpc_id(1, Vector3(13, 4, 5), Vector3.ZERO, session.ship_modules.duplicate(true), session.ship_layout.duplicate(true), INVALID_ADDRESS)
+			session._rpc_publish_pose.rpc_id(1, Vector3(13, 4, 5), Vector3.ZERO, session.ship_modules.duplicate(true), GUEST_UPDATED_LAYOUT.duplicate(true), INVALID_ADDRESS)
 			var origin := SectorPosition.new(Vector3i(10, -2, 3), Vector3(1, 2, 3))
 			session.publish_pose(Vector3(13, 4, 5), Vector3.ZERO, origin.to_save())
 

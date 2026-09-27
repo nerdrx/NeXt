@@ -131,3 +131,10 @@ adopts the host's current epoch even when its local visit save is older; the
 home world's epoch remains paused and is restored on return. Economy calendars
 and the existing isolated visitor finances remain local. Both peers need the
 same build for the extended RPC payloads.
+
+
+## Joined ship designs
+
+The host fixes each participant's normalized module grid and room/hull layout at join. Pose packets may update position, orientation and flight status but cannot replace that design, even while grounded or opted out of PvP. A packet attempting a different design is rejected before changing presence or refreshing its timestamp. The host's own publication path follows the same rule. System travel does not unlock refits; leave, refit and reconnect to negotiate a new design. This matches the existing ship architect restriction during visits.
+
+This closes mid-session weapon and hitbox replacement through pose messages. It does not prove ownership of a joining design, validate movement authority or make health and rescue authoritative. Those require additional host-owned state and services.

@@ -920,3 +920,10 @@ The focused NPC thermal check uses live actors to verify thrust heating, coastin
 Station supply arrival, local trade, fleet flight persistence, contact search, thermal detection and obstacle avoidance regressions pass. Contact search previously assumed near-instant reversal after expiry; the updated check requires acceleration toward home followed by reversal after braking. Native main-entrypoint integration verifies captured and restored fleet temperature alongside its physical damage check. Distant NPC thermal state is frozen and generic scene regeneration still resets unowned ships.
 
 Windows/Proton main-entrypoint integration passed under hidden Gamescope. The exported fleet screen was inspected and the drive-temperature line fits. The usual SDR warning remained; the wrapper needed timeout cleanup after NEXT_INTEGRATION_OK (exit 137). No script/shader failures appeared. The Windows ZIP was rebuilt. No art assets changed.
+
+
+## Session loadout authority
+
+The existing multi-process network test now verifies that the joined panel layout remains unchanged across host travel; it still checks normal pose relay, world identity and departures. PvP transport and actual-scene gameplay regressions pass, including consent, occlusion, shield/hull effects and hit feedback. This is a protocol boundary for joined designs, not authoritative health or ownership verification. The preceding freight-recovery commit completed both public CI runs successfully.
+
+NETWORK_LOADOUT_OK verifies separate module-only and layout-only mutation attempts through both normal publishing and forged ENet RPCs, unchanged host timestamps on rejection, harmless module reordering, subsequent normal pose relay, bilateral PvP and fresh-design negotiation after reconnect. All pass natively. Windows export succeeds, but direct exported-script Proton attempts did not reach a test marker before their bounded timeout; Windows protocol execution remains unverified for this increment. Visual drafts are separate uncommitted work and were not accepted by the owner.
