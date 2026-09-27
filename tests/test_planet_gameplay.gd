@@ -43,6 +43,50 @@ func _run() -> void:
 	if not _check(game.pilot.position.distance_to(start) > 1.0, "walk traverses terrain"): return
 	await create_timer(0.3).timeout
 	if not _check(game.pilot.is_on_floor(), "walking maintains terrain contact"): return
+	# Exercise real CharacterBody motion across a streamed patch boundary. Main
+	# processing stays disabled for isolation, so perform its terrain update here.
+	var first_patch: int = game.planet_terrain.get_instance_id()
+	var patch_replaced := false
+	var unsupported_time := 0.0
+	var longest_unsupported := 0.0
+	var previous_position: Vector3 = game.pilot.position
+	var walked_distance := 0.0
+	Input.action_press("move_forward")
+	Input.action_press("boost")
+	for frame in 480:
+		game._update_planet_terrain()
+		await physics_frame
+		var step: float = game.pilot.position.distance_to(previous_position)
+		walked_distance += step
+		if not _check(step < 1.0, "terrain refresh does not teleport walking pilot"): return
+		previous_position = game.pilot.position
+		patch_replaced = patch_replaced or game.planet_terrain.get_instance_id() != first_patch
+		unsupported_time = 0.0 if game.pilot.is_on_floor() else unsupported_time + 1.0 / Engine.physics_ticks_per_second
+		longest_unsupported = maxf(longest_unsupported, unsupported_time)
+		var offset: Vector3 = game.pilot.position - center
+		var expected_height: float = PlanetTerrain.surface_height(offset.normalized(), game._terrain_seed(0))
+		if not _check(offset.length() >= radius + expected_height - 1.0, "streamed terrain prevents falling through ground"): return
+	Input.action_release("move_forward")
+	Input.action_release("boost")
+	if not _check(walked_distance > 70.0 and patch_replaced, "walking crosses terrain refresh boundary"): return
+	if not _check(longest_unsupported < 0.35, "patch replacement preserves ground contact"): return
+	await create_timer(0.3).timeout
+	game._update_planet_terrain()
+	# Interior transitions must restore radial gravity and heading on the planet.
+	game.state.credits = 50000
+	if not _check(game.state.add_module("habitat", Vector3i(0, 0, 3)).is_empty(), "install walkable habitat"): return
+	game.apply_ship_stats()
+	var outside_position: Vector3 = game.pilot.position
+	var outside_basis: Basis = game.pilot.basis
+	var outside_up: Vector3 = game.pilot.up_direction
+	game.enter_interior()
+	if not _check(game.aboard and game.pilot.up_direction.is_equal_approx(Vector3.UP), "interior uses local deck gravity"): return
+	await create_timer(0.3).timeout
+	game.exit_interior()
+	if not _check(not game.aboard and not game.pilot.flying and game.manual_planet == 0, "interior exit restores grounded mode"): return
+	if not _check(game.pilot.position.is_equal_approx(outside_position) and game.pilot.basis.is_equal_approx(outside_basis) and game.pilot.up_direction.is_equal_approx(outside_up), "interior exit preserves radial position and orientation"): return
+	await create_timer(0.3).timeout
+	if not _check(game.pilot.is_on_floor(), "interior exit resumes surface contact"): return
 	game._update_planet_terrain()
 	game.pilot.rotate_object_local(Vector3.UP, 0.37)
 	var saved_basis: Basis = game.pilot.basis
@@ -81,7 +125,7 @@ func _run() -> void:
 	game.queue_free()
 	await process_frame
 	await process_frame
-	print("PLANET_GAMEPLAY_OK: same-scene landing, speed guard, radial terrain walking, parked ship, save restore, liftoff")
+	print("PLANET_GAMEPLAY_OK: same-scene landing, speed guard, radial terrain streaming and interior return, parked ship, save restore, liftoff")
 	quit()
 
 func _check(ok: bool, message: String) -> bool:
@@ -93,6 +137,7 @@ func _check(ok: bool, message: String) -> bool:
 
 func _cleanup() -> void:
 	Input.action_release("move_forward")
+	Input.action_release("boost")
 	game.sound.shutdown()
 	game.session.leave()
 	if FileAccess.file_exists(save_path): DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))

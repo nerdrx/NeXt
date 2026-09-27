@@ -22,16 +22,20 @@ origin only within 30 km.
 Cruise destinations retain absolute addresses across rebases. Long approaches
 use bounded forward waypoints until their target enters the local range. Orbital
 saves persist location and helm orientation (also when saving from the interior),
-and resume at rest. Ground saves still use the orbital spawn. New wrecks store
+and resume at rest. Manual planetary ground saves retain the player address, radial
+heading and a separate parked ship address. Legacy colony/dock saves use the orbital spawn. New wrecks store
 absolute addresses; older system-local wreck records remain recoverable after a
 rebase. Surface and interstellar transitions reset the local frame deliberately.
 
 ## Remaining work
 
-This removes the former 28 km flight snap-back, but does not make planets seamless
-or increase their physical sizes. Content remains the existing compact system;
+The former 28 km flight snap-back is removed. Nearby spherical planets now generate
+a curved collision patch that follows surface walking, with radial gravity and
+atmosphere fog blending during approach. Landing and liftoff stay in the orbital
+scene. This does not increase physical planet sizes or connect colony scenes.
+Content remains the existing compact system;
 there is no generated content in newly crossed empty sectors. Celestial LODs,
-planetary terrain streaming, moving reference frames and continuous atmosphere
+planet-scale terrain LOD, moving reference frames and physically based atmosphere
 entry are still required. Local actors freeze when culled; distant fleet patrols
 continue through the existing strategic simulation. Stationary scene roots can
 contain children offset from their root, so the current 60 km culling radius is

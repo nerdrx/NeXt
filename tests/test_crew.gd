@@ -24,6 +24,8 @@ func _initialize() -> void:
 	var trader: String = state.crew[0].id
 	var gunner: String = state.crew[1].id
 	var engineer: String = state.crew[2].id
+	# Stable identity gives a quiet first patrol, then a hostile remote encounter.
+	state.fleet_ships[0].id = "crew-test-ship"
 	var ship_id: String = state.fleet_ships[0].id
 	var credit_before_order: int = state.credits
 	var quote: Dictionary = orders.route_quote("ore", 9001, 5, ship_id)
@@ -69,14 +71,15 @@ func _initialize() -> void:
 	# A listed local ID is not enough during transit: only matching current-system ships are suppressed.
 	patrol_ship.system = 7918
 	state.credits = 10000
-	var report: Array[Dictionary] = []
-	var hostile_seen: bool = false
-	for i: int in range(10):
-		report = orders.tick(300, [ship_id])
-		for entry: Dictionary in report:
-			if entry.status == "hostile intercepted": hostile_seen = true
-		if hostile_seen: break
-	assert(hostile_seen and report[0].has("hull") and int(patrol.encounters) > 0, "transiting patrol still simulates encounters and hull risk")
+	var report: Array[Dictionary] = orders.tick(300, [ship_id])
+	assert(report.size() == 1 and report[0].status == "quiet patrol" and report[0].has("hull"), "transiting patrol simulates its arrival even when listed as local")
+	assert(int(patrol.encounters) == 1 and int(patrol_ship.system) == state.system_index and float(patrol_ship.hull) == local_hull)
+	report = orders.tick(300, [ship_id])
+	assert(report.size() == 1 and report[0].status == "local patrol wages paid" and int(patrol.encounters) == 1, "arrived patrol uses local combat on subsequent ticks")
+	# Without a locally simulated actor, strategic encounters must still cause damage.
+	report = orders.tick(300)
+	assert(report.size() == 1 and report[0].status == "hostile intercepted" and int(patrol.encounters) == 2, "remote patrol simulates hostile encounters")
+	assert(float(patrol_ship.hull) < local_hull and float(report[0].damage) > 0 and int(report[0].reward) > 0, "remote encounter applies hull risk and bounty")
 	state.fleet_ships[0].hull = 0.0
 	var credits_before_disabled: int = state.credits
 	var disabled_report: Array[Dictionary] = orders.tick(300)

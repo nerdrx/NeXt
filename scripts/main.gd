@@ -1223,10 +1223,34 @@ func _integration_check() -> void:
 	if not _check(flight_origin.sector.x == 1 and pilot.flying, "restore rebased flight"): return
 	close_menu()
 	await _capture("rebase-flight")
+	_build_system()
+	_clear_actors()
+	close_menu()
+	var landing_body: Dictionary = world.planets[0]
+	var landing_center: Vector3 = _planet_center(0)
+	var landing_height: float = PlanetTerrain.surface_height(Vector3.RIGHT, _terrain_seed(0))
+	pilot.set_flight(true)
+	pilot.teleport(landing_center + Vector3.RIGHT * (float(landing_body.visual_radius) + landing_height + 25))
+	_update_planet_terrain()
+	var landing_world_id: int = world.get_instance_id()
+	_interact()
+	if not _check(manual_planet == 0 and not pilot.flying and world.get_instance_id() == landing_world_id, "same-scene manual planetary landing"): return
+	await get_tree().create_timer(0.7).timeout
+	if not _check(pilot.is_on_floor() and pilot.up_direction.dot(Vector3.RIGHT) > 0.99, "radial planetary floor contact"): return
+	if not _check(save_commander(false), "save manual planetary landing"): return
+	load_commander()
+	_clear_actors()
+	close_menu()
+	if not _check(manual_planet == 0 and landed_ship_address != null and not pilot.flying, "restore manual planetary landing"): return
+	await _capture("manual-planet")
+	landing_world_id = world.get_instance_id()
+	pilot.teleport(_ship_pad() + landed_ship_normal * 2)
+	_interact()
+	if not _check(pilot.flying and manual_planet == -1 and world.get_instance_id() == landing_world_id, "same-scene planetary liftoff"): return
 	DirAccess.remove_absolute(save_path)
 	DirAccess.remove_absolute(save_path + ".bak")
 	await get_tree().create_timer(0.5).timeout
-	print("NEXT_INTEGRATION_OK: trading, stock, construction, persistent combat, save/load, hyperdrive, landing, walkable interior, crew orders, insured wreck recovery, factions, owned docks, local fleet, spatial rebasing, menu safety")
+	print("NEXT_INTEGRATION_OK: trading, stock, construction, persistent combat, save/load, hyperdrive, landing, walkable interior, crew orders, insured wreck recovery, factions, owned docks, local fleet, spatial rebasing, manual planetary landing, menu safety")
 	sound.shutdown()
 	await get_tree().process_frame
 	get_tree().quit()
