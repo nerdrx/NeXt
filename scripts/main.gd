@@ -389,6 +389,8 @@ func _terrain_seed(index: int) -> int:
 	return Universe._seed_for(state.system_index, 900 + index)
 
 func _clear_planet_terrain() -> void:
+	if terrain_planet >= 0 and is_instance_valid(world):
+		world.set_fine_terrain_patch(terrain_planet, Vector3.ZERO, 0.0, 0.0)
 	if is_instance_valid(planet_terrain):
 		remove_child(planet_terrain)
 		planet_terrain.queue_free()
@@ -425,6 +427,7 @@ func _update_planet_terrain() -> void:
 		planet_terrain = PlanetTerrain.new()
 		add_child(planet_terrain)
 		planet_terrain.build(float(body.visual_radius), radial, _terrain_seed(chosen), Color(body.color).lerp(Color("7d8174"), 0.55))
+		world.set_fine_terrain_patch(chosen, planet_terrain.normal_at_patch, float(body.visual_radius), planet_terrain.patch_extent)
 		flight_frame.track(planet_terrain, flight_origin, SectorPosition.new(Vector3i.ZERO, Vector3(body.position) + planet_terrain.anchor))
 
 func _try_planet_landing() -> bool:
@@ -436,19 +439,25 @@ func _try_planet_landing() -> bool:
 	var height: float = PlanetTerrain.surface_height(up, _terrain_seed(terrain_planet))
 	var altitude: float = pilot.position.distance_to(center) - float(body.visual_radius) - height
 	if altitude > 35: return false
+	if bool(body.get("has_ocean", false)) and height < PlanetHeightField.SEA_LEVEL + 0.05:
+		notify("Water below. Find dry ground or use a surface port.")
+		return true
 	if session.connected:
 		notify("Leave the current multiplayer visit before walking a planetary surface.")
 		return true
 	if pilot.velocity.length() > 20:
 		notify("Reduce speed below 20 m/s for surface landing.")
 		return true
-	manual_planet = terrain_planet
-	landed_ship_normal = up
-	landed_ship_address = SectorPosition.new(Vector3i.ZERO, Vector3(body.position) + up * (float(body.visual_radius) + height))
 	var tangent := up.cross(Vector3.FORWARD).normalized()
 	if tangent.length_squared() < 0.1: tangent = up.cross(Vector3.RIGHT).normalized()
 	var stand_up: Vector3 = (up * float(body.visual_radius) + tangent * 13).normalized()
-	var stand_height: float = PlanetTerrain.surface_height(stand_up, _terrain_seed(manual_planet))
+	var stand_height: float = PlanetTerrain.surface_height(stand_up, _terrain_seed(terrain_planet))
+	if bool(body.get("has_ocean", false)) and stand_height < PlanetHeightField.SEA_LEVEL + 0.05:
+		notify("Shoreline too close. Move farther inland before landing.")
+		return true
+	manual_planet = terrain_planet
+	landed_ship_normal = up
+	landed_ship_address = SectorPosition.new(Vector3i.ZERO, Vector3(body.position) + up * (float(body.visual_radius) + height))
 	pilot.set_flight(false)
 	pilot.teleport(center + stand_up * (float(body.visual_radius) + stand_height + 0.5))
 	pilot.set_walk_up(stand_up)
@@ -458,11 +467,29 @@ func _try_planet_landing() -> bool:
 	notify("Landed on %s. Walk the terrain; return to your ship to lift off." % body.name)
 	return true
 
+func _surface_landing_direction(index: int, preferred: Vector3 = Vector3.RIGHT) -> Vector3:
+	var up := preferred.normalized() if preferred.length_squared() > 0.001 else Vector3.RIGHT
+	if not bool(world.planets[index].get("has_ocean", false)): return up
+	var seed := _terrain_seed(index)
+	if PlanetTerrain.surface_height(up, seed) >= PlanetHeightField.SEA_LEVEL + 0.6: return up
+	# Deterministic broad survey; a port remains available if no dry site is found.
+	for sample_index in 128:
+		var y := 1.0 - 2.0 * (float(sample_index) + 0.5) / 128.0
+		var angle := float(sample_index) * 2.399963229728653
+		var ring := sqrt(1.0 - y * y)
+		var candidate := Vector3(cos(angle) * ring, y, sin(angle) * ring)
+		if PlanetTerrain.surface_height(candidate, seed) >= PlanetHeightField.SEA_LEVEL + 0.6: return candidate
+	return Vector3.ZERO
+
 func approach_planet_surface(index: int) -> void:
 	if index < 0 or index >= world.planets.size(): return
 	var body: Dictionary = world.planets[index]
 	var center: Variant = _planet_center(index)
 	var up: Vector3 = (pilot.position - center).normalized() if center != null else Vector3.BACK
+	up = _surface_landing_direction(index, up)
+	if up == Vector3.ZERO:
+		notify("No dry landing site found. Approach a surface port instead.")
+		return
 	var height: float = PlanetTerrain.surface_height(up, _terrain_seed(index))
 	cruise_system_to(Vector3(body.position) + up * (float(body.visual_radius) + height + 25))
 
@@ -1525,15 +1552,16 @@ func _integration_check() -> void:
 	close_menu()
 	var landing_body: Dictionary = world.planets[0]
 	var landing_center: Vector3 = _planet_center(0)
-	var landing_height: float = PlanetTerrain.surface_height(Vector3.RIGHT, _terrain_seed(0))
+	var landing_up := _surface_landing_direction(0)
+	var landing_height: float = PlanetTerrain.surface_height(landing_up, _terrain_seed(0))
 	pilot.set_flight(true)
-	pilot.teleport(landing_center + Vector3.RIGHT * (float(landing_body.visual_radius) + landing_height + 25))
+	pilot.teleport(landing_center + landing_up * (float(landing_body.visual_radius) + landing_height + 25))
 	_update_planet_terrain()
 	var landing_world_id: int = world.get_instance_id()
 	_interact()
 	if not _check(manual_planet == 0 and not pilot.flying and world.get_instance_id() == landing_world_id, "same-scene manual planetary landing"): return
 	await get_tree().create_timer(0.7).timeout
-	if not _check(pilot.is_on_floor() and pilot.up_direction.dot(Vector3.RIGHT) > 0.99, "radial planetary floor contact"): return
+	if not _check(pilot.is_on_floor() and pilot.up_direction.dot(landing_up) > 0.99, "radial planetary floor contact"): return
 	if not _check(save_commander(false), "save manual planetary landing"): return
 	load_commander()
 	_clear_actors()

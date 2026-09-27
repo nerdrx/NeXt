@@ -25,7 +25,6 @@ func build(radius: float, normal: Vector3, seed: int, tint: Color) -> void:
 	var reference := Vector3.UP if absf(_normal.dot(Vector3.UP)) < 0.95 else Vector3.FORWARD
 	var tangent := _normal.cross(reference).normalized()
 	var bitangent := _normal.cross(tangent).normalized()
-	var noise := _noise(seed)
 	var side: int = GRID + 1
 	var heights := PackedFloat32Array()
 	heights.resize(side * side)
@@ -37,7 +36,7 @@ func build(radius: float, normal: Vector3, seed: int, tint: Color) -> void:
 			var u: float = -patch_extent + float(x) * step
 			var v: float = -patch_extent + float(z) * step
 			var direction := (anchor + tangent * u + bitangent * v).normalized()
-			var height: float = _sample_height(direction, noise)
+			var height: float = PlanetHeightField.surface_height(direction, seed)
 			var index: int = z * side + x
 			heights[index] = height
 			vertices[index] = direction * (safe_radius + height) - anchor
@@ -90,22 +89,4 @@ func build(radius: float, normal: Vector3, seed: int, tint: Color) -> void:
 
 
 static func surface_height(direction: Vector3, seed: int) -> float:
-	if not direction.is_finite() or direction.length_squared() <= 0.000001:
-		return 0.0
-	return _sample_height(direction.normalized(), _noise(seed))
-
-
-static func _noise(seed: int) -> FastNoiseLite:
-	var noise := FastNoiseLite.new()
-	noise.seed = seed
-	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
-	noise.frequency = 0.035
-	noise.fractal_type = FastNoiseLite.FRACTAL_FBM
-	noise.fractal_octaves = 4
-	noise.fractal_lacunarity = 2.0
-	noise.fractal_gain = 0.48
-	return noise
-
-
-static func _sample_height(direction: Vector3, noise: FastNoiseLite) -> float:
-	return clampf((noise.get_noise_3dv(direction * 80.0) * 0.5 + 0.5) * 12.0, 0.0, 12.0)
+	return PlanetHeightField.surface_height(direction, seed)

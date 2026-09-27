@@ -128,9 +128,9 @@ approximation, not physical atmospheric scattering. Shader transforms follow the
 Native integrated smoke and hidden Gamescope gameplay checks pass. Day, night and
 side-lit planet captures were inspected; the night side is dark and the rim follows
 the directional light. A standalone capture run reported Godot texture RID leaks
-on teardown. No frame-rate target is established. Procedural orbit appearance still
-does not share a physical coastline model with walking terrain; planetary scale,
-cloud volumes and detailed surface assets remain unfinished.
+on teardown. No frame-rate target is established. At this stage orbit appearance did not yet share coastlines with walking terrain;
+the shared-height update below supersedes that limitation. Planetary scale, cloud
+volumes and detailed surface assets remain unfinished.
 
 The Windows export with these planet materials reached the normal integrated
 smoke success marker under Proton. Live graphics/performance certification is
@@ -192,3 +192,33 @@ reported texture RID leaks during teardown. A subsequent autosave adjustment kee
 saving every minute in menus as well as in active play; its native gameplay check
 loads the written save and verifies persisted clock/account values. The Windows
 export was rebuilt after that adjustment.
+
+
+## Shared orbital and ground elevation
+
+A deterministic 512×256 single-channel floating-point height map now supplies
+orbital displacement, land/ocean classification, local terrain mesh and collision,
+and landing elevation queries. CPU bilinear sampling wraps longitude and clamps
+latitude to pixel centres, matching the shader sampling convention. A bounded
+16-entry cache shares maps and textures. Tests cover pixel centres, seam continuity,
+poles, deterministic reuse and cache eviction; these are not a numerical GPU
+readback comparison.
+
+Surface autopilot surveys dry ground on ocean-bearing planets. Manual landing
+rejects water beneath either the ship or the disembarkation point. Native
+integration and hidden Gamescope planetary gameplay checks pass, including water
+rejection, radial walking, terrain patch replacement, parked-ship saves and liftoff.
+The orbital limb capture was inspected. Water remains a visual surface without
+swimming or buoyancy. Compact planet sizes, coarse orbital geometry, simple
+ground materials and atmospheric approximation remain development limitations.
+
+The displaced coarse globe initially intersected the finer walking mesh. The
+orbital shader now clips land inside the active terrain patch footprint, leaving
+a one-cell border overlap and retaining ocean fragments. Patch cleanup disables
+the clip. A second hidden gameplay run passed, and its surface capture confirms
+the broad flat overlap patches are gone. This is a local mesh handoff, not a
+general planetary LOD system.
+
+The shared-height Windows export reached `NEXT_INTEGRATION_OK` through the normal
+entrypoint under hidden Gamescope/Proton. The SDR white-level warning remains;
+this is functional verification, not proof of 1440p/60 performance or final art.

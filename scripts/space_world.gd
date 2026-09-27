@@ -13,6 +13,7 @@ var launch_position: Vector3 = Vector3(0, 12, -110)
 var _rng := RandomNumberGenerator.new()
 var _world_environment: WorldEnvironment
 var _material_cache: Dictionary = {}
+var _planet_materials: Array[ShaderMaterial] = []
 
 func build(system_index: int) -> void:
 	spawn_position = Vector3(0, 2, 20)
@@ -24,6 +25,7 @@ func build(system_index: int) -> void:
 	data["system_index"] = self.system_index
 	_rng.seed = int(data.station_seed)
 	planets.clear()
+	_planet_materials.clear()
 	var source: Array = data.planets
 	for i in source.size():
 		var planet: Dictionary = source[i].duplicate()
@@ -234,6 +236,10 @@ func _build_planets() -> void:
 		mat.set_shader_parameter("seed", float(i * 41 + int(data.station_seed % 997)))
 		mat.set_shader_parameter("clouds", bool(planet.atmosphere))
 		mat.set_shader_parameter("has_ocean", bool(planet.has_ocean))
+		mat.set_shader_parameter("height_map", PlanetHeightField.texture_for(Universe._seed_for(system_index, 900 + i)))
+		mat.set_shader_parameter("height_scale", PlanetHeightField.HEIGHT_SCALE)
+		mat.set_shader_parameter("sea_level", PlanetHeightField.SEA_LEVEL)
+		_planet_materials.append(mat)
 		var globe := _sphere(str(planet.name), float(planet.visual_radius), planet.position, tint, 0.0, 0.82, mat, true)
 		globe.mesh.radial_segments = 128
 		globe.mesh.rings = 64
@@ -243,10 +249,25 @@ func _build_planets() -> void:
 			halo_mat.set_shader_parameter("atmosphere_color", Color("75a8d6") if planet.has_ocean else Color("b6a18a"))
 			halo_mat.set_shader_parameter("sun_direction", Basis.from_euler(Vector3(deg_to_rad(-28), deg_to_rad(-34), 0)).z)
 			halo_mat.set_shader_parameter("light_strength", 0.17 if data.star_type == "Black Hole" else 1.0)
-			var halo := _sphere(str(planet.name) + " atmosphere", float(planet.visual_radius) * 1.012, planet.position, Color.WHITE, 0.0, 1.0, halo_mat, false)
+			var halo := _sphere(str(planet.name) + " atmosphere", float(planet.visual_radius) * 1.012 + PlanetHeightField.HEIGHT_SCALE, planet.position, Color.WHITE, 0.0, 1.0, halo_mat, false)
 			halo.mesh.radial_segments = 128
 			halo.mesh.rings = 64
 			halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+func set_fine_terrain_patch(index: int, normal: Vector3, radius: float, extent: float) -> void:
+	if index < 0 or index >= _planet_materials.size(): return
+	var material := _planet_materials[index]
+	var active := normal.is_finite() and normal.length_squared() > 0.000001
+	material.set_shader_parameter("fine_patch_active", active)
+	if not active: return
+	var n := normal.normalized()
+	var reference := Vector3.UP if absf(n.dot(Vector3.UP)) < 0.95 else Vector3.FORWARD
+	var tangent := n.cross(reference).normalized()
+	material.set_shader_parameter("fine_patch_normal", n)
+	material.set_shader_parameter("fine_patch_tangent", tangent)
+	material.set_shader_parameter("fine_patch_bitangent", n.cross(tangent).normalized())
+	material.set_shader_parameter("fine_patch_radius", radius)
+	material.set_shader_parameter("fine_patch_extent", extent)
 
 func _build_distant_stars() -> void:
 	var mesh := SphereMesh.new()

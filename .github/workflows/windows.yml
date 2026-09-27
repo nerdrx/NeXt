@@ -60,6 +60,7 @@ jobs:
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_sector_position.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_flight_frame.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_spatial_gameplay.gd -- --capture-only
+          timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_planet_height_field.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_planet_terrain.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_pilot_gravity.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_planet_gameplay.gd -- --capture-only

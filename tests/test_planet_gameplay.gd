@@ -19,9 +19,21 @@ func _run() -> void:
 	var world_id: int = game.world.get_instance_id()
 	var center: Vector3 = game._planet_center(0)
 	var radius: float = body.visual_radius
-	var height: float = PlanetTerrain.surface_height(Vector3.RIGHT, game._terrain_seed(0))
+	var wet_direction := Vector3.ZERO
+	for direction: Vector3 in [Vector3.RIGHT, Vector3.LEFT, Vector3.UP, Vector3.DOWN, Vector3.FORWARD, Vector3.BACK]:
+		if PlanetTerrain.surface_height(direction, game._terrain_seed(0)) < PlanetHeightField.SEA_LEVEL - 0.2:
+			wet_direction = direction
+			break
+	if not _check(bool(body.has_ocean) and wet_direction != Vector3.ZERO, "fixture contains an ocean site"): return
 	game.pilot.set_flight(true)
-	game.pilot.teleport(center + Vector3.RIGHT * (radius + height + 25.0))
+	game.pilot.teleport(center + wet_direction * (radius + PlanetHeightField.SEA_LEVEL + 20))
+	game._update_planet_terrain()
+	game._interact()
+	if not _check(game.pilot.flying and game.manual_planet == -1 and "Water below" in game.hud.message, "submerged landing rejected using shared height data"): return
+	var landing_up: Vector3 = game._surface_landing_direction(0)
+	var height: float = PlanetTerrain.surface_height(landing_up, game._terrain_seed(0))
+	game.pilot.set_flight(true)
+	game.pilot.teleport(center + landing_up * (radius + height + 25.0))
 	game._update_planet_terrain()
 	if not _check(game.terrain_planet == 0, "approach creates terrain in current world"): return
 	game.pilot.velocity = Vector3.UP * 30.0
@@ -31,8 +43,8 @@ func _run() -> void:
 	game._interact()
 	if not _check(not game.pilot.flying and game.manual_planet == 0, "slow manual landing accepted"): return
 	if not _check(game.world.get_instance_id() == world_id and game.surface_index == -1, "landing preserves orbital scene"): return
-	if not _check(game.pilot.up_direction.dot(Vector3.RIGHT) > 0.99, "walking follows radial gravity"): return
-	if not _check(game.ship_display.basis.y.dot(Vector3.RIGHT) > 0.99, "parked ship follows radial up"): return
+	if not _check(game.pilot.up_direction.dot(landing_up) > 0.99, "walking follows radial gravity"): return
+	if not _check(game.ship_display.basis.y.dot(landing_up) > 0.99, "parked ship follows radial up"): return
 	await create_timer(0.7).timeout
 	if not _check(game.pilot.is_on_floor(), "terrain supports landed pilot"): return
 	var start: Vector3 = game.pilot.position
