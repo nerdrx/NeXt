@@ -17,6 +17,14 @@ static func empty_data() -> Dictionary:
 	return {"version": VERSION, "rooms": {}, "panels": {}}
 
 
+static func exposed_radiator_faces(cell: Vector3i, occupied: Dictionary, panels: Dictionary) -> Array[String]:
+	var faces: Array[String] = []
+	for face: String in FACES:
+		if not occupied.has(cell + FACE_STEPS[face]) and panels.get(face, "standard") == "standard":
+			faces.append(face)
+	return faces
+
+
 static func validate_data(data: Variant, modules: Array) -> bool:
 	if not data is Dictionary or data.size() != 3 or not data.has_all(["version", "rooms", "panels"]):
 		return false

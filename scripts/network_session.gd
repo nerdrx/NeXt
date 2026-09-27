@@ -14,7 +14,7 @@ const MAX_PLAYERS: int = 8
 const MAX_MODULES: int = 100
 const MAX_SYSTEM_INDEX: int = 999999999
 const MAX_WORLD_COORD: float = 30000.0
-const MODULE_KINDS: Array[String] = ["core", "cockpit", "reactor", "engine", "cargo", "weapon", "shield", "habitat"]
+const MODULE_KINDS: Array[String] = ["core", "cockpit", "reactor", "engine", "cargo", "weapon", "shield", "habitat", "radiator"]
 const ShipLayoutScript = preload("res://scripts/ship_layout.gd")
 
 var system_index: int = 0

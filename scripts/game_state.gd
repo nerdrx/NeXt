@@ -25,6 +25,7 @@ const MODULES: Dictionary = {
 	"weapon": {"cost": 1000, "mass": 4, "power": -2, "cargo": 0, "hull": 10, "thrust": 0},
 	"shield": {"cost": 900, "mass": 4, "power": -2, "cargo": 0, "hull": 5, "thrust": 0},
 	"habitat": {"cost": 750, "mass": 5, "power": -1, "cargo": 5, "hull": 10, "thrust": 0},
+	"radiator": {"cost": 900, "mass": 2, "power": 0, "cargo": 0, "hull": 5, "thrust": 0},
 }
 const COMPANIES: Dictionary = {
 	"NOVA": {"name": "Nova Freight", "base": 85, "sector": "Logistics"},
@@ -98,18 +99,32 @@ func cargo_total() -> int:
 
 func ship_stats() -> Dictionary:
 	var result: Dictionary = _stats_for(ship_modules)
+	result.radiator_area_m2 = radiator_area_m2()
 	result.drive_thrust_factor = clampf((700.0 - drive_temperature_k) / 200.0, 0.0, 1.0)
 	result.loaded_mass_kg = int(result.dry_mass_kg) + cargo_total() * 1000
 	result.acceleration_mps2 = minf(3.0 * 9.80665, float(result.thrust_newtons) * float(result.drive_thrust_factor) / maxf(float(result.loaded_mass_kg), 1.0))
 	result.boost_acceleration_mps2 = minf(6.0 * 9.80665, float(result.thrust_newtons) * float(result.drive_thrust_factor) * float(result.boost_multiplier) / maxf(float(result.loaded_mass_kg), 1.0))
 	return result
 
+func radiator_area_m2() -> float:
+	# Retain the starter's abstract 40 m2 loop; modular panels add exposed area.
+	var area: float = 40.0
+	var occupied: Dictionary = {}
+	for module: Dictionary in ship_modules:
+		occupied[Vector3i(module.x, module.y, module.z)] = true
+	for module: Dictionary in ship_modules:
+		if module.kind != "radiator": continue
+		var cell := Vector3i(module.x, module.y, module.z)
+		var panels: Dictionary = ship_layout.panels.get(ShipLayout.cell_key(cell), {})
+		area += 5.0 * ShipLayout.exposed_radiator_faces(cell, occupied, panels).size()
+	return area
+
 func cool_drive(delta: float) -> void:
 	if not is_finite(delta) or delta <= 0.0 or delta > 1.0: return
 	if not is_finite(drive_temperature_k): return
-	# Tuned shared drive loop: 2.5 MJ/K, 40 m2 radiator, emissivity 0.8.
+	# Tuned shared drive loop: 2.5 MJ/K, layout-dependent area, emissivity 0.8.
 	# 300 K is a regulated floor, not the temperature of space.
-	var watts := 0.8 * 5.670374419e-8 * 40.0 * (pow(drive_temperature_k, 4) - pow(300.0, 4))
+	var watts := 0.8 * 5.670374419e-8 * radiator_area_m2() * (pow(drive_temperature_k, 4) - pow(300.0, 4))
 	drive_temperature_k = maxf(300.0, drive_temperature_k - maxf(0.0, watts) * delta / 2.5e6)
 
 func consume_propulsion(before: Vector3, commanded: Vector3) -> Vector3:

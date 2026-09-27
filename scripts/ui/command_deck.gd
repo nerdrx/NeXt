@@ -271,13 +271,13 @@ func _market() -> void:
 
 func _ship_stats_line(state: GameState) -> String:
 	var stats := state.ship_stats()
-	return "LOADED %.1f t   /   POWER %d / %d used   /   CARGO %d   /   SPEED %d m/s\nTHRUST %.2f MN   /   ACCELERATION %.2f g   /   BOOST %.2f g\nReactor reserve permits %.0f%% extra engine thrust." % [stats.loaded_mass_kg / 1000.0, stats.power_demand, stats.power_generation, stats.cargo_capacity, stats.speed, stats.thrust_newtons / 1000000.0, stats.acceleration_mps2 / FlightDynamics.STANDARD_GRAVITY, stats.boost_acceleration_mps2 / FlightDynamics.STANDARD_GRAVITY, (stats.boost_multiplier - 1.0) * 100.0]
+	return "LOADED %.1f t   /   POWER %d / %d used   /   CARGO %d   /   SPEED %d m/s\nTHRUST %.2f MN   /   ACCELERATION %.2f g   /   BOOST %.2f g\nReactor reserve permits %.0f%% extra engine thrust.\nDRIVE %.0f K   /   RADIATOR AREA %.0f m²" % [stats.loaded_mass_kg / 1000.0, stats.power_demand, stats.power_generation, stats.cargo_capacity, stats.speed, stats.thrust_newtons / 1000000.0, stats.acceleration_mps2 / FlightDynamics.STANDARD_GRAVITY, stats.boost_acceleration_mps2 / FlightDynamics.STANDARD_GRAVITY, (stats.boost_multiplier - 1.0) * 100.0, state.drive_temperature_k, stats.radiator_area_m2]
 
 func _shipyard() -> void:
 	heading.text = "SHIP ARCHITECT"
 	var s: GameState = game.state
 	var stats_label := _text(_ship_stats_line(s), 15, InterfaceTheme.CYAN)
-	_text("Choose a deck and cell, then install a module. Every module must connect to the ship. Essential systems and cargo capacity are protected.", 15, InterfaceTheme.MUTED)
+	_text("Choose a deck and cell, then install a module. Every module must connect to the ship. Essential systems and cargo capacity are protected. Radiators cool faster when exposed; adjacent modules, armor and windows block their panels.", 15, InterfaceTheme.MUTED)
 	var designer := ShipDesigner.new()
 	designer.modules = s.ship_modules.duplicate(true)
 	designer.layout = s.ship_layout.duplicate(true)

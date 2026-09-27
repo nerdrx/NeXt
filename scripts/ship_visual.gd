@@ -24,6 +24,9 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 	var glass_trim := _material(Color("9ceeff"), 0.18, 0.7)
 	var armor_panel := _material(Color("86949c"), 0.38, 0.0)
 	var panel_glass := _material(Color(0.06, 0.23, 0.3, 0.8), 0.14, 0.0)
+	var radiator_body := _material(Color("202b34"), 0.72, 0.0)
+	var radiator_fin := _material(Color("53616a"), 0.58, 0.0)
+	var radiator_channel := _material(Color("303d45"), 0.48, 0.0)
 	var cells: Array[Vector3i] = []
 	var kinds: Dictionary = {}
 	for item in modules:
@@ -67,6 +70,9 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 		for face: String in ShipLayout.FACES:
 			if panel_data.has(face):
 				_build_hull_panel(p, face, str(panel_data[face]), plate_mat, armor_panel, dark_mat, panel_glass)
+		if kind == "radiator":
+			for face: String in ShipLayout.exposed_radiator_faces(cell, kinds, panel_data):
+				_build_radiator_face(p, face, radiator_body, radiator_fin, radiator_channel)
 		var coordinate := cell
 		for neighbor: Vector3i in [coordinate + Vector3i.RIGHT, coordinate + Vector3i.UP, coordinate + Vector3i(0, 0, 1)]:
 			if not cells.has(neighbor):
@@ -125,6 +131,8 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 				_add_cylinder(deck + Vector3(0, 0.04, 0), 0.7, 0.12, dark_mat)
 				_add_torus(deck + Vector3(0, 0.14, 0), 0.25, 0.32, accent_mat)
 				_add_box(deck + Vector3(0, 0.12, 0), Vector3(1.05, 0.1, 0.045), canopy_mat)
+			"radiator":
+				pass
 			_:
 				for side in [-1, 1]:
 					_add_box(deck + Vector3(float(side) * 0.82, 0.0, -0.1), Vector3(0.035, 0.025, 1.55), accent_mat)
@@ -176,6 +184,48 @@ func _build_hull_panel(center: Vector3, face: String, panel_type: String, standa
 		else:
 			_add_box(position + Vector3(-0.98, 0, 0), Vector3(0.07, 1.2, 0.07), standard)
 			_add_box(position + Vector3(0.98, 0, 0), Vector3(0.07, 1.2, 0.07), standard)
+
+
+func _build_radiator_face(center: Vector3, face: String, body: Material, fin: Material, channel: Material) -> void:
+	var normal: Vector3 = Vector3(ShipLayout.FACE_STEPS[face])
+	var u: Vector3
+	var v: Vector3
+	var face_depth := 1.32
+	if face in ["+x", "-x"]:
+		u = Vector3(0, 0, 1)
+		v = Vector3(0, 1, 0)
+	elif face in ["+y", "-y"]:
+		u = Vector3(1, 0, 0)
+		v = Vector3(0, 0, 1)
+		face_depth = 1.19
+	else:
+		u = Vector3(1, 0, 0)
+		v = Vector3(0, 1, 0)
+	var face_center := center + normal * face_depth
+	var panel_size := Vector3(2.28, 1.78, 0.055)
+	if face in ["+x", "-x"]:
+		panel_size = Vector3(0.055, 1.78, 2.28)
+	elif face in ["+y", "-y"]:
+		panel_size = Vector3(2.28, 0.055, 2.28)
+	_add_box(face_center, panel_size, body)
+	# Seven close-spaced cooling vanes sit inside a restrained structural frame.
+	for index in range(7):
+		var across := (float(index) - 3.0) * 0.29
+		var rib_size := _face_box_size(u, v, normal, 0.055, 1.46, 0.035)
+		_add_box(face_center + u * across + normal * 0.046, rib_size, fin)
+	for across in [-1.08, 1.08]:
+		_add_box(face_center + u * across + normal * 0.042, _face_box_size(u, v, normal, 0.065, 1.7, 0.055), channel)
+	for along in [-0.81, 0.81]:
+		_add_box(face_center + v * along + normal * 0.042, _face_box_size(u, v, normal, 2.22, 0.055, 0.055), channel)
+	# Narrow cross manifolds read as serviceable coolant runs, not luminous trim.
+	for along in [-0.5, 0.5]:
+		_add_box(face_center + v * along + normal * 0.035, _face_box_size(u, v, normal, 1.92, 0.035, 0.025), body)
+
+
+func _face_box_size(u: Vector3, v: Vector3, normal: Vector3, width: float, height: float, depth: float) -> Vector3:
+	return Vector3(absf(u.x) * width + absf(v.x) * height + absf(normal.x) * depth,
+		absf(u.y) * width + absf(v.y) * height + absf(normal.y) * depth,
+		absf(u.z) * width + absf(v.z) * height + absf(normal.z) * depth)
 
 
 func set_thrust(amount: float) -> void:

@@ -150,7 +150,7 @@ func _equipment(center: Vector3, kind: String, room_type: String) -> void:
 			for z in [-0.75, 0.75]:
 				_box(center + Vector3(-0.95, 0.5, z), Vector3(0.65, 1.0, 0.6), Color("807052"), true)
 				_box(center + Vector3(-0.95, 0.75, z - 0.31), Vector3(0.4, 0.04, 0.02), Color("e3bb75"), false, true)
-		"reactor", "engine", "shield":
+		"reactor", "engine", "shield", "radiator":
 			_box(center + Vector3(0.99, 1.1, 0), Vector3(0.48, 2.2, 1.4), Color("2e4553"), true)
 			for y in [0.5, 1.0, 1.5]:
 				_box(center + Vector3(0.72, y, 0), Vector3(0.03, 0.17, 0.85), Color("58becd"), false, true)

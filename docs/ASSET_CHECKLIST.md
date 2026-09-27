@@ -34,6 +34,7 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Ground crew suit meshes and role patches (`scripts/ground_actor.gd`): replace with rigged human models while preserving collision dimensions and attack origins.
 - [ ] Lounge, medical and workshop fittings (`scripts/ship_interior.gd`): authored room kits within 2.8 m cells; keep doorway clearance.
 - [ ] Standard, armored and glazed face panels (`scripts/ship_visual.gd`): replace materials/meshes without changing exposed-face selection keys.
+- [ ] Radiator module surface assemblies (`scripts/ship_visual.gd`): replace dark ribbed panels and coolant manifolds with authored heat-rejection hardware; preserve exposed-face selection, 2.8 m module bounds and panel compatibility.
 - [ ] Damaged wreck visuals and recovery beacon (`scripts/main.gd`): replace current tilted hull presentation with broken hull sections and a restrained beacon.
 
 ## Owned outpost docking complex

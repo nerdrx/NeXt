@@ -1676,6 +1676,13 @@ func _integration_check() -> void:
 	if not _check(heat_probe.drive_temperature_k == 700.0 and heat_limited_velocity.x > 0.0 and heat_probe.ship_stats().acceleration_mps2 == 0.0, "drive heat limits braking without deleting momentum"): return
 	heat_probe.cool_drive(1.0)
 	if not _check(heat_probe.drive_temperature_k < 700.0 and heat_probe.ship_stats().acceleration_mps2 > 0.0, "radiator cooling restores available thrust"): return
+	heat_probe.drive_temperature_k = 600.0
+	heat_probe.cool_drive(1.0)
+	var baseline_cooling := 600.0 - heat_probe.drive_temperature_k
+	if not _check(heat_probe.add_module("radiator", Vector3i(0, 1, 1)).is_empty(), "radiator module installation"): return
+	heat_probe.drive_temperature_k = 600.0
+	heat_probe.cool_drive(1.0)
+	if not _check(heat_probe.radiator_area_m2() == 65.0 and 600.0 - heat_probe.drive_temperature_k > baseline_cooling, "exposed radiator module improves cooling"): return
 	var physical_sample := CelestialSystem.sample(deck.survey_catalog, 0, 0.0)
 	if not _check(not physical_sample.is_empty() and physical_sample.irradiance_w_m2 > 0.0, "orbital radiation model in release build"): return
 	await _capture("celestial-survey")
