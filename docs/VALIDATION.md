@@ -250,3 +250,32 @@ that visual match. Existing terrain and colony gameplay regressions also pass.
 The Windows geology build reached `NEXT_INTEGRATION_OK` under hidden Proton.
 The known SDR warning remains, and the wrapper required timeout termination
 (exit 137) after the game's checks completed.
+
+
+## Cruise obstacle stops and flight impacts
+
+Active cruise sweeps the current pilot collision body along its projected flight
+velocity, limited by the remaining waypoint distance. A detected obstruction
+stops movement, clears the queued route and reports manual recovery. Planetary
+detours remain the route planner; this local stop does not reroute around buildings
+or predict moving traffic. The present flight collider is still the pilot capsule,
+not the full custom ship hull.
+
+Manual impacts above 25 m/s of incoming normal velocity emit a collision event,
+with a 0.7-second contact cooldown. The main scene applies shield-first damage,
+a recharge delay and impact feedback. Fatal collisions use existing insurance,
+rescue and saved wreck recovery. Slow bumps and fast tangential contact do not
+receive the same damage as a direct high-speed impact.
+
+Physical-wall tests cover obstacle stopping without false arrival, impact
+thresholds, repeated-contact cooldown and walking exclusion. The main-scene
+check also confirms full-route cancellation without damage, shield/hull depletion,
+fatal collision rescue and persisted wrecks; it passes in hidden Gamescope/Vulkan.
+Actual planetary cruise regression passes with 39.07 m minimum body clearance,
+port docking and sector rebasing. The existing ENet PvP gameplay check passes
+after sharing ship damage handling with collision feedback.
+
+The Windows export containing flight safety completed normal-entrypoint Proton
+smoke (`NEXT_INTEGRATION_OK`). The specific physical crash/rescue check was run
+natively, including hidden Vulkan; the normal Proton tour is regression coverage.
+The known SDR warning remains.

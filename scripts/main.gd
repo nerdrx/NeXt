@@ -67,6 +67,8 @@ func _ready() -> void:
 	add_child(cockpit_instruments)
 	pilot.fired.connect(_player_fire)
 	pilot.autopilot_arrived.connect(_cruise_arrived)
+	pilot.autopilot_blocked.connect(_cruise_blocked)
+	pilot.flight_impact.connect(_flight_impact)
 	sound = Soundscape.new()
 	sound.muted = automation
 	add_child(sound)
@@ -286,6 +288,16 @@ func _plan_cruise_leg() -> bool:
 		return false
 	pilot.autopilot_to(cruise_waypoints[0].relative_to(flight_origin, SectorPosition.MAX_RELATIVE_DISTANCE))
 	return true
+
+func _cruise_blocked() -> void:
+	cruise_address = null
+	cruise_waypoints.clear()
+	notify("Cruise stopped: obstacle ahead. Reposition manually and retry.")
+
+func _flight_impact(closing_speed: float) -> void:
+	if not pilot.flying or aboard or not is_finite(closing_speed) or closing_speed <= 25.0: return
+	var damage := minf(500.0, (closing_speed - 25.0) * 0.7)
+	_apply_ship_hit(damage, "Collision! Impact at %d m/s." % roundi(closing_speed))
 
 func _cruise_arrived() -> void:
 	if cruise_address != null:
@@ -1341,13 +1353,16 @@ func _pvp_clear_shot(attacker: int, target_id: int, direction: Vector3, distance
 
 func _receive_pvp_damage(attacker: int, damage: float) -> void:
 	if not pilot.flying or aboard or not is_finite(damage) or damage <= 0: return
+	_apply_ship_hit(damage, "Ship hit by %s." % str(session.presence.get(attacker, {}).get("name", "visitor")))
+
+func _apply_ship_hit(damage: float, message: String) -> void:
 	shield_delay = 6
 	var absorbed: float = minf(state.shield, damage)
 	state.shield -= absorbed
 	state.hull = maxf(0, state.hull - (damage - absorbed))
 	pilot.kick(0.5)
 	hud.flash = 0.5
-	notify("Ship hit by %s." % str(session.presence.get(attacker, {}).get("name", "visitor")))
+	notify(message)
 	if state.hull <= 0: _rescue()
 
 func _receive_pvp_hit(attacker: int, _target_id: int, origin_data: Dictionary, end_data: Dictionary) -> void:

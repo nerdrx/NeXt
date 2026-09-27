@@ -3,6 +3,8 @@ extends CharacterBody3D
 
 signal fired(origin: Vector3, direction: Vector3)
 signal autopilot_arrived
+signal autopilot_blocked
+signal flight_impact(closing_speed: float)
 
 var flying: bool = false
 var enabled: bool = true
@@ -25,6 +27,7 @@ var _recoil: float = 0.0
 var _shake: float = 0.0
 var _roll: float = 0.0
 var _look_sway: Vector2 = Vector2.ZERO
+var _flight_impact_cooldown: float = 0.0
 
 
 func _ready() -> void:
@@ -72,6 +75,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_flight_impact_cooldown = maxf(0.0, _flight_impact_cooldown - delta)
 	_fire_cooldown = maxf(0.0, _fire_cooldown - delta)
 	_recoil = move_toward(_recoil, 0.0, delta * 2.8)
 	_shake = move_toward(_shake, 0.0, delta * 5.0)
@@ -141,6 +145,17 @@ func _fly(delta: float) -> void:
 		desired = camera.global_basis * local_direction * flight_speed * boost_scale
 		response = 2.8 if local_direction.length_squared() > 0.001 else 1.15
 	_flight_velocity = _flight_velocity.lerp(desired, minf(1.0, response * delta))
+	if not _flight_velocity.is_finite():
+		_flight_velocity = Vector3.ZERO
+	if autopilot_active:
+		var remaining := (autopilot_target - global_position).length()
+		var lookahead := minf(maxf(5.0, _flight_velocity.length() * 0.8), remaining)
+		if lookahead > 0.0 and _flight_velocity.length_squared() > 0.0 and test_move(global_transform, _flight_velocity.normalized() * lookahead):
+			cancel_autopilot()
+			_flight_velocity = Vector3.ZERO
+			velocity = Vector3.ZERO
+			autopilot_blocked.emit()
+			return
 	velocity = _flight_velocity
 	if Input.is_action_pressed("roll_left"):
 		_roll += 1.5 * delta
@@ -150,7 +165,17 @@ func _fly(delta: float) -> void:
 		_roll = move_toward(_roll, 0.0, delta * 0.8)
 	camera.rotation.z = _roll
 	move_and_slide()
+	var incoming := _flight_velocity
 	_flight_velocity = velocity
+	if incoming.is_finite() and _flight_impact_cooldown <= 0.0:
+		var max_closing := 0.0
+		for index in get_slide_collision_count():
+			var normal := get_slide_collision(index).get_normal()
+			if normal.is_finite():
+				max_closing = maxf(max_closing, -incoming.dot(normal))
+		if is_finite(max_closing) and max_closing > 25.0:
+			_flight_impact_cooldown = 0.7
+			flight_impact.emit(max_closing)
 
 
 func _update_view_effects(delta: float) -> void:
