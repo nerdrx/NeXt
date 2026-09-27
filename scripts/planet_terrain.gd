@@ -13,7 +13,7 @@ var terrain_body: StaticBody3D
 var _normal: Vector3 = Vector3.UP
 
 
-func build(radius: float, normal: Vector3, seed: int, tint: Color) -> void:
+func build(radius: float, normal: Vector3, seed: int, tint: Color, has_ocean: bool = false) -> void:
 	for child: Node in get_children():
 		child.queue_free()
 	terrain_mesh = null
@@ -86,6 +86,10 @@ func build(radius: float, normal: Vector3, seed: int, tint: Color) -> void:
 	collision.shape = shape
 	terrain_body.add_child(collision)
 	add_child(terrain_body)
+	var geology := PlanetGeology.new()
+	geology.name = "Surface geology"
+	add_child(geology)
+	geology.build(safe_radius, _normal, patch_extent, seed, tint, has_ocean)
 
 
 static func surface_height(direction: Vector3, seed: int) -> float:

@@ -222,3 +222,31 @@ general planetary LOD system.
 The shared-height Windows export reached `NEXT_INTEGRATION_OK` through the normal
 entrypoint under hidden Gamescope/Proton. The SDR white-level warning remains;
 this is functional verification, not proof of 1440p/60 performance or final art.
+
+
+## Procedural surface geology
+
+Planet patches now include deterministic rock formations placed on global
+latitude-band cells. Patch recentering selects the same planet-space candidates,
+rather than reseeding scatter around the player. Four instanced mesh variants
+share convex shapes for larger boulders; small pebbles remain visual. Ocean sites
+and the current north-pole port footprint are excluded. Manual landing checks
+the ship's horizontal bounds and disembarkation point for rock clearance, and
+surface autopilot applies the same dry-ground and obstacle checks.
+
+The ground material adds mineral layers and screen-space bump, attenuating fine
+detail with pixel footprint. Hidden Gamescope gameplay passed with rock landing
+rejection, walking across a streamed patch, interior return, surface save/load and
+liftoff. Its capture was inspected. These are replaceable small-world geology
+placeholders; they do not establish planetary LOD, ecosystem variety, final
+asset quality or the target frame rate.
+
+The geology check verifies radial alignment, conservative transformed-hull
+clearance and physical ray hits. Hidden Vulkan additionally verifies that
+MultiMesh instance transforms match their physics bodies; the dummy headless
+renderer returns identity transforms from that GPU API, so it cannot establish
+that visual match. Existing terrain and colony gameplay regressions also pass.
+
+The Windows geology build reached `NEXT_INTEGRATION_OK` under hidden Proton.
+The known SDR warning remains, and the wrapper required timeout termination
+(exit 137) after the game's checks completed.

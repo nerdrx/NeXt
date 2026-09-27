@@ -32,6 +32,19 @@ func _run() -> void:
 	if not _check(game.pilot.flying and game.manual_planet == -1 and "Water below" in game.hud.message, "submerged landing rejected using shared height data"): return
 	var landing_up: Vector3 = game._surface_landing_direction(0)
 	var height: float = PlanetTerrain.surface_height(landing_up, game._terrain_seed(0))
+	var rocky_direction := Vector3.ZERO
+	for rock: Dictionary in PlanetGeology.placements(radius, landing_up, 150.0, game._terrain_seed(0), true):
+		var direction := Vector3(rock.position).normalized()
+		if "Rocky" in game._surface_site_issue(0, direction):
+			rocky_direction = direction
+			break
+	if not _check(rocky_direction != Vector3.ZERO, "fixture contains a dry rocky landing site"): return
+	var rocky_height := PlanetTerrain.surface_height(rocky_direction, game._terrain_seed(0))
+	game.pilot.teleport(center + rocky_direction * (radius + rocky_height + 25.0))
+	game._update_planet_terrain()
+	game._interact()
+	if not _check(game.pilot.flying and game.manual_planet == -1 and "Rocky" in game.hud.message, "rock obstruction rejects landing without changing mode"): return
+	if not _check(game._surface_site_issue(0, landing_up).is_empty(), "autopilot chooses a clear dry site"): return
 	game.pilot.set_flight(true)
 	game.pilot.teleport(center + landing_up * (radius + height + 25.0))
 	game._update_planet_terrain()

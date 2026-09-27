@@ -426,7 +426,7 @@ func _update_planet_terrain() -> void:
 		terrain_planet = chosen
 		planet_terrain = PlanetTerrain.new()
 		add_child(planet_terrain)
-		planet_terrain.build(float(body.visual_radius), radial, _terrain_seed(chosen), Color(body.color).lerp(Color("7d8174"), 0.55))
+		planet_terrain.build(float(body.visual_radius), radial, _terrain_seed(chosen), Color(body.color).lerp(Color("7d8174"), 0.55), bool(body.get("has_ocean", false)))
 		world.set_fine_terrain_patch(chosen, planet_terrain.normal_at_patch, float(body.visual_radius), planet_terrain.patch_extent)
 		flight_frame.track(planet_terrain, flight_origin, SectorPosition.new(Vector3i.ZERO, Vector3(body.position) + planet_terrain.anchor))
 
@@ -439,8 +439,9 @@ func _try_planet_landing() -> bool:
 	var height: float = PlanetTerrain.surface_height(up, _terrain_seed(terrain_planet))
 	var altitude: float = pilot.position.distance_to(center) - float(body.visual_radius) - height
 	if altitude > 35: return false
-	if bool(body.get("has_ocean", false)) and height < PlanetHeightField.SEA_LEVEL + 0.05:
-		notify("Water below. Find dry ground or use a surface port.")
+	var site_issue := _surface_site_issue(terrain_planet, up)
+	if not site_issue.is_empty():
+		notify(site_issue)
 		return true
 	if session.connected:
 		notify("Leave the current multiplayer visit before walking a planetary surface.")
@@ -452,9 +453,6 @@ func _try_planet_landing() -> bool:
 	if tangent.length_squared() < 0.1: tangent = up.cross(Vector3.RIGHT).normalized()
 	var stand_up: Vector3 = (up * float(body.visual_radius) + tangent * 13).normalized()
 	var stand_height: float = PlanetTerrain.surface_height(stand_up, _terrain_seed(terrain_planet))
-	if bool(body.get("has_ocean", false)) and stand_height < PlanetHeightField.SEA_LEVEL + 0.05:
-		notify("Shoreline too close. Move farther inland before landing.")
-		return true
 	manual_planet = terrain_planet
 	landed_ship_normal = up
 	landed_ship_address = SectorPosition.new(Vector3i.ZERO, Vector3(body.position) + up * (float(body.visual_radius) + height))
@@ -467,18 +465,44 @@ func _try_planet_landing() -> bool:
 	notify("Landed on %s. Walk the terrain; return to your ship to lift off." % body.name)
 	return true
 
+func _surface_site_issue(index: int, up: Vector3) -> String:
+	var body: Dictionary = world.planets[index]
+	var radius := float(body.visual_radius)
+	var seed := _terrain_seed(index)
+	var ocean := bool(body.get("has_ocean", false))
+	var height := PlanetTerrain.surface_height(up, seed)
+	if ocean and height < PlanetHeightField.SEA_LEVEL + 0.05:
+		return "Water below. Find dry ground or use a surface port."
+	var tangent := up.cross(Vector3.FORWARD).normalized()
+	if tangent.length_squared() < 0.1: tangent = up.cross(Vector3.RIGHT).normalized()
+	var foot_up := (up * radius + tangent * 13).normalized()
+	if ocean and PlanetTerrain.surface_height(foot_up, seed) < PlanetHeightField.SEA_LEVEL + 0.05:
+		return "Shoreline too close. Move farther inland before landing."
+	var low := Vector3(INF, INF, INF)
+	var high := Vector3(-INF, -INF, -INF)
+	for module: Dictionary in state.ship_modules:
+		var cell := Vector3(module.x, module.y, module.z)
+		low = low.min(cell)
+		high = high.max(cell)
+	var size := (high - low + Vector3.ONE) * ShipVisual.CELL_SIZE
+	var ship_clearance := maxf(3.0, Vector2(size.x, size.z).length() * 0.5 + 1.0)
+	for rock: Dictionary in PlanetGeology.placements(radius, up, ship_clearance + 20.0, seed, ocean):
+		var rock_up := Vector3(rock.position).normalized()
+		var clearance := float(rock.clearance_radius)
+		if rock_up.distance_to(up) * radius < ship_clearance + clearance or rock_up.distance_to(foot_up) * radius < 1.0 + clearance:
+			return "Rocky landing site. Find a clear area or use a surface port."
+	return ""
+
 func _surface_landing_direction(index: int, preferred: Vector3 = Vector3.RIGHT) -> Vector3:
 	var up := preferred.normalized() if preferred.length_squared() > 0.001 else Vector3.RIGHT
-	if not bool(world.planets[index].get("has_ocean", false)): return up
-	var seed := _terrain_seed(index)
-	if PlanetTerrain.surface_height(up, seed) >= PlanetHeightField.SEA_LEVEL + 0.6: return up
+	if _surface_site_issue(index, up).is_empty(): return up
 	# Deterministic broad survey; a port remains available if no dry site is found.
 	for sample_index in 128:
 		var y := 1.0 - 2.0 * (float(sample_index) + 0.5) / 128.0
 		var angle := float(sample_index) * 2.399963229728653
 		var ring := sqrt(1.0 - y * y)
 		var candidate := Vector3(cos(angle) * ring, y, sin(angle) * ring)
-		if PlanetTerrain.surface_height(candidate, seed) >= PlanetHeightField.SEA_LEVEL + 0.6: return candidate
+		if _surface_site_issue(index, candidate).is_empty(): return candidate
 	return Vector3.ZERO
 
 func approach_planet_surface(index: int) -> void:
@@ -488,7 +512,7 @@ func approach_planet_surface(index: int) -> void:
 	var up: Vector3 = (pilot.position - center).normalized() if center != null else Vector3.BACK
 	up = _surface_landing_direction(index, up)
 	if up == Vector3.ZERO:
-		notify("No dry landing site found. Approach a surface port instead.")
+		notify("No clear landing site found. Approach a surface port instead.")
 		return
 	var height: float = PlanetTerrain.surface_height(up, _terrain_seed(index))
 	cruise_system_to(Vector3(body.position) + up * (float(body.visual_radius) + height + 25))
