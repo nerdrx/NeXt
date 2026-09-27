@@ -1040,3 +1040,12 @@ Crew simulation now recharges every operational family vessel, including idle/do
 Strategic patrols remain coarse encounter events, not continuous dogfights. A batched crew tick applies its recharge before the batch of encounter outcomes; large catch-up deltas are not claimed to reproduce finely stepped combat. Closed worlds accrue no elapsed time.
 
 Hosted defense tests passed for idle/remote/local recharge, invalid or zero time, delay/capacity, disabled hulls, shield absorption and unshielded family hull scaling. The real-scene family integration verifies one hosted recharge step reaches the actor and subsequent actor physics adds no duplicate charge. Crew, operations gameplay, fleet gameplay and persistence regressions passed. Hidden Gamescope integration and Windows export passed; the existing seven-texture shutdown warning remains and fresh Proton runtime is unverified.
+
+
+## Chronological patrol shield recovery — 2026-09-28
+
+Crew ticks now advance each vessel's shields to its order event before resolving damage, then recharge the remaining elapsed time after the final event. This replaces the previous recharge-before-entire-batch approximation. Idle vessels still receive the full elapsed interval; local actor ownership stays unchanged. A vessel disabled during a batch stops completing further encounters. Existing overdue progress resolves overdue events at time zero rather than granting fictitious recharge intervals.
+
+This is event-level patrol timing, not continuous remote flight/combat. World-day changes and competition between multiple orders for a shared treasury remain outside the single-patrol step-equivalence check.
+
+The deterministic timing test passed a 1,204-second batch versus 1,204 one-second ticks with real hostile encounters, comparing hull, charge, delay, encounter count and credits. It also passed split-versus-batched encounter boundaries and verified a disabled vessel completes no further batch encounters. Existing crew, operations gameplay, family integration and hosted-defense tests passed. Windows export succeeded; this domain-only change does not establish new visual or Proton-runtime results.

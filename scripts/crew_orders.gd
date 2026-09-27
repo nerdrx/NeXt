@@ -213,8 +213,7 @@ func withdraw_station_stock(station_index: int, good: String, quantity: int) -> 
 func tick(elapsed_seconds: float, local_patrol_ship_ids: Array[String] = [], local_trade_status: Dictionary = {}) -> Array[Dictionary]:
 	var reports: Array[Dictionary] = []
 	if not is_finite(elapsed_seconds) or elapsed_seconds <= 0: return reports
-	for vessel: Dictionary in state.fleet_ships:
-		_recharge_shields(vessel, elapsed_seconds)
+	var shield_elapsed: Dictionary = {}
 	for crew_id: String in state.crew_orders.keys():
 		var order: Dictionary = state.crew_orders[crew_id]
 		if _member(crew_id).is_empty(): continue
@@ -224,13 +223,24 @@ func tick(elapsed_seconds: float, local_patrol_ship_ids: Array[String] = [], loc
 				if not bool(order.paused): reports.append({"kind": str(order.kind), "status": "paused: ship disabled", "crew_id": crew_id, "ship_id": str(order.ship_id)})
 				order.paused = true
 				continue
-		order.progress = minf(float(order.progress) + elapsed_seconds, 86400.0 * 365.0)
+		var previous_progress := float(order.progress)
+		order.progress = minf(previous_progress + elapsed_seconds, 86400.0 * 365.0)
 		var interval: float = STATION_SECONDS if order.kind == "station" else TRIP_SECONDS * (2.0 if order.kind == "trade" else 1.0)
+		var event_time := interval - previous_progress
 		var local_trade: bool = order.kind == "trade" and local_trade_status.has(str(order.ship_id))
 		if local_trade: order.progress = minf(float(order.progress), interval)
 		while float(order.progress) >= interval:
 			# A represented trader must actually reach its departure/berth point.
 			if local_trade and not bool(local_trade_status[str(order.ship_id)]): break
+			if order.has("ship_id"):
+				var vessel := _ship(str(order.ship_id))
+				if float(vessel.hull) <= 0.0:
+					order.paused = true
+					break
+				var until_event := clampf(event_time, 0.0, elapsed_seconds)
+				_recharge_shields(vessel, maxf(0.0, until_event - float(shield_elapsed.get(str(vessel.id), 0.0))))
+				shield_elapsed[str(vessel.id)] = until_event
+			event_time += interval
 			order.progress = float(order.progress) - interval
 			var member: Dictionary = _member(crew_id)
 			var wage: int = int(member.salary)
@@ -254,6 +264,8 @@ func tick(elapsed_seconds: float, local_patrol_ship_ids: Array[String] = [], loc
 			if not report.is_empty(): reports.append(report)
 			# The scene's readiness describes this leg only, never a second leg.
 			if local_trade: break
+	for vessel: Dictionary in state.fleet_ships:
+		_recharge_shields(vessel, maxf(0.0, elapsed_seconds - float(shield_elapsed.get(str(vessel.id), 0.0))))
 	return reports
 
 static func family_combat_stats(family_id: String) -> Dictionary:
