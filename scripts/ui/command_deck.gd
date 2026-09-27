@@ -672,6 +672,9 @@ func _fleet() -> void:
 	purchase.add_child(InterfaceTheme.button("COMMISSION", func(): _act(game.crew_operations().purchase_ship.bind(ship_name.text, str(hull_choice.get_item_metadata(hull_choice.selected))), "Fleet vessel commissioned.")))
 	for vessel: Dictionary in s.fleet_ships:
 		_text("%s / %s / system %d / hull %.0f%% / drive %.0f K" % [vessel.name, str(vessel.get("hull_family", "utility")).capitalize(), vessel.system, vessel.hull, float(vessel.get("drive_temperature_k", 450.0))], 17)
+		if str(vessel.get("hull_family", "")) in ShipBlueprint.FAMILIES:
+			var boarding_issue: String = game.fleet_boarding_issue(str(vessel.id))
+			_button("INSPECT DOCKED INTERIOR", game.enter_interior.bind(str(vessel.id)), not boarding_issue.is_empty()).tooltip_text = boarding_issue
 		if game.fleet_actors.has(str(vessel.id)):
 			_button("APPROACH LOCAL VESSEL", game.approach_fleet_ship.bind(str(vessel.id)), not game.pilot.flying or game.aboard)
 		_button("REPAIR / %d CR" % ceili((100.0 - float(vessel.hull)) * 4.0), _act.bind(game.crew_operations().repair_fleet_ship.bind(str(vessel.id)), "Fleet repairs arranged."), float(vessel.hull) >= 100)

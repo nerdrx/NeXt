@@ -139,7 +139,7 @@ func _equipment(center: Vector3, kind: String, room_type: String) -> void:
 			for x in [-0.65, 0.0, 0.65]:
 				var screen := _box(center + Vector3(x, 1.0, -0.94), Vector3(0.5, 0.32, 0.04), Color("39818c"), false, true)
 				screen.rotation.x = -0.3
-			_box(center + Vector3(0, 0.35, 0.85), Vector3(0.6, 0.55, 0.6), Color("385263"), true)
+			_box(center + Vector3(0.82, 0.35, 0.85), Vector3(0.6, 0.55, 0.6), Color("385263"), true)
 		"habitat":
 			if room_type != "quarters": return
 			_box(center + Vector3(-0.98, 0.32, 0), Vector3(0.65, 0.55, 2.1), Color("374c5a"), true)
@@ -176,12 +176,23 @@ func _room_furnishing(center: Vector3, room_type: String) -> void:
 			for z in [-0.55, 0.0, 0.55]:
 				_box(center + Vector3(-0.48, 0.84, z), Vector3(0.03, 0.05, 0.18), Color("c4a16c"))
 		"bridge":
-			_box(center + Vector3(0.0, 0.38, 0.77), Vector3(0.58, 0.72, 0.58), Color("344953"), true)
-			_box(center + Vector3(0.0, 0.76, 0.7), Vector3(0.66, 0.12, 0.42), Color("819398"))
+			_box(center + Vector3(0.82, 0.38, 0.77), Vector3(0.58, 0.72, 0.58), Color("344953"), true)
+			_box(center + Vector3(0.82, 0.76, 0.7), Vector3(0.66, 0.12, 0.42), Color("819398"))
 		"engineering":
 			_box(center + Vector3(1.0, 0.78, 0.82), Vector3(0.44, 1.52, 0.42), Color("354951"), true)
 			for y in [0.4, 0.8, 1.2]:
 				_box(center + Vector3(0.77, y, 0.59), Vector3(0.025, 0.11, 0.28), Color("69b9ba"), false, true)
+
+func entry_direction(deck: int) -> Vector3:
+	# Face an adjacent room when leaving the helm/lift instead of a closed bow wall.
+	for module: Dictionary in modules:
+		if int(module.y) != deck: continue
+		var cell := Vector3i(module.x,module.y,module.z)
+		for direction: Vector3i in [Vector3i.FORWARD,Vector3i.BACK,Vector3i.LEFT,Vector3i.RIGHT]:
+			if _has_cell(cell+direction): return Vector3(direction)
+		break
+	return Vector3.FORWARD
+
 
 func spawn_on_deck(deck: int) -> Vector3:
 	var pos: Vector3 = lift_positions.get(deck, cockpit_position)

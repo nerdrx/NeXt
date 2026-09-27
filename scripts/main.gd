@@ -24,6 +24,7 @@ var _crew_spawn_serial: int = 0
 var crew_focus_id: String = ""
 var _coasting_deck_bodies: Array[StaticBody3D] = []
 var aboard: bool = false
+var aboard_fleet_id: String = ""
 var interior_deck: int = 0
 var return_position := Vector3.ZERO
 var return_flying: bool = false
@@ -1288,7 +1289,7 @@ func interaction_hint() -> String:
 	if not service.is_empty(): return str(service.label)
 	if aboard:
 		var member := _near_ship_crew()
-		return ("F: Talk to %s  /  " % member.display_name if member != null else "") + "E: Return to helm  /  PgUp/PgDn change deck" + (("  /  Braking %d m/s" if coasting_hull.braking else ("  /  Cruise %d m/s" if aboard_cruise else "  /  Ship coasting %d m/s")) % roundi(coasting_hull.velocity.length()) if is_instance_valid(coasting_hull) else "")
+		return ("F: Talk to %s  /  " % member.display_name if member != null else "") + ("E: Return to concourse  /  PgUp/PgDn change deck" if not aboard_fleet_id.is_empty() else "E: Return to helm  /  PgUp/PgDn change deck") + (("  /  Braking %d m/s" if coasting_hull.braking else ("  /  Cruise %d m/s" if aboard_cruise else "  /  Ship coasting %d m/s")) % roundi(coasting_hull.velocity.length()) if is_instance_valid(coasting_hull) else "")
 	if surface_index >= 0: return "Board ship / return to orbit" if _near_person() == null else "Talk to " + _near_person().display_name
 	var person: Node3D = _near_person()
 	if person != null: return "Talk to " + person.display_name
@@ -1442,7 +1443,7 @@ func pay_fines() -> void:
 		notify("Fines paid. Wanted status cleared.")
 
 func location_title() -> String:
-	if aboard: return "Ship interior / deck %d" % interior_deck
+	if aboard: return ("Fleet interior" if not aboard_fleet_id.is_empty() else "Ship interior") + " / deck %d" % interior_deck
 	if manual_planet >= 0: return str(world.planets[manual_planet].name) + " surface"
 	if surface_index >= 0 and surface_index < world.planets.size(): return str(world.planets[surface_index].name) + " colony"
 	if not pilot.flying and docked_station >= 0: return str(state.stations[docked_station].name)
@@ -2275,16 +2276,43 @@ func _capture(name: String) -> void:
 	var folder: String = "res://build/" if OS.has_feature("editor") else "user://"
 	get_viewport().get_texture().get_image().save_png(folder + name + ".png")
 
-func enter_interior() -> void:
+func fleet_boarding_issue(ship_id: String) -> String:
+	if aboard: return "Return to the concourse before visiting another ship."
+	if session.connected: return "Leave the world visit before inspecting a fleet interior."
+	if pilot.flying or surface_index >= 0 or manual_planet >= 0: return "Dock at an orbital concourse to inspect your fleet."
+	var vessel: Dictionary = crew_operations()._ship(ship_id)
+	if vessel.is_empty(): return "Fleet vessel does not exist."
+	if int(vessel.system) != state.system_index: return "This vessel is in another system."
+	if float(vessel.hull) <= 0.0: return "Recover and repair this vessel before boarding."
+	if str(vessel.get("hull_family", "")) not in ShipBlueprint.FAMILIES: return "This vessel has no walkable interior."
+	if crew_operations()._ship_busy(ship_id) or vessel.has("flight"): return "Recall this vessel from its order before inspecting its interior."
+	return ""
+
+
+func enter_interior(fleet_id: String = "") -> void:
+	if not fleet_id.is_empty():
+		var issue := fleet_boarding_issue(fleet_id)
+		if not issue.is_empty():
+			notify(issue)
+			return
 	if aboard:
 		close_menu()
 		return
 	if session.connected:
 		notify("Leave the current world visit before boarding the interior.")
 		return
-	if not bool(state.ship_stats().get("walkable", false)):
+	if fleet_id.is_empty() and not bool(state.ship_stats().get("walkable", false)):
 		notify("Install a habitat and at least eight connected modules to support walkable decks.")
 		return
+	var modules: Array = state.ship_modules
+	var layout: Dictionary = state.ship_layout
+	if not fleet_id.is_empty():
+		var vessel: Dictionary = crew_operations()._ship(fleet_id)
+		var blueprint := ShipBlueprint.family(str(vessel.hull_family))
+		modules = blueprint.modules
+		layout = blueprint.layout
+		aboard_fleet_id = fleet_id
+		crew_operations().occupied_ship_id = fleet_id
 	return_position = pilot.position
 	return_flying = pilot.flying
 	aboard_cruise = pilot.flying and pilot.autopilot_active
@@ -2293,13 +2321,16 @@ func enter_interior() -> void:
 	return_basis = pilot.basis
 	return_up = pilot.up_direction
 	var hull_transform: Transform3D = Transform3D(pilot.camera.global_basis, pilot.global_position) if pilot.flying else ship_display.global_transform
+	if not fleet_id.is_empty():
+		# A local service berth keeps a docked inspection separate from the active ship.
+		hull_transform = Transform3D(ship_display.global_basis, _ship_pad() + ship_display.global_basis.x * 80.0)
 	var interior_cells: Array[Vector3i] = []
-	for module: Dictionary in state.ship_modules:
+	for module: Dictionary in modules:
 		interior_cells.append(Vector3i(module.x, module.y, module.z))
 	interior = ShipInterior.new()
 	add_child(interior)
 	interior.global_transform = hull_transform * Transform3D(Basis.IDENTITY, ShipBlueprint.interior_offset(interior_cells))
-	interior.build(state.ship_modules, state.ship_layout)
+	interior.build(modules, layout)
 	if return_flying:
 		coasting_hull = CoastingHull.new()
 		add_child(coasting_hull)
@@ -2314,16 +2345,19 @@ func enter_interior() -> void:
 		for body: Node in interior.find_children("*", "StaticBody3D", true, false):
 			_coasting_deck_bodies.append(body)
 			coasting_hull.add_collision_exception_with(body)
-	ship_display.hide()
+	if fleet_id.is_empty(): ship_display.hide()
 	aboard = true
 	interior_deck = 0 if 0 in interior.decks else interior.decks[0]
 	pilot.set_flight(false)
 	pilot.reset_view()
-	pilot.global_basis = interior.global_basis
+	pilot.global_basis = interior.global_basis * Basis.looking_at(interior.entry_direction(interior_deck),Vector3.UP)
 	pilot.set_walk_up(interior.global_basis.y)
 	pilot.teleport(interior.spawn_on_deck(interior_deck))
 	close_menu()
 	_populate_ship_crew()
+	if not fleet_id.is_empty():
+		notify("Inspecting %s. E returns to the concourse; PgUp/PgDn use the deck lift." % str(crew_operations()._ship(fleet_id).name))
+		return
 	notify("Aboard your ship. E returns to helm; PgUp/PgDn use the deck lift." + ((" Cruise continues at %d m/s." if aboard_cruise else " Ship coasting at %d m/s.") % roundi(coasting_hull.velocity.length()) if return_flying else ""))
 
 func _populate_ship_crew() -> void:
@@ -2332,7 +2366,7 @@ func _populate_ship_crew() -> void:
 	for member: ShipCrew in ship_crew:
 		if is_instance_valid(member): member.queue_free()
 	ship_crew.clear()
-	if not aboard or not is_instance_valid(interior): return
+	if not aboard or not aboard_fleet_id.is_empty() or not is_instance_valid(interior): return
 	var cabin: ShipInterior = interior
 	await get_tree().physics_frame
 	if serial != _crew_spawn_serial or not aboard or not is_instance_valid(cabin) or cabin != interior: return
@@ -2398,6 +2432,8 @@ func exit_interior() -> void:
 		coasting_hull = null
 	_coasting_deck_bodies.clear()
 	aboard = false
+	aboard_fleet_id = ""
+	crew_operations().occupied_ship_id = ""
 	interior.queue_free()
 	interior = null
 	pilot.set_flight(return_flying)

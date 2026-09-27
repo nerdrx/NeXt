@@ -111,3 +111,9 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Replace the new mechanical roof placeholders (sealed cargo leaves, heat-exchanger louvers, ventilation and shield cover) with authored serviceable assemblies. Preserve exposed exhaust openings and flat armor normals; family silhouettes still need a complete design pass.
 
 - [ ] Refine the sloped family hull profiles into distinctive designed ships, preserving room containment and the common collision envelope. Current collision uses conservative per-cell boxes; final profile changes need renewed flight, coast, visitor, landing and berth clearance checks.
+
+
+## Docked fleet inspection
+
+- [ ] Author a visible fleet service berth and boarding route; the current menu opens a separate local inspection interior using the real family rooms.
+- [ ] Replace bridge seats/consoles while keeping the center passage wide enough for the walking capsule. Add legible room signs viewed from both travel directions.

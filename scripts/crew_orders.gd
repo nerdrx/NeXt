@@ -13,6 +13,7 @@ const PRODUCTION_INPUTS: Dictionary = {
 	"luxuries": {"electronics": 1, "alloys": 1},
 }
 const BASE: Dictionary = {"ore": 35, "alloys": 115, "food": 18, "fuel": 52, "medicine": 95, "electronics": 140, "luxuries": 210}
+var occupied_ship_id: String = ""
 var state: GameState
 
 func _init(game_state: GameState) -> void:
@@ -364,6 +365,7 @@ func _ship(id: String) -> Dictionary:
 func _crew_busy(id: String) -> bool: return state.crew_orders.has(id)
 
 func _ship_busy(id: String) -> bool:
+	if id == occupied_ship_id: return true
 	for order: Dictionary in state.crew_orders.values():
 		if str(order.get("ship_id", "")) == id: return true
 	return false

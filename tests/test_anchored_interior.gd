@@ -7,9 +7,12 @@ func _initialize() -> void: _run.call_deferred()
 
 func _run() -> void:
 	game = load("res://scenes/main.tscn").instantiate()
+	save_path = "user://anchored-interior-%d.json" % OS.get_process_id()
+	game.save_path = save_path
 	root.add_child(game)
 	await process_frame
 	game.set_process(false)
+	game.state = GameState.new()
 	game._clear_actors()
 	game.close_menu()
 	save_path = "user://anchored-interior-%d.json" % OS.get_process_id()
