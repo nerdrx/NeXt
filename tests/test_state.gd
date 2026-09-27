@@ -116,6 +116,33 @@ func _initialize() -> void:
 	bad_ship_file.store_string(JSON.stringify(bad_ship_location))
 	bad_ship_file.close()
 	assert(loaded.load_save(path) != "" and loaded.location == prior_ground_location, "planetary ship address is rejected for a flying save")
+	var station_data: Dictionary = state._save_data().duplicate(true)
+	station_data.stations[0].system = state.system_index
+	station_data.location = {"system": state.system_index, "surface": -1, "station_index": 0, "address": SectorPosition.new(Vector3i(1, 2, 3), Vector3(4, 5, 6)).to_save(), "rotation": [0.0, 0.25, 0.0], "flying": false}
+	var station_file := FileAccess.open(path, FileAccess.WRITE)
+	station_file.store_string(JSON.stringify(station_data))
+	station_file.close()
+	assert(loaded.load_save(path) == "" and loaded.location.station_index == 0, "owned station walking location round-trips")
+	var loaded_station_state: Dictionary = loaded._save_data().duplicate(true)
+	var bad_station_location: Dictionary = station_data.duplicate(true)
+	var bad_station_file: FileAccess
+	for invalid_index: Variant in [0.5, 256, 1]:
+		bad_station_location = station_data.duplicate(true)
+		bad_station_location.location.station_index = invalid_index
+		bad_station_file = FileAccess.open(path, FileAccess.WRITE)
+		bad_station_file.store_string(JSON.stringify(bad_station_location))
+		bad_station_file.close()
+		assert(loaded.load_save(path) != "" and loaded._save_data() == loaded_station_state, "invalid station index is rejected transactionally")
+	for conflict: String in ["flying", "surface", "ship_address"]:
+		bad_station_location = station_data.duplicate(true)
+		match conflict:
+			"flying": bad_station_location.location.flying = true
+			"surface": bad_station_location.location.surface = 0
+			"ship_address": bad_station_location.location.ship_address = station_data.location.address
+		bad_station_file = FileAccess.open(path, FileAccess.WRITE)
+		bad_station_file.store_string(JSON.stringify(bad_station_location))
+		bad_station_file.close()
+		assert(loaded.load_save(path) != "" and loaded._save_data() == loaded_station_state, "contradictory station location is rejected transactionally")
 	var old_v2: Dictionary = state._save_data().duplicate(true)
 	old_v2.erase("world_id")
 	old_v2.erase("location")

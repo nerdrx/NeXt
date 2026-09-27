@@ -135,3 +135,31 @@ cloud volumes and detailed surface assets remain unfinished.
 The Windows export with these planet materials reached the normal integrated
 smoke success marker under Proton. Live graphics/performance certification is
 still pending; the usual SDR white-level warning remains.
+
+
+## Owned station concourses and saves
+
+Owned stations now connect their apron to a covered bridge, corridor and 3–8
+service rooms depending on level. Windows use transparent collision-backed panes;
+rooms have actual doorway openings and reachable service terminals. The physical
+walking test follows every level-one route from apron to room and back at the
+normal player speed with accelerated simulation. It opens each service, saves
+inside a room, reloads both normally and after an origin shift, and checks the
+ship remains at its owned dock. Capsule sweeps check every route in the level-100
+layout. Unsupported saved positions fall back to the orbital dock.
+
+Optional station location metadata is validated against the saved station list
+and current system; fractional, out-of-range, nonexistent and contradictory
+locations fail transactionally. Existing state, docking, departure, diplomacy and
+integrated smoke checks pass. The walking test also runs in hidden Gamescope;
+the initial room capture prompted brighter lighting and clearer glazing. This
+is a connected single-level concourse, not a complete huge populated station.
+Station staffing, access permissions and arbitrary interior construction remain
+unfinished. Save bounds reject space beyond floors but are not a full capsule
+collision validation for arbitrary edited saves.
+
+The final native interior test also checks glazing collisions between window
+posts. The Windows export completed the expanded normal Proton smoke, including
+room services and interior save restoration. The full walking/capsule route checks
+ran natively. The known SDR warning and post-success wrapper cleanup remain;
+the hidden native render reported texture RID leaks at teardown.

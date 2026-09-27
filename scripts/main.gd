@@ -163,11 +163,14 @@ func _rebase_flight() -> void:
 
 func _capture_flight_location() -> void:
 	state.location = {}
-	if surface_index >= 0 or (manual_planet < 0 and not pilot.flying and not (aboard and return_flying)): return
+	if surface_index >= 0 or (manual_planet < 0 and docked_station < 0 and not pilot.flying and not (aboard and return_flying)): return
 	var address := SectorPosition.new(flight_origin.sector, flight_origin.local)
 	if not address.move_delta(return_position if aboard else pilot.position): return
 	var angles: Vector3 = return_view if aboard else Vector3(pilot.camera.rotation.x, pilot.rotation.y, pilot.camera.rotation.z)
 	state.location = {"system": state.system_index, "surface": -1, "address": address.to_save(), "rotation": [angles.x, angles.y, angles.z], "flying": true}
+	if docked_station >= 0 and not pilot.flying:
+		state.location.flying = false
+		state.location.station_index = docked_station
 	if manual_planet >= 0 and landed_ship_address != null:
 		var up: Vector3 = return_up if aboard else pilot.up_direction
 		var body_basis: Basis = return_basis if aboard else pilot.basis
@@ -180,6 +183,9 @@ func _capture_flight_location() -> void:
 func _restore_flight_location() -> void:
 	var location: Dictionary = state.location
 	if location.is_empty(): return
+	if location.has("station_index"):
+		_restore_station_location(location)
+		return
 	if int(location.surface) >= world.planets.size(): return
 	if not bool(location.flying) and not location.has("ship_address"): return
 	var address: SectorPosition = SectorPosition.from_save(location.address)
@@ -214,6 +220,26 @@ func _restore_flight_location() -> void:
 		pilot.basis = Basis(Quaternion(Vector3.UP, up)) * Basis(Vector3.UP, float(location.rotation[1]))
 		_update_planet_terrain()
 		rebuild_player_ship()
+	rebuild_wrecks()
+
+func _restore_station_location(location: Dictionary) -> void:
+	var index := int(location.station_index)
+	var station: OwnedStation = _station_node(index)
+	var address: SectorPosition = SectorPosition.from_save(location.address)
+	if station == null or address == null: return
+	# Stations are generated in system coordinates before the scene origin shifts.
+	var system_point: Variant = address.relative_to(SectorPosition.new(), SectorPosition.MAX_RELATIVE_DISTANCE)
+	if system_point == null or not station.contains_walk_position(station.to_local(system_point)): return
+	var new_origin := SectorPosition.new(address.sector)
+	_register_spatial_nodes()
+	flight_frame.rebase(flight_origin, new_origin)
+	flight_origin = new_origin
+	docked_station = index
+	pilot.set_flight(false)
+	pilot.set_walk_up(Vector3.UP)
+	pilot.teleport(address.local)
+	pilot.restore_view(Vector3(location.rotation[0], location.rotation[1], location.rotation[2]))
+	rebuild_player_ship()
 	rebuild_wrecks()
 
 func _cruise_point(address: SectorPosition) -> Vector3:
@@ -342,6 +368,17 @@ func _colony_service() -> Dictionary:
 					staffed_service.label = str(service.label) + " / " + actor.display_name
 					break
 			return staffed_service
+	return {}
+
+func _station_service() -> Dictionary:
+	if aboard or pilot.flying: return {}
+	var station: OwnedStation = _station_node(docked_station)
+	if station == null: return {}
+	for service: Dictionary in station.interior_services:
+		var target := station.to_global(service.position + Vector3.UP * 1.5)
+		if pilot.position.distance_to(target) > 3.5: continue
+		var ray := PhysicsRayQueryParameters3D.create(pilot.camera.global_position, target, 1, [pilot.get_rid()])
+		if get_world_3d().direct_space_state.intersect_ray(ray).is_empty(): return service
 	return {}
 
 func _planet_center(index: int) -> Variant:
@@ -730,7 +767,7 @@ func _dock_owned_station() -> bool:
 		pilot.reset_view()
 		rebuild_player_ship()
 		save_commander(false)
-		notify("Docked at %s. Walk the deck; Tab opens station services." % state.stations[docked_station].name)
+		notify("Docked at %s. Follow the concourse signs for station services." % state.stations[docked_station].name)
 		return true
 	return false
 
@@ -873,7 +910,7 @@ func _rescue() -> void:
 	_rescuing = false
 
 func interaction_hint() -> String:
-	var service := _colony_service()
+	var service := _station_service() if docked_station >= 0 else _colony_service()
 	if not service.is_empty(): return str(service.label)
 	if aboard: return "Return to helm  /  PgUp/PgDn change deck"
 	if surface_index >= 0: return "Board ship / return to orbit" if _near_person() == null else "Talk to " + _near_person().display_name
@@ -908,7 +945,7 @@ func _interact() -> void:
 		save_commander(false)
 		notify("Docking complete. Welcome aboard.")
 		return
-	var service := _colony_service()
+	var service := _station_service() if docked_station >= 0 else _colony_service()
 	if not service.is_empty():
 		open_menu(str(service.page))
 		return
@@ -1140,7 +1177,7 @@ func load_commander() -> void:
 	apply_ship_stats()
 	_restore_flight_location()
 	open_menu()
-	notify("Commander restored on " + location_title() + "." if manual_planet >= 0 else ("Commander restored at the saved flight location." if pilot.flying else "Commander restored at the orbital station."))
+	notify("Commander restored on " + location_title() + "." if manual_planet >= 0 or docked_station >= 0 else ("Commander restored at the saved flight location." if pilot.flying else "Commander restored at the orbital station."))
 
 func quit_game() -> void:
 	if home_state != null:
@@ -1432,6 +1469,17 @@ func _integration_check() -> void:
 	_interact()
 	if not _check(docked_station == 0 and not pilot.flying, "owned outpost docking"): return
 	await _capture("owned-station")
+	var station_service: Dictionary = owned_station.interior_services[0]
+	pilot.teleport(owned_station.to_global(station_service.position))
+	await get_tree().physics_frame
+	_interact()
+	if not _check(ui_open and deck.page == station_service.page, "owned station room service"): return
+	if not _check(save_commander(false), "save owned station interior"): return
+	load_commander()
+	close_menu()
+	if not _check(docked_station == 0 and not pilot.flying, "restore owned station interior"): return
+	pilot.rotation.y = -PI / 2
+	await _capture("station-interior")
 	open_menu("factions")
 	await _capture("factions")
 	if not _check(save_commander(false) and restored.load_save(save_path).is_empty() and restored.faction == state.faction, "faction save round trip"): return
