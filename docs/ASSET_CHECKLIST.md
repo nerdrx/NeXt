@@ -109,3 +109,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Inspect commissioned Pathfinder/Merchant traffic at gameplay distance and under thrust; they now reuse the same family pressure geometry as the shipyard. Add final family identification markings while retaining persistent registry identity.
 
 - [ ] Replace the new mechanical roof placeholders (sealed cargo leaves, heat-exchanger louvers, ventilation and shield cover) with authored serviceable assemblies. Preserve exposed exhaust openings and flat armor normals; family silhouettes still need a complete design pass.
+
+- [ ] Refine the sloped family hull profiles into distinctive designed ships, preserving room containment and the common collision envelope. Current collision uses conservative per-cell boxes; final profile changes need renewed flight, coast, visitor, landing and berth clearance checks.

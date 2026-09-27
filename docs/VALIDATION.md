@@ -992,3 +992,10 @@ Blueprint containment and new flat-normal regression passed; fleet-family integr
 ## Family material capture diagnosis — 2026-09-28
 
 Confirmed the dark gray shell uniform and upward roof normals, then reproduced the roof washout using native StandardMaterial3D under the original lights. Adjusted only the family inspection light setup and added a reproducible `--standard-material` comparison mode with matched PBR properties. Both normal and comparison modes produced six captures each under hidden Gamescope without script errors; Pathfinder exterior comparisons were inspected. The reduced highlight reveals the current material and blockout geometry more clearly. No gameplay shader, geometry or lighting change is claimed by this diagnostic increment.
+
+
+## Sloped family hull profiles — 2026-09-28
+
+Added a flat-normal section-profile mesh builder and family-specific beam/length flare around unchanged pressure rooms. Optional fittings project to the nearest outward hull triangle. Family collision envelopes now include the armor in piloted, coasting and visitor hulls, navigation radius, landing/berth clearance and shipyard framing; arbitrary custom footprints retain their existing envelope. These remain conservative box approximations rather than exact profile collisions.
+
+The blueprint regression checks real interior collision corners inside the closed rendered hull, shell vertices within collision envelopes, fittings outside the angled shell, piloted/coasting shape dimensions and custom-layout compatibility. It passed alongside family refit/save and fleet-family regressions. Existing flight collision, coasting collision and coasting navigation checks passed under hidden Gamescope. Six family captures completed and Pathfinder front/Merchant rear were inspected. Hidden Gamescope main gameplay smoke passed (`NEXT_INTEGRATION_OK`); Windows export succeeded. Art quality and Proton runtime remain unproven.

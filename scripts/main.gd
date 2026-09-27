@@ -380,6 +380,12 @@ func _rebuild_colonies() -> void:
 func _surface_approach_height() -> float:
 	return maxf(25.0, pilot.hull_radius + 15.0)
 
+func _ship_cells(modules: Array) -> Array[Vector3i]:
+	var cells: Array[Vector3i] = []
+	for module: Dictionary in modules:
+		cells.append(Vector3i(int(module.x), int(module.y), int(module.z)))
+	return cells
+
 func approach_colony(index: int) -> void:
 	if index < 0 or index >= world.planets.size(): return
 	var body: Dictionary = world.planets[index]
@@ -393,11 +399,11 @@ func _try_colony_landing() -> bool:
 		if pilot.position.distance_to(pad + colony.basis.y * _surface_approach_height()) > 40: continue
 		var low := Vector3(INF, INF, INF)
 		var high := Vector3(-INF, -INF, -INF)
-		for module: Dictionary in state.ship_modules:
-			var cell := Vector3(module.x, module.y, module.z)
+		var cells := _ship_cells(state.ship_modules)
+		for cell: Vector3i in cells:
 			low = low.min(cell)
 			high = high.max(cell)
-		var size := (high - low) * ShipVisual.CELL_SIZE + ShipBlueprint.COLLISION_SIZE
+		var size := (high - low) * ShipVisual.CELL_SIZE + ShipBlueprint.collision_size(cells)
 		if size.x > 42.0 or size.z > 42.0:
 			notify("Ship exceeds this port's landing pad. Find a clear planetary site.")
 			return true
@@ -556,15 +562,15 @@ func _surface_site_issue(index: int, up: Vector3) -> String:
 		return "Shoreline too close. Move farther inland before landing."
 	var low := Vector3(INF, INF, INF)
 	var high := Vector3(-INF, -INF, -INF)
-	for module: Dictionary in state.ship_modules:
-		var cell := Vector3(module.x, module.y, module.z)
+	var cells := _ship_cells(state.ship_modules)
+	for cell: Vector3i in cells:
 		low = low.min(cell)
 		high = high.max(cell)
-	var size := (high - low) * ShipVisual.CELL_SIZE + ShipBlueprint.COLLISION_SIZE
+	var size := (high - low) * ShipVisual.CELL_SIZE + ShipBlueprint.collision_size(cells)
 	var ship_clearance := maxf(3.0, Vector2(size.x, size.z).length() * 0.5 + 1.0)
 	var hull_inverse := Basis(Quaternion(Vector3.UP, up)).inverse()
 	var hull_center := (low + high) * 0.5 * ShipVisual.CELL_SIZE
-	var half_cell := ShipBlueprint.COLLISION_SIZE.x * 0.5
+	var half_cell := ShipBlueprint.collision_size(cells).x * 0.5
 	for rock: Dictionary in PlanetGeology.placements(radius, up, maxf(ship_clearance + 20.0, pilot.hull_radius + 10.0), seed, ocean):
 		var rock_up := Vector3(rock.position).normalized()
 		var clearance := float(rock.clearance_radius)
@@ -1035,11 +1041,11 @@ func _station_node(index: int) -> Node3D:
 func _uses_large_berth() -> bool:
 	var low := Vector3(16, 16, 16)
 	var high := Vector3(-16, -16, -16)
-	for module: Dictionary in state.ship_modules:
-		var cell := Vector3(module.x, module.y, module.z)
+	var cells := _ship_cells(state.ship_modules)
+	for cell: Vector3i in cells:
 		low = low.min(cell)
 		high = high.max(cell)
-	var span := (high - low) * ShipVisual.CELL_SIZE + ShipBlueprint.COLLISION_SIZE
+	var span := (high - low) * ShipVisual.CELL_SIZE + ShipBlueprint.collision_size(cells)
 	return span.x > 32 or span.z > 32 or span.y > 12
 
 func _station_berth_point(station: OwnedStation, point: String) -> Vector3:
@@ -1698,18 +1704,20 @@ func _build_peer_collision(visual: ShipVisual, modules: Array, peer_id: int) -> 
 	body.set_meta("peer_id", peer_id)
 	visual.add_child(body)
 	visual.set_meta("hit_body", body)
+	var cells := _ship_cells(modules)
 	var low := Vector3(99999, 99999, 99999)
 	var high := -low
-	for module: Dictionary in modules:
-		low = low.min(Vector3(module.x, module.y, module.z))
-		high = high.max(Vector3(module.x, module.y, module.z))
+	for cell: Vector3i in cells:
+		low = low.min(cell)
+		high = high.max(cell)
 	var center := (low + high) * 0.5 * ShipVisual.CELL_SIZE
-	for module: Dictionary in modules:
+	var collision_size := ShipBlueprint.collision_size(cells)
+	for cell: Vector3i in cells:
 		var collision := CollisionShape3D.new()
 		var box := BoxShape3D.new()
-		box.size = ShipBlueprint.COLLISION_SIZE
+		box.size = collision_size
 		collision.shape = box
-		collision.position = Vector3(module.x, module.y, module.z) * ShipVisual.CELL_SIZE - center
+		collision.position = Vector3(cell) * ShipVisual.CELL_SIZE - center
 		body.add_child(collision)
 
 func _pvp_clear_shot(attacker: int, target_id: int, direction: Vector3, distance: float) -> bool:

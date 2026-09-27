@@ -103,3 +103,36 @@ static func _add_oriented_triangle(st: SurfaceTool, a: Vector3, b: Vector3, c: V
 		st.add_vertex(b)
 		st.add_vertex(c)
 
+
+
+# Each section stores footprint X scale, height, and footprint Z scale.
+static func profile(outline: PackedVector2Array, sections: Array) -> ArrayMesh:
+	var points := outline.duplicate()
+	if Geometry2D.is_polygon_clockwise(points): points.reverse()
+	var triangles := Geometry2D.triangulate_polygon(points)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_smooth_group(-1)
+	for section in range(sections.size() - 1):
+		var lower: Vector3 = sections[section]
+		var upper: Vector3 = sections[section+1]
+		for i in points.size():
+			var j := (i+1) % points.size()
+			var a := Vector3(points[i].x * lower.x, lower.y, points[i].y * lower.z)
+			var b := Vector3(points[j].x * lower.x, lower.y, points[j].y * lower.z)
+			var c := Vector3(points[j].x * upper.x, upper.y, points[j].y * upper.z)
+			var d := Vector3(points[i].x * upper.x, upper.y, points[i].y * upper.z)
+			var edge := points[j] - points[i]
+			var outward := Vector3(edge.y, 0, -edge.x)
+			_add_oriented_triangle(st,a,b,c,outward)
+			_add_oriented_triangle(st,a,c,d,outward)
+	for cap in [0,sections.size()-1]:
+		var section: Vector3 = sections[cap]
+		var normal := Vector3.DOWN if cap == 0 else Vector3.UP
+		for i in range(0, triangles.size(), 3):
+			var a := points[triangles[i]]
+			var b := points[triangles[i+1]]
+			var c := points[triangles[i+2]]
+			_add_oriented_triangle(st,Vector3(a.x*section.x,section.y,a.y*section.z),Vector3(b.x*section.x,section.y,b.y*section.z),Vector3(c.x*section.x,section.y,c.y*section.z),normal)
+	st.generate_normals()
+	return st.commit()

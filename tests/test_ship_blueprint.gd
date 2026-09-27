@@ -20,6 +20,7 @@ func _run() -> void:
 		visual.build(state.ship_modules, "player", state.ship_layout)
 		var shell := visual.get_node_or_null("FamilyPressureHull") as MeshInstance3D
 		assert(shell != null, "family cells produce one connected pressure skin")
+		_assert_closed_mesh(shell.mesh.get_faces())
 		var outline := ShipBlueprint.pressure_outline(cells)
 		var reordered := cells.duplicate()
 		reordered.reverse()
@@ -27,7 +28,7 @@ func _run() -> void:
 		for vertex: Vector3 in shell.mesh.get_faces():
 			var within_collision := false
 			for cell in cells:
-				var bounds := AABB(Vector3(cell)*ShipBlueprint.CELL_SIZE-center-ShipBlueprint.COLLISION_SIZE*0.5,ShipBlueprint.COLLISION_SIZE)
+				var bounds := AABB(Vector3(cell)*ShipBlueprint.CELL_SIZE-center-ShipBlueprint.collision_size(cells)*0.5,ShipBlueprint.collision_size(cells))
 				if bounds.grow(0.001).has_point(vertex): within_collision = true
 			assert(within_collision,"pressure skin must not protrude outside collision")
 		var interior := ShipInterior.new()
@@ -43,13 +44,23 @@ func _run() -> void:
 						var point := shape.to_global(Vector3(x,y,z))
 						assert(absf(point.y) < ShipBlueprint.PRESSURE_SIZE.y*0.5, "interior fits vertical pressure bounds")
 						assert(Geometry2D.is_point_in_polygon(Vector2(point.x,point.z),outline), "interior fits the connected pressure outline")
+						assert(_inside_shell(point, shell.mesh.get_faces()), "interior corners fit inside the sloped outer hull")
 		var hull := CoastingHull.new()
 		root.add_child(hull)
 		hull.configure(state.ship_modules)
 		assert(hull._module_shapes.size() == cells.size())
 		for i in cells.size():
 			assert(hull._module_shapes[i].position.is_equal_approx(Vector3(cells[i])*ShipBlueprint.CELL_SIZE-center))
-			assert((hull._module_shapes[i].shape as BoxShape3D).size == ShipBlueprint.COLLISION_SIZE)
+			assert((hull._module_shapes[i].shape as BoxShape3D).size == ShipBlueprint.collision_size(cells))
+		var pilot := Pilot.new()
+		root.add_child(pilot)
+		pilot.set_physics_process(false)
+		pilot.configure_ship_collision(state.ship_modules)
+		await process_frame
+		assert(pilot._module_shapes.size() == cells.size())
+		for shape: CollisionShape3D in pilot._module_shapes:
+			assert((shape.shape as BoxShape3D).size == ShipBlueprint.collision_size(cells), "piloted family uses expanded armor collision")
+		pilot.queue_free()
 		visual.queue_free()
 		interior.queue_free()
 		hull.queue_free()
@@ -78,7 +89,43 @@ func _run() -> void:
 			for mesh: MeshInstance3D in visual.get_children():
 				for vertex: Vector3 in mesh.mesh.get_faces():
 					assert((mesh.transform * vertex).dot(normal) > surface - 0.004, "surface fitting must not be buried in pressure hull")
+			var family_cells: Array[Vector3i] = []
+			for module: Dictionary in ShipBlueprint.family("pathfinder").modules:
+				family_cells.append(Vector3i(module.x,module.y,module.z))
+			var outer_faces := ShipBlueprint.outer_hull(family_cells).get_faces()
+			visual._fit_surface_fittings(0,Vector3.ZERO,face,outer_faces)
+			for mesh: MeshInstance3D in visual.get_children():
+				for vertex: Vector3 in mesh.mesh.get_faces():
+					var point := mesh.transform * vertex + mesh.basis * normal * 0.005
+					assert(not _inside_shell(point,outer_faces), "projected fitting must remain outside sloped armor")
 			visual.free()
+	var custom_cells: Array[Vector3i] = [Vector3i.ZERO]
+	assert(ShipBlueprint.collision_size(custom_cells) == ShipBlueprint.COLLISION_SIZE, "custom modular hulls keep their existing collision")
 	assert(ShipBlueprint.family("unknown").is_empty())
 	print("SHIP_BLUEPRINT_OK: families, rooms, exterior containment and collision share one spatial contract")
 	quit()
+
+
+func _inside_shell(point: Vector3, faces: PackedVector3Array) -> bool:
+	var direction := Vector3(0.37,0.61,0.71).normalized()
+	var distances: Array[float] = []
+	for i in range(0,faces.size(),3):
+		var hit: Variant = Geometry3D.ray_intersects_triangle(point,direction,faces[i],faces[i+1],faces[i+2])
+		if hit == null: continue
+		var distance := point.distance_to(hit)
+		var duplicate := false
+		for previous in distances:
+			if absf(previous-distance) < 0.0001: duplicate = true
+		if not duplicate: distances.append(distance)
+	return distances.size() % 2 == 1
+
+
+func _assert_closed_mesh(faces: PackedVector3Array) -> void:
+	var edges := {}
+	for i in range(0,faces.size(),3):
+		for corner in range(3):
+			var a := str(faces[i+corner].snapped(Vector3.ONE*0.00001))
+			var b := str(faces[i+(corner+1)%3].snapped(Vector3.ONE*0.00001))
+			var key := a+"/"+b if a < b else b+"/"+a
+			edges[key] = int(edges.get(key,0))+1
+	for count in edges.values(): assert(count == 2, "profile mesh has no open or duplicate edges")

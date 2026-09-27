@@ -222,11 +222,13 @@ func refresh(values: Array) -> void:
 		preview.build(modules, "player", layout)
 		var low := Vector3.ZERO
 		var high := Vector3.ZERO
+		var cells: Array[Vector3i] = []
 		for item: Dictionary in modules:
 			var cell := Vector3(item.x, item.y, item.z)
+			cells.append(Vector3i(item.x, item.y, item.z))
 			low = low.min(cell)
 			high = high.max(cell)
-		var extent := (high - low) * ShipVisual.CELL_SIZE + ShipBlueprint.PRESSURE_SIZE
+		var extent := (high - low) * ShipVisual.CELL_SIZE + ShipBlueprint.collision_size(cells)
 		preview_camera.size = maxf(9.5, extent.length() * 1.2)
 		preview_camera.position = Vector3(19, 15, 24).normalized() * maxf(40.0, extent.length() * 1.7)
 		preview_camera.look_at(Vector3.ZERO)

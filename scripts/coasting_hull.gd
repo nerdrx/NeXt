@@ -38,10 +38,11 @@ func configure(modules: Array) -> void:
 	if cells.is_empty():
 		return
 	var center := ShipBlueprint.center(cells)
+	var collision_size := ShipBlueprint.collision_size(cells)
 	for cell in cells:
 		var shape := CollisionShape3D.new()
 		var box := BoxShape3D.new()
-		box.size = ShipBlueprint.COLLISION_SIZE
+		box.size = collision_size
 		shape.shape = box
 		shape.position = Vector3(cell) * ShipVisual.CELL_SIZE - center
 		add_child(shape)

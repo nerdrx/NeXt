@@ -290,9 +290,10 @@ func configure_ship_collision(modules: Array) -> void:
 	hull_radius = 0.9
 	if not cells.is_empty():
 		var center := ShipBlueprint.center(cells)
+		var collision_size := ShipBlueprint.collision_size(cells)
 		for cell: Vector3i in cells:
 			var p := Vector3(cell) * ShipVisual.CELL_SIZE - center
-			var half_cell := ShipBlueprint.COLLISION_SIZE * 0.5
+			var half_cell := collision_size * 0.5
 			for x in [-half_cell.x, half_cell.x]:
 				for y in [-half_cell.y, half_cell.y]:
 					for z in [-half_cell.z, half_cell.z]:
@@ -317,10 +318,11 @@ func _apply_ship_collision(cells: Array[Vector3i], clear: bool) -> void:
 	_module_centers.clear()
 	if not clear:
 		var center := ShipBlueprint.center(cells)
+		var collision_size := ShipBlueprint.collision_size(cells)
 		for cell: Vector3i in cells:
 			var shape := CollisionShape3D.new()
 			var box := BoxShape3D.new()
-			box.size = ShipBlueprint.COLLISION_SIZE
+			box.size = collision_size
 			shape.shape = box
 			_module_centers.append(Vector3(cell) * ShipVisual.CELL_SIZE - center)
 			shape.position = _module_centers[-1]

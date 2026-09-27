@@ -69,3 +69,17 @@ static func pressure_outline(cells: Array[Vector3i]) -> PackedVector2Array:
 			if merged.size() != 1: return PackedVector2Array()
 			outline = merged[0]
 	return outline
+
+
+static func collision_size(cells: Array[Vector3i]) -> Vector3:
+	return Vector3(4.8, 3.8, 4.8) if not family_for_cells(cells).is_empty() else COLLISION_SIZE
+
+
+static func outer_hull(cells: Array[Vector3i]) -> ArrayMesh:
+	var outline := pressure_outline(cells)
+	if outline.is_empty(): return null
+	# Sloped armor wraps the pressure volume without reducing room clearances.
+	var family_id := family_for_cells(cells)
+	var beam_scale := 1.2 if family_id == "pathfinder" else 1.16
+	var length_scale := 1.06 if family_id == "pathfinder" else 1.035
+	return HullGeometry.profile(outline, [Vector3(1.02, -1.48, 1.01), Vector3(beam_scale, -0.25, length_scale), Vector3(1.0, PRESSURE_SIZE.y * 0.5, 1.0)])

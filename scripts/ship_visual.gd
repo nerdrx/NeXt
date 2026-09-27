@@ -57,10 +57,12 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 	var bounds := (Vector3(high - low) + Vector3.ONE) * CELL_SIZE
 	var outline := ShipBlueprint.pressure_outline(cells)
 	var joined_hull := not outline.is_empty()
+	var hull_faces := PackedVector3Array()
 	if joined_hull:
 		var shell := MeshInstance3D.new()
 		shell.name = "FamilyPressureHull"
-		shell.mesh = HullGeometry.prism(Array(outline),-ShipBlueprint.PRESSURE_SIZE.y*0.5,ShipBlueprint.PRESSURE_SIZE.y*0.5)
+		shell.mesh = ShipBlueprint.outer_hull(cells)
+		hull_faces = shell.mesh.get_faces()
 		var paint := ShaderMaterial.new()
 		paint.shader = preload("res://shaders/fleet_surface.gdshader")
 		paint.set_shader_parameter("paint",Color("4d5960") if ShipBlueprint.family_for_cells(cells) == "pathfinder" else Color("645e51"))
@@ -78,7 +80,7 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 		# Only exposed faces receive inset service panels; shared cell faces are internal.
 		for face: String in ShipLayout.FACES:
 			var normal := Vector3(ShipLayout.FACE_STEPS[face])
-			if cells.has(cell + ShipLayout.FACE_STEPS[face]): continue
+			if joined_hull or cells.has(cell + ShipLayout.FACE_STEPS[face]): continue
 			var size := Vector3(1.82, 1.42, 0.035)
 			if normal.x != 0: size = Vector3(0.035, 1.42, 1.82)
 			elif normal.y != 0: continue
@@ -86,10 +88,14 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 		var panel_data: Dictionary = active_layout.panels.get(ShipLayout.cell_key(cell), {})
 		for face: String in ShipLayout.FACES:
 			if panel_data.has(face):
+				var first_fitting := get_child_count()
 				_build_hull_panel(p, face, str(panel_data[face]), plate_mat, armor_panel, dark_mat, panel_glass)
+				if joined_hull: _fit_surface_fittings(first_fitting, p, face, hull_faces)
 		if kind == "radiator":
 			for face: String in ShipLayout.exposed_radiator_faces(cell, kinds, panel_data):
+				var first_fitting := get_child_count()
 				_build_radiator_face(p, face, radiator_body, radiator_fin, radiator_channel)
+				if joined_hull: _fit_surface_fittings(first_fitting, p, face, hull_faces)
 		var coordinate := cell
 		for neighbor: Vector3i in [coordinate + Vector3i.RIGHT, coordinate + Vector3i.UP, coordinate + Vector3i(0, 0, 1)]:
 			if joined_hull or not cells.has(neighbor):
@@ -104,6 +110,7 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 				_add_box(bridge_center, Vector3(2.45, 2.2, 0.3), hull_mat)
 		match kind:
 			"cockpit":
+				if joined_hull: p.z -= 0.25
 				# Forward glazing belongs on the bow face, not as a rooftop console.
 				_add_box(p + Vector3(0, 0.45, -1.505), Vector3(1.42, 0.66, 0.045), dark_mat, Vector3(-0.16, 0, 0))
 				_add_box(p + Vector3(0, 0.45, -1.535), Vector3(1.22, 0.48, 0.03), canopy_mat, Vector3(-0.16, 0, 0))
@@ -164,6 +171,28 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 	_add_box(Vector3(-0.52, 0.05, -bounds.z * 0.49), Vector3(0.065, 0.04, 0.13), warm_mat)
 	_add_box(Vector3(0.52, 0.05, -bounds.z * 0.49), Vector3(0.065, 0.04, 0.13), warm_mat)
 	_add_box(Vector3(0, -0.12, bounds.z * 0.49), Vector3(bounds.x * 0.34, 0.09, 0.12), dark_mat)
+
+
+# Mount configurable fittings onto the actual armor triangle instead of the grid face.
+func _fit_surface_fittings(first: int, center: Vector3, face: String, faces: PackedVector3Array) -> void:
+	var direction := Vector3(ShipLayout.FACE_STEPS[face])
+	var nearest := INF
+	var surface := Vector3.ZERO
+	var normal := direction
+	for i in range(0, faces.size(), 3):
+		var hit: Variant = Geometry3D.ray_intersects_triangle(center,direction,faces[i],faces[i+1],faces[i+2])
+		if hit == null: continue
+		var distance := center.distance_to(hit)
+		if distance >= nearest: continue
+		nearest = distance
+		surface = hit
+		normal = (faces[i+2]-faces[i]).cross(faces[i+1]-faces[i]).normalized()
+	if not is_finite(nearest): return
+	var rotation_basis := Basis(Quaternion(direction,normal))
+	var previous_surface := center + direction * _surface_depth(direction,0.0)
+	for i in range(first,get_child_count()):
+		var fitting := get_child(i) as Node3D
+		fitting.transform = Transform3D(rotation_basis * fitting.basis, surface + rotation_basis * (fitting.position-previous_surface))
 
 
 # Face-mounted equipment follows the pressure envelope, independent of grid pitch.

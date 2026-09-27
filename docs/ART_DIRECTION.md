@@ -59,3 +59,6 @@ The modular exterior roof now uses paired sealed cargo hatches, louvers, ventila
 
 
 Family material inspection uses a less intense, steeper key light plus restrained fill/ambient illumination. The prior capture placed a broad specular highlight across the roof: a native StandardMaterial3D comparison reproduced the washout, so it was not evidence of an albedo bug in the custom shader. Use `--standard-material` after the capture script's `--` to compare native PBR against the custom shell with matched paint, roughness, metalness and clearcoat; comparison files have a `standard-` prefix. This changes inspection lighting only, not gameplay lighting, and does not establish final material quality.
+
+
+Pathfinder and Merchant outer hulls now use three profile sections around the unchanged pressure-room footprint. Their sides slope outward to a shoulder and back toward the keel; Pathfinder is proportionally broader. Generic rectangular side insets were removed from these families, and configurable armor/window/radiator fittings project onto the actual hull triangles. The cockpit glazing sits outside the new bow. The result remains a low-detail blockout: roof plan, propulsion integration, surface construction and stronger family differentiation still require substantial design work.
