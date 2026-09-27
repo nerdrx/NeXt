@@ -29,14 +29,19 @@ func purchase_ship(name: String) -> String:
 	state.fleet_ships.append({"id": _id("ship"), "name": clean, "system": state.system_index, "hull": 100.0, "cargo": {}, "capacity": 25})
 	return ""
 
-func assign_trade_route(crew_id: String, ship_id: String, good: String, destination: int, quantity: int = 5) -> String:
+func assign_trade_route(crew_id: String, ship_id: String, good: String, destination: int, quantity: int = 5, delivery_station: int = -1) -> String:
 	var member: Dictionary = _member(crew_id)
 	var ship: Dictionary = _ship(ship_id)
 	var key: String = good.to_lower()
 	if member.is_empty() or str(member.role) != "trader": return "A named trader is required."
 	if ship.is_empty(): return "Fleet ship does not exist."
 	if not BASE.has(key): return "Unknown trade good."
-	if destination < 0 or destination >= GameState.SYSTEM_LIMIT or destination == int(ship.system): return "Choose a different valid destination system."
+	if destination < 0 or destination >= GameState.SYSTEM_LIMIT: return "Choose a valid destination system."
+	if delivery_station < -1: return "Invalid delivery station."
+	if delivery_station >= 0:
+		if delivery_station >= state.stations.size(): return "Owned station does not exist."
+		if int(state.stations[delivery_station].system) != destination: return "Station destination does not match its system."
+	elif destination == int(ship.system): return "Choose a different valid destination system."
 	if quantity < 1 or quantity > int(ship.capacity): return "Trade quantity exceeds fleet hold capacity."
 	for held_good: Variant in ship.cargo:
 		if int(ship.cargo[held_good]) > 0 and str(held_good) != key: return "Unload the other commodity before changing this route."
@@ -49,8 +54,14 @@ func assign_trade_route(crew_id: String, ship_id: String, good: String, destinat
 	if state.credits < escrow: return "Insufficient credits for trade escrow (%d required)." % escrow
 	state.credits -= escrow
 	ship.erase("flight")
-	state.crew_orders[crew_id] = {"kind": "trade", "crew_id": crew_id, "ship_id": ship_id, "good": key, "origin": int(ship.system), "destination": destination, "quantity": quantity, "escrow": escrow, "escrow_limit": escrow, "progress": 0.0, "phase": "outbound", "earned": 0, "paused": false, "purchase_cost": 0 if _cargo_total(ship) == 0 else -1}
+	var order: Dictionary = {"kind": "trade", "crew_id": crew_id, "ship_id": ship_id, "good": key, "origin": int(ship.system), "destination": destination, "quantity": quantity, "escrow": escrow, "escrow_limit": escrow, "progress": 0.0, "phase": "outbound", "earned": 0, "paused": false, "purchase_cost": 0 if _cargo_total(ship) == 0 else -1}
+	if delivery_station >= 0: order.delivery_station = delivery_station
+	state.crew_orders[crew_id] = order
 	return ""
+
+func assign_station_supply(crew_id: String, ship_id: String, station_index: int, good: String, quantity: int = 5) -> String:
+	if station_index < 0 or station_index >= state.stations.size(): return "Owned station does not exist."
+	return assign_trade_route(crew_id, ship_id, good, int(state.stations[station_index].system), quantity, station_index)
 
 func assign_patrol(crew_id: String, ship_id: String, system: int) -> String:
 	var member: Dictionary = _member(crew_id)
@@ -228,13 +239,22 @@ func _trade_leg(order: Dictionary) -> Dictionary:
 		var quantity: int = mini(int(order.quantity), int(ship.capacity) - _cargo_total(ship))
 		quantity = mini(quantity, state.market_stock(good, int(order.origin)))
 		if quantity <= 0: return {"kind": "trade", "status": "waiting: origin stock unavailable", "crew_id": order.crew_id}
+		var escrow_top_up: int = 0
+		if order.has("delivery_station"):
+			escrow_top_up = mini(int(state.credits), maxi(0, int(order.escrow_limit) - int(order.escrow)))
+			state.credits -= escrow_top_up
+			order.escrow = int(order.escrow) + escrow_top_up
 		var cost: int = state.market_total(good, int(order.origin), quantity, true)
 		while quantity > 0 and (cost < 0 or cost > int(order.escrow)):
 			quantity -= 1
 			cost = state.market_total(good, int(order.origin), quantity, true)
 		if quantity <= 0: return {"kind": "trade", "status": "escrow exhausted", "crew_id": order.crew_id}
 		var transfer_error: String = state.market_transfer(good, int(order.origin), quantity, true)
-		if not transfer_error.is_empty(): return {"kind": "trade", "status": transfer_error, "crew_id": order.crew_id}
+		if not transfer_error.is_empty():
+			if escrow_top_up > 0:
+				state.credits += escrow_top_up
+				order.escrow = int(order.escrow) - escrow_top_up
+			return {"kind": "trade", "status": transfer_error, "crew_id": order.crew_id}
 		var prior_cost: int = int(order.get("purchase_cost", 0 if int(ship.cargo.get(good, 0)) == 0 else -1))
 		order.purchase_cost = prior_cost + cost if prior_cost >= 0 else -1
 		order.escrow = int(order.escrow) - cost
@@ -250,6 +270,22 @@ func _trade_leg(order: Dictionary) -> Dictionary:
 		ship.system = int(order.origin)
 		order.phase = "outbound"
 		return {"kind": "trade", "status": "no cargo to sell", "crew_id": order.crew_id}
+	if order.has("delivery_station"):
+		var station_index: int = int(order.delivery_station)
+		if station_index < 0 or station_index >= state.stations.size(): return {"kind": "trade", "status": "station missing", "crew_id": order.crew_id, "ship_id": ship.id}
+		var station: Dictionary = state.stations[station_index]
+		if int(station.system) != int(order.destination): return {"kind": "trade", "status": "station destination changed", "crew_id": order.crew_id, "ship_id": ship.id}
+		var stock: Dictionary = station.get("stock", {})
+		if sold > MAX_STOCK - int(stock.get(good, 0)): return {"kind": "trade", "status": "waiting: station storage full", "crew_id": order.crew_id, "ship_id": ship.id, "station": station.name}
+		var purchase_cost: int = int(order.get("purchase_cost", -1))
+		stock[good] = int(stock.get(good, 0)) + sold
+		station.stock = stock
+		ship.cargo[good] = 0
+		ship.erase("flight")
+		ship.system = int(order.origin)
+		order.phase = "outbound"
+		order.purchase_cost = 0
+		return {"kind": "trade", "status": "cargo delivered", "crew_id": order.crew_id, "ship_id": ship.id, "good": good, "quantity": sold, "station": station.name, "station_index": station_index, "cost": purchase_cost if purchase_cost >= 0 else null, "system": ship.system}
 	var revenue: int = state.market_total(good, int(order.destination), sold, false, 0.85)
 	if revenue < 0: return {"kind": "trade", "status": "waiting: destination market full", "crew_id": order.crew_id}
 	var transfer_error: String = state.market_transfer(good, int(order.destination), sold, false)

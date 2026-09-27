@@ -1,6 +1,7 @@
 class_name OwnedStation
 extends Node3D
 
+const FREIGHT_APPROACH := Vector3(0, 22, 150)
 const STATION_LAYOUT = preload("res://scripts/station_layout.gd")
 
 var dock_position := Vector3(0, 0, 70)

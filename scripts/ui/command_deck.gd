@@ -641,6 +641,7 @@ func _fleet() -> void:
 		var text := "%s / %s" % [member.name, "Available" if order.is_empty() else str(order.get("kind", "Order")).capitalize() + " / " + ("Paused" if order.get("paused", false) else str(order.get("phase", "Active")))]
 		if order.get("kind", "") == "trade":
 			var cost: int = int(order.get("purchase_cost", -1))
+			if order.has("delivery_station"): text += "\nSupplying " + str(s.stations[int(order.delivery_station)].name)
 			text += "\nCargo purchase cost: " + (("%d CR" % cost) if cost >= 0 else "unknown / carried or legacy cargo")
 		var label := InterfaceTheme.label(text, 16)
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -696,8 +697,13 @@ func _fleet() -> void:
 		station_choice.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		for station: Dictionary in s.stations: station_choice.add_item(str(station.name))
 		property_row.add_child(station_choice)
+		var supply := InterfaceTheme.button("SUPPLY STATION", func():
+			_act(game.crew_operations().assign_station_supply.bind(str(crew_choice.get_selected_metadata()), str(ship_choice.get_selected_metadata()), station_choice.selected, str(goods_choice.get_selected_metadata()), int(quantity.value)), "Recurring station supply route assigned."))
+		supply.disabled = s.fleet_ships.is_empty()
+		property_row.add_child(supply)
 		property_row.add_child(InterfaceTheme.button("MANAGE STATION", func():
 			_act(game.crew_operations().assign_station_manager.bind(str(crew_choice.get_selected_metadata()), station_choice.selected), "Station manager assigned.")))
+		_text("Supply routes use the selected ship, commodity and cargo quantity. They buy from the ship’s starting system and deliver to the selected station. Each pickup reserves credits up to the initial cargo budget, plus normal crew wages, until cancelled.", 14, InterfaceTheme.MUTED)
 	_button("REFRESH REPORTS", refresh)
 	_button("BACK TO ENTERPRISE", show_page.bind("company"))
 

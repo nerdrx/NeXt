@@ -794,7 +794,7 @@ func _load_v2(data: Dictionary) -> String:
 		var assigned_stations: Dictionary = {}
 		var assigned_ship_defense: bool = false
 		for key: Variant in data.crew_orders:
-			if not key is String or not crew_ids.has(key) or not _valid_order(data.crew_orders[key], key, ship_ids, loaded_stations.size()): return "Invalid crew order."
+			if not key is String or not crew_ids.has(key) or not _valid_order(data.crew_orders[key], key, ship_ids, loaded_stations): return "Invalid crew order."
 			var order: Dictionary = data.crew_orders[key].duplicate(true)
 			var expected_role: String = "trader" if order.kind == "trade" else ("gunner" if order.kind in ["patrol", "defend"] else "engineer")
 			if _crew_role(loaded_crew, key) != expected_role: return "Crew role does not match assigned order."
@@ -812,6 +812,7 @@ func _load_v2(data: Dictionary) -> String:
 				"trade":
 					for numeric: String in ["origin", "destination", "quantity", "escrow", "escrow_limit", "earned"]: order[numeric] = int(order[numeric])
 					if order.has("purchase_cost"): order.purchase_cost = int(order.purchase_cost)
+					if order.has("delivery_station"): order.delivery_station = int(order.delivery_station)
 				"patrol":
 					order.system = int(order.system)
 					order.encounters = int(order.encounters)
@@ -892,19 +893,24 @@ func _valid_contract(value: Variant) -> bool:
 	if not value.accepted is bool or not value.completed is bool: return false
 	return int(value.origin) >= 0 and int(value.origin) < SYSTEM_LIMIT and int(value.destination) >= 0 and int(value.destination) < SYSTEM_LIMIT and int(value.quantity) >= 0 and int(value.reward) >= 0 and int(value.baseline_kills) >= 0
 
-func _valid_order(value: Variant, crew_id: String, ship_ids: Dictionary, station_count: int) -> bool:
+func _valid_order(value: Variant, crew_id: String, ship_ids: Dictionary, stations_to_validate: Array[Dictionary]) -> bool:
 	if not value is Dictionary or str(value.get("crew_id", "")) != crew_id or not _is_number(value.get("progress")) or not is_finite(float(value.progress)) or float(value.progress) < 0 or float(value.progress) > 31536000.0 or not value.get("paused", false) is bool: return false
 	var kind: String = str(value.get("kind", ""))
 	if kind == "trade":
-		if value.size() != 13 + (1 if value.has("purchase_cost") else 0) or not value.has_all(["kind", "crew_id", "ship_id", "good", "origin", "destination", "quantity", "escrow", "escrow_limit", "progress", "phase", "earned", "paused"]): return false
+		var has_delivery_station: bool = value.has("delivery_station")
+		if value.size() != 13 + (1 if value.has("purchase_cost") else 0) + (1 if has_delivery_station else 0) or not value.has_all(["kind", "crew_id", "ship_id", "good", "origin", "destination", "quantity", "escrow", "escrow_limit", "progress", "phase", "earned", "paused"]): return false
 		if value.has("purchase_cost") and (not GOODS.has(value.good) or not _is_int(value.purchase_cost) or int(value.purchase_cost) < -1 or int(value.purchase_cost) > 100 * ceili(float(GOODS[value.good]) * 1.45 * MAX_SCARCITY_MULTIPLIER)): return false
-		return ship_ids.has(value.ship_id) and GOODS.has(value.good) and _is_int(value.origin) and _is_int(value.destination) and int(value.origin) >= 0 and int(value.origin) < SYSTEM_LIMIT and int(value.destination) >= 0 and int(value.destination) < SYSTEM_LIMIT and int(value.origin) != int(value.destination) and _is_int(value.quantity) and int(value.quantity) > 0 and int(value.quantity) <= 100 and _is_int(value.escrow) and int(value.escrow) >= 0 and _is_int(value.escrow_limit) and int(value.escrow_limit) >= int(value.escrow) and int(value.escrow_limit) <= int(value.quantity) * ceili(float(GOODS[value.good]) * 1.45 * MAX_SCARCITY_MULTIPLIER) and value.phase in ["outbound", "inbound"] and _is_int(value.earned)
+		var valid_trade: bool = ship_ids.has(value.ship_id) and GOODS.has(value.good) and _is_int(value.origin) and _is_int(value.destination) and int(value.origin) >= 0 and int(value.origin) < SYSTEM_LIMIT and int(value.destination) >= 0 and int(value.destination) < SYSTEM_LIMIT and _is_int(value.quantity) and int(value.quantity) > 0 and int(value.quantity) <= 100 and _is_int(value.escrow) and int(value.escrow) >= 0 and _is_int(value.escrow_limit) and int(value.escrow_limit) >= int(value.escrow) and int(value.escrow_limit) <= int(value.quantity) * ceili(float(GOODS[value.good]) * 1.45 * MAX_SCARCITY_MULTIPLIER) and value.phase in ["outbound", "inbound"] and _is_int(value.earned)
+		if not valid_trade: return false
+		if not has_delivery_station: return int(value.origin) != int(value.destination)
+		if not _is_int(value.delivery_station) or int(value.delivery_station) < 0 or int(value.delivery_station) >= stations_to_validate.size(): return false
+		return int(value.destination) == int(stations_to_validate[int(value.delivery_station)].system)
 	if kind == "patrol":
 		if value.size() != 7 or not value.has_all(["kind", "crew_id", "ship_id", "system", "progress", "encounters", "paused"]): return false
 		return ship_ids.has(value.ship_id) and _is_int(value.system) and int(value.system) >= 0 and int(value.system) < SYSTEM_LIMIT and _is_int(value.encounters) and int(value.encounters) >= 0
 	if kind == "station":
 		if value.size() != 6 or not value.has_all(["kind", "crew_id", "station_index", "progress", "produced", "paused"]): return false
-		return _is_int(value.station_index) and int(value.station_index) >= 0 and int(value.station_index) < station_count and _is_int(value.produced) and int(value.produced) >= 0
+		return _is_int(value.station_index) and int(value.station_index) >= 0 and int(value.station_index) < stations_to_validate.size() and _is_int(value.produced) and int(value.produced) >= 0
 	if kind == "defend":
 		return value.size() == 4 and value.has_all(["kind", "crew_id", "progress", "paused"])
 	return false

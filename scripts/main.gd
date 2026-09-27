@@ -743,11 +743,20 @@ func _capture_fleet_flights() -> void:
 		if ship.is_empty() or order.is_empty() or int(ship.system) != state.system_index or not is_same(actor.get_meta("trade_order", {}), order): continue
 		var phase: String = str(order.get("phase", ""))
 		if str(actor.get_meta("trade_phase", "")) != phase: continue
-		var address: SectorPosition = flight_frame.address_for(actor, flight_origin)
-		if address == null or address.relative_to(SectorPosition.new(), SectorPosition.MAX_RELATIVE_DISTANCE) == null: continue
-		var velocity: Vector3 = actor.velocity
-		if not velocity.is_finite() or velocity.length() > 1000.0: continue
-		ship.flight = {"phase": phase, "address": address.to_save(), "velocity": [velocity.x, velocity.y, velocity.z]}
+		_store_trade_flight(actor, ship, phase)
+
+func _store_trade_flight(actor: ShipActor, ship: Dictionary, phase: String) -> void:
+	var address: SectorPosition = flight_frame.address_for(actor, flight_origin)
+	if address == null or address.relative_to(SectorPosition.new(), SectorPosition.MAX_RELATIVE_DISTANCE) == null: return
+	var velocity: Vector3 = actor.velocity
+	if not velocity.is_finite() or velocity.length() > 1000.0: return
+	ship.flight = {"phase": phase, "address": address.to_save(), "velocity": [velocity.x, velocity.y, velocity.z]}
+
+func _fleet_trade_target(order: Dictionary) -> Vector3:
+	if order.has("delivery_station"):
+		if order.phase == "inbound": return _owned_station_system_position(int(order.delivery_station)) + OwnedStation.FREIGHT_APPROACH
+		if int(order.origin) == int(order.destination): return Vector3(-420, 100, -650)
+	return Vector3(-420, 100, -650 if order.phase == "inbound" else -2000)
 
 func _sync_fleet_actors() -> Array[String]:
 	_capture_fleet_flights()
@@ -768,6 +777,9 @@ func _sync_fleet_actors() -> Array[String]:
 			if fleet_actors.has(id):
 				var current: ShipActor = fleet_actors[id]
 				if str(current.get_meta("fleet_order_kind", "")) != desired_kind or str(current.get_meta("trade_phase", "")) != trade_phase or (is_trader and not is_same(current.get_meta("trade_order", {}), trade_order)):
+					# A local supply route changes its destination without teleporting its ship.
+					if is_trader and trade_order.has("delivery_station") and int(trade_order.origin) == int(trade_order.destination) and is_same(current.get_meta("trade_order", {}), trade_order):
+						_store_trade_flight(current, ship, trade_phase)
 					actors.erase(current)
 					remove_child(current)
 					current.queue_free()
@@ -786,7 +798,7 @@ func _sync_fleet_actors() -> Array[String]:
 				if is_trader: actor.set_meta("trade_order", trade_order)
 				actor.position = Vector3(-420 + (local_actor_ids.size() - 1) * 25, 100, -2000 if is_trader and trade_phase == "inbound" else -650)
 				if is_trader:
-					actor.set_travel_target(Vector3(-420, 100, -650 if trade_phase == "inbound" else -2000))
+					actor.set_travel_target(_fleet_trade_target(trade_order))
 					var saved_flight: Dictionary = ship.get("flight", {})
 					if str(saved_flight.get("phase", "")) == trade_phase:
 						var saved_address: Variant = SectorPosition.from_save(saved_flight.get("address"))
@@ -979,17 +991,22 @@ func rebuild_owned_stations() -> void:
 	owned_root = Node3D.new()
 	add_child(owned_root)
 	if surface_index >= 0: return
-	var count: int = 0
 	for station_index: int in state.stations.size():
 		var station: Dictionary = state.stations[station_index]
 		if int(station.get("system", station.get("system_index", -1))) != state.system_index: continue
 		var base := OwnedStation.new()
 		owned_root.add_child(base)
-		base.position = Vector3(600 + (count % 25) * 650, 60, -500 - (count / 25) * 500)
+		base.position = _owned_station_system_position(station_index)
 		base.set_meta("station_index", station_index)
 		base.build(station)
-		count += 1
 	flight_frame.track(owned_root, flight_origin, SectorPosition.new())
+
+func _owned_station_system_position(index: int) -> Vector3:
+	if index < 0 or index >= state.stations.size(): return Vector3.ZERO
+	var ordinal: int = 0
+	for prior: int in range(index):
+		if int(state.stations[prior].system) == int(state.stations[index].system): ordinal += 1
+	return Vector3(600 + (ordinal % 25) * 650, 60, -500 - (ordinal / 25) * 500)
 
 func _station_node(index: int) -> Node3D:
 	if index < 0 or not is_instance_valid(owned_root): return null
@@ -1787,6 +1804,15 @@ func _integration_check() -> void:
 	if not _check(industry_orders.deposit_station_stock(0, "ore", 2).is_empty() and industry_orders.deposit_station_stock(0, "fuel", 1).is_empty(), "supply foundry from actual cargo"): return
 	industry_orders.tick(900)
 	if not _check(industry_probe.stations[0].stock.alloys == 1 and industry_probe.stations[0].stock.ore == 0 and industry_probe.stations[0].stock.fuel == 0, "foundry consumes inputs exactly once"): return
+	industry_probe.credits = 50000
+	if not _check(industry_probe.hire("trader").is_empty() and industry_orders.purchase_ship("Foundry Supply").is_empty(), "commission station supply courier"): return
+	var supply_crew: String = industry_probe.crew[1].id
+	if not _check(industry_orders.assign_station_supply(supply_crew, str(industry_probe.fleet_ships[0].id), 0, "ore", 2).is_empty(), "assign local station supply route"): return
+	var supply_stock := industry_probe.market_stock("ore")
+	industry_orders.tick(600)
+	if not _check(industry_probe.market_stock("ore") == supply_stock - 2 and industry_probe.fleet_ships[0].cargo.ore == 2, "station supply purchases finite market goods"): return
+	industry_orders.tick(600)
+	if not _check(industry_probe.stations[0].stock.ore == 2 and industry_probe.fleet_ships[0].cargo.ore == 0 and industry_probe.crew_orders[supply_crew].earned == 0, "station delivery transfers cargo without sales income"): return
 	var invoice_probe := GameState.new()
 	var invoice_orders := CrewOrders.new(invoice_probe)
 	if not _check(invoice_probe.hire("trader").is_empty() and invoice_orders.purchase_ship("Invoice Courier").is_empty(), "commission invoice test courier"): return
