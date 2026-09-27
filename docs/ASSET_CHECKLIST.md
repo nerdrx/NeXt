@@ -69,3 +69,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Keep replacement ship assets aligned to the 2.8 m module grid and centred module bounds. Player flight now uses one box collider per occupied module; decorative panels/engines outside those cells need authored collision extensions when their final geometry is available. Walking retains a separate capsule.
 
 - [ ] Replace ship architect grid initials with authored module glyphs/thumbnails where they improve selection. Preserve readable coordinate, deck, count and occupied-cell states in `scripts/ui/ship_designer.gd`.
+
+- [ ] Replace large owned-station berth plates, edge lamps, service-lane marking and boarding signage with authored industrial assets; preserve the 120 m deck, clear hull envelope and continuous pedestrian connector.

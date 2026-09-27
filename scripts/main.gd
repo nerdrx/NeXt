@@ -828,30 +828,50 @@ func _station_node(index: int) -> Node3D:
 		if int(node.get_meta("station_index", -1)) == index: return node
 	return null
 
+func _uses_large_berth() -> bool:
+	var low := Vector3(16, 16, 16)
+	var high := Vector3(-16, -16, -16)
+	for module: Dictionary in state.ship_modules:
+		var cell := Vector3(module.x, module.y, module.z)
+		low = low.min(cell)
+		high = high.max(cell)
+	var span := (high - low + Vector3.ONE) * ShipVisual.CELL_SIZE
+	return span.x > 32 or span.z > 32 or span.y > 12
+
+func _station_berth_point(station: OwnedStation, point: String) -> Vector3:
+	var property := ("large_" if _uses_large_berth() else "") + point + "_position"
+	return station.to_global(station.get(property))
+
 func _ship_pad() -> Vector3:
 	if manual_planet >= 0 and landed_ship_address != null:
 		var point: Variant = landed_ship_address.relative_to(flight_origin, 60000)
 		if point != null: return point
 	var station := _station_node(docked_station)
-	return station.to_global(station.dock_position) if station != null else world.to_global(Vector3(0, 0, -22))
+	return _station_berth_point(station, "dock") if station != null else world.to_global(Vector3(0, 0, -22))
+
+func _near_ship_boarding() -> bool:
+	var station := _station_node(docked_station)
+	if station != null and _uses_large_berth():
+		return pilot.position.distance_to(_station_berth_point(station, "stand")) <= 8
+	return pilot.position.distance_to(_ship_pad()) <= 20
 
 func approach_owned_station(index: int) -> void:
 	var station := _station_node(index)
 	if station == null:
 		notify("That station is in another system.")
 		return
-	cruise_system_to(station.position + station.launch_position)
+	cruise_to(_station_berth_point(station, "launch"))
 
 func _dock_owned_station() -> bool:
 	if surface_index >= 0 or not is_instance_valid(owned_root) or bool(owned_root.get_meta("spatial_culled", false)): return false
 	for station in owned_root.get_children():
-		if pilot.position.distance_to(station.to_global(station.dock_position)) > 65: continue
+		if minf(pilot.position.distance_to(_station_berth_point(station, "dock")), pilot.position.distance_to(_station_berth_point(station, "launch"))) > 65: continue
 		if pilot.velocity.length() > 35:
 			notify("Reduce speed below 35 m/s to engage docking clamps.")
 			return true
 		docked_station = int(station.get_meta("station_index"))
 		pilot.set_flight(false)
-		pilot.teleport(station.to_global(station.stand_position))
+		pilot.teleport(_station_berth_point(station, "stand"))
 		pilot.reset_view()
 		rebuild_player_ship()
 		save_commander(false)
@@ -1004,7 +1024,7 @@ func interaction_hint() -> String:
 	if surface_index >= 0: return "Board ship / return to orbit" if _near_person() == null else "Talk to " + _near_person().display_name
 	var person: Node3D = _near_person()
 	if person != null: return "Talk to " + person.display_name
-	return "Board ship" if pilot.position.distance_to(_ship_pad()) < 20 else "Approach your ship or a service officer"
+	return "Board ship" if _near_ship_boarding() else "Approach your ship or a service officer"
 
 func _near_person() -> Node3D:
 	for actor in actors:
@@ -1041,7 +1061,7 @@ func _interact() -> void:
 	if person != null:
 		open_menu(str(person.get_meta("service")))
 		return
-	if pilot.position.distance_to(_ship_pad()) > 20:
+	if not _near_ship_boarding():
 		notify("Approach your ship on the landing pad to board.")
 		return
 	if manual_planet >= 0:
@@ -1058,7 +1078,7 @@ func _interact() -> void:
 	if surface_index >= 0:
 		_build_system()
 	var station := _station_node(docked_station)
-	var departure: Vector3 = station.to_global(station.launch_position) if station != null else world.to_global(world.launch_position)
+	var departure: Vector3 = _station_berth_point(station, "launch") if station != null else world.to_global(world.launch_position)
 	docked_station = -1
 	pilot.set_flight(true)
 	pilot.teleport(departure)
@@ -1228,7 +1248,7 @@ func _process(delta: float) -> void:
 		if not pilot.flying and manual_planet < 0:
 			var safe_spawn: Vector3 = world.to_global(world.spawn_position)
 			var dock := _station_node(docked_station)
-			if dock != null: safe_spawn = dock.to_global(dock.stand_position)
+			if dock != null: safe_spawn = _station_berth_point(dock, "stand")
 			if aboard: safe_spawn = interior.spawn_on_deck(interior_deck)
 			if pilot.position.y < safe_spawn.y - 150: pilot.teleport(safe_spawn)
 

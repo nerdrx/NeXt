@@ -4,6 +4,9 @@ extends Node3D
 var dock_position := Vector3(0, 0, 70)
 var stand_position := Vector3(18, 0.15, 70)
 var launch_position := Vector3(0, 22, 108)
+var large_dock_position := Vector3(0, 0, 220)
+var large_stand_position := Vector3(54, 0.15, 220)
+var large_launch_position := Vector3(0, 112, 220)
 var interior_services: Array[Dictionary] = []
 var interior_route: Array[Vector3] = []
 var walkable_regions: Array[AABB] = []
@@ -63,6 +66,7 @@ func build(station: Dictionary) -> void:
 	_box(Vector3(0, -0.5, 29), Vector3(74, 1, 10), hull, true)
 	_box(Vector3(25, 1, 30), Vector3(4, 2, 2), dark, true)
 	_box(Vector3(25, 2.1, 30), Vector3(3.5, 0.2, 1.7), light)
+	_build_large_berth(hull, trim, dark, light, amber)
 	var title := Label3D.new()
 	title.text = "%s\nDOCK 01  /  LEVEL %d" % [str(station.get("name", "Outpost")).to_upper(), level]
 	title.position = Vector3(0, 7, 36)
@@ -84,6 +88,33 @@ func build(station: Dictionary) -> void:
 		lamp.omni_range = 55
 		add_child(lamp)
 	_build_concourse(level, hull, trim, dark, light, amber, glass)
+
+func _build_large_berth(hull: Material, trim: Material, dark: Material, light: Material, amber: Material) -> void:
+	# Open 120 m apron supports a 92.4 m hull with clearance around its full span.
+	_box(Vector3(0, -1, 220), Vector3(120, 2, 120), hull, true)
+	_add_walk_region(Vector3(-60, 0, 160), Vector3(120, 0, 120))
+	# Ground-level connector joins the small apron to the large apron at z=160.
+	_box(Vector3(45, -0.5, 134), Vector3(26, 1, 52), hull, true)
+	_add_walk_region(Vector3(32, 0, 108), Vector3(26, 0, 52))
+	# Mark the ship envelope and keep the east-side boarding lane clear of the hull.
+	for side in [-1, 1]:
+		_box(Vector3(side * 48, 0.025, 220), Vector3(0.25, 0.05, 104), light)
+		_box(Vector3(0, 0.025, 220 + side * 48), Vector3(104, 0.05, 0.25), light)
+		_box(Vector3(side * 58, 0.04, 220), Vector3(0.35, 0.08, 116), amber if side > 0 else dark)
+		for rib in range(7):
+			_box(Vector3(side * 56, 0.08, 172 + rib * 16), Vector3(2.4, 0.16, 0.55), amber)
+	# Low perimeter equipment stays outside the clear pad and walking lane.
+	for side in [-1, 1]:
+		_box(Vector3(side * 59, 1.5, 220), Vector3(0.5, 3, 120), trim, true)
+		for lamp in range(9):
+			_box(Vector3(side * 55, 0.2, 166 + lamp * 13.5), Vector3(1.1, 0.15, 2), amber)
+	_box(Vector3(-15, 1.5, 161), Vector3(90, 3, 0.5), trim, true)
+	_box(Vector3(0, 1.5, 279), Vector3(120, 3, 0.5), trim, true)
+	for z in [161.0, 279.0]:
+		for x in [-48.0, -24.0, 0.0, 24.0, 48.0]:
+			_box(Vector3(x, 0.15, z), Vector3(2.2, 0.12, 1.0), amber)
+	_box(Vector3(54, 0.03, 220), Vector3(9, 0.06, 116), dark)
+	_label("LARGE BERTH  /  SERVICE LANE", Vector3(54, 3.6, 220), 0.018, Color("61e3d8"))
 
 func _build_concourse(level: int, hull: Material, trim: Material, dark: Material, light: Material, amber: Material, glass: Material) -> void:
 	var room_count := clampi(3 + level / 18, 3, 8)

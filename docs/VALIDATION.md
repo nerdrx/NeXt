@@ -353,3 +353,26 @@ The SDR white-level warning remains. The Proton/Gamescope wrapper remained alive
 after game completion and was terminated by the 55-second timeout (exit 137);
 this is not a clean wrapper exit. The Windows executable and pack were repackaged
 in `build/NeXt-Windows.zip`.
+
+## Large owned-station berths
+
+Owned stations choose a separate 120 m square open berth when module bounds exceed
+32 m in X/Z or 12 m in Y. The berth has a pedestrian connector to the existing
+apron and service concourse, a boarding point outside the maximum 92.4 m hull
+width and a launch position 112 m above the deck. The same selection drives
+approach, display placement, interaction prompts, departure and fall recovery.
+Saved station walking positions restore the selected berth from the saved hull;
+no additional save field is needed. Approach now uses the current rebase-aware
+station position instead of treating station-local coordinates as system space.
+
+`test_large_berth.gd` builds a wide, tall 53-module vessel through the state API,
+checks the speed guard, docks it, verifies deck support, walks the connector into
+the old apron using player controls, saves/restores, boards at the service lane
+and checks launch collision clearance. The hidden 1440x900 Vulkan test passed and
+its capture was inspected. Existing station gameplay and the main integration
+smoke passed. Seven texture RID leaks still appear during graphical teardown.
+
+This is an open static berth with assisted docking/boarding transitions. It does
+not implement moving airlocks, shared occupancy reservations, custom station
+blueprints or large-ship facilities at every public orbital hangar. Those remain
+separate requirements; this result is specific to owned stations.
