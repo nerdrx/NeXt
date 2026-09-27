@@ -3,6 +3,7 @@ extends HBoxContainer
 
 signal requested(kind: String, cell: Vector3i, remove: bool)
 
+var read_only := false
 var modules: Array = []
 var layout: Dictionary = {}
 var selected_cell := Vector3i.ZERO
@@ -110,7 +111,7 @@ func _ready() -> void:
 	preview_camera.near = 0.05
 	preview_camera.far = 2000.0
 	preview_camera.current = true
-	left.add_child(InterfaceTheme.label("LIVE ASSEMBLY  /  All modules affect your ship", 14, InterfaceTheme.MUTED))
+	left.add_child(InterfaceTheme.label("HULL LAYOUT PREVIEW" if read_only else "LIVE ASSEMBLY  /  All modules affect your ship", 14, InterfaceTheme.MUTED))
 	var kind := OptionButton.new()
 	for name: String in GameState.MODULES:
 		if name == "core":
@@ -121,14 +122,16 @@ func _ready() -> void:
 			kind.selected = kind.item_count - 1
 	kind.item_selected.connect(func(index: int): selected_kind = str(kind.get_item_metadata(index)))
 	left.add_child(kind)
+	kind.visible = not read_only
 	var actions := HBoxContainer.new()
 	install_button = InterfaceTheme.button("INSTALL MODULE", func(): requested.emit(selected_kind, selected_cell, false))
 	actions.add_child(install_button)
 	actions.add_child(InterfaceTheme.button("REMOVE / REFUND", func(): requested.emit("", selected_cell, true)))
 	left.add_child(actions)
+	actions.visible = not read_only
 	var right := VBoxContainer.new()
 	add_child(right)
-	right.add_child(InterfaceTheme.label("CONSTRUCTION GRID", 15, InterfaceTheme.CYAN))
+	right.add_child(InterfaceTheme.label("DECK PLAN" if read_only else "CONSTRUCTION GRID", 15, InterfaceTheme.CYAN))
 	var coordinates := HBoxContainer.new()
 	coordinates.add_child(InterfaceTheme.label("X", 14, InterfaceTheme.MUTED))
 	x_control = _coordinate_spin()
@@ -137,6 +140,7 @@ func _ready() -> void:
 	z_control = _coordinate_spin()
 	coordinates.add_child(z_control)
 	right.add_child(coordinates)
+	coordinates.visible = not read_only
 	var deck_row := HBoxContainer.new()
 	deck_row.add_child(InterfaceTheme.label("DECK", 14, InterfaceTheme.MUTED))
 	deck_control = SpinBox.new()
@@ -146,6 +150,7 @@ func _ready() -> void:
 	deck_control.rounded = true
 	deck_row.add_child(deck_control)
 	right.add_child(deck_row)
+	deck_row.visible = not read_only
 	var pan_row := HBoxContainer.new()
 	var up := InterfaceTheme.button("▲", func(): pan_grid(Vector2i(0, -1)))
 	var left_button := InterfaceTheme.button("◀", func(): pan_grid(Vector2i(-1, 0)))
@@ -156,6 +161,7 @@ func _ready() -> void:
 		button.custom_minimum_size = Vector2(36, 30)
 		pan_row.add_child(button)
 	right.add_child(pan_row)
+	pan_row.visible = not read_only
 	grid = BuildGrid.new()
 	right.add_child(grid)
 	grid.picked.connect(select_cell)
@@ -202,6 +208,13 @@ func pan_grid(delta: Vector2i) -> void:
 func _update_selection() -> void:
 	if selection != null:
 		selection.text = "X %d  /  Deck %d  /  Z %d\nBounds ±%d  /  Modules %d/%d" % [selected_cell.x, selected_cell.y, selected_cell.z, GameState.SHIP_CELL_LIMIT, modules.size(), GameState.MAX_SHIP_MODULES]
+		if read_only:
+			selection.text = "Select a room on the plan."
+			for module: Dictionary in modules:
+				if Vector3i(module.x,module.y,module.z) == selected_cell:
+					var room: String = layout.get("rooms",{}).get(ShipLayout.cell_key(selected_cell),ShipLayout.default_room(module.kind))
+					selection.text = room.capitalize() + " / " + str(module.kind).capitalize()
+
 
 func refresh(values: Array) -> void:
 	modules = values.duplicate(true)

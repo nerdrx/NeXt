@@ -268,6 +268,49 @@ func player_trade_total(good: String, quantity: int, buy: bool) -> int:
 func trade_quote(good: String, buy: bool) -> int:
 	return maxi(0, player_trade_total(good, 1, buy))
 
+func hull_family_quote(family_id: String) -> Dictionary:
+	var blueprint := ShipBlueprint.family(family_id)
+	if blueprint.is_empty(): return {"error":"Unknown hull family."}
+	var candidate: Array[Dictionary] = []
+	candidate.assign(blueprint.modules)
+	var stats := _stats_for(candidate)
+	if cargo_total() > int(stats.cargo_capacity): return {"error":"Unload cargo before choosing this hull."}
+	if crew.size() > int(stats.crew_capacity): return {"error":"This hull cannot accommodate your crew."}
+	if stats.power_balance < 0 or not _connected(candidate) or not _has_required_modules(candidate): return {"error":"Hull layout is not flight-ready."}
+	if hull <= 0.0: return {"error":"Recover your ship before refitting."}
+	var existing := {}
+	var replacement := {}
+	var old_value := 0
+	var price := 0
+	for module: Dictionary in ship_modules:
+		existing[Vector3i(module.x,module.y,module.z)] = module.kind
+		old_value += int(MODULES[module.kind].cost)
+	for module: Dictionary in candidate:
+		replacement[Vector3i(module.x,module.y,module.z)] = module.kind
+		price += int(MODULES[module.kind].cost)
+	if existing == replacement: return {"error":"Your ship already uses this layout."}
+	var condition := clampf(hull / float(ship_stats().max_hull), 0.0, 1.0)
+	var trade_in := int(floor(old_value * 0.5 * condition))
+	return {"error":"", "price":price, "trade_in":trade_in, "net":price-trade_in, "cargo_capacity":stats.cargo_capacity, "crew_capacity":stats.crew_capacity}
+
+
+func refit_hull_family(family_id: String) -> String:
+	var quote := hull_family_quote(family_id)
+	if not str(quote.error).is_empty(): return str(quote.error)
+	if credits < int(quote.net): return "Insufficient credits."
+	var blueprint := ShipBlueprint.family(family_id)
+	var old_stats := ship_stats()
+	var hull_ratio := clampf(hull / float(old_stats.max_hull), 0.0, 1.0)
+	var shield_ratio := clampf(shield / float(old_stats.max_shield), 0.0, 1.0)
+	ship_modules.assign(blueprint.modules)
+	ship_layout = blueprint.layout.duplicate(true)
+	credits -= int(quote.net)
+	var stats := ship_stats()
+	hull = float(stats.max_hull) * hull_ratio
+	shield = float(stats.max_shield) * shield_ratio
+	return ""
+
+
 func add_module(kind: String, cell: Vector3i) -> String:
 	if not MODULES.has(kind) or kind == "core": return "Unknown or unavailable module."
 	if ship_modules.size() >= MAX_SHIP_MODULES: return "Ship module limit reached."

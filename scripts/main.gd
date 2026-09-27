@@ -922,6 +922,16 @@ func _update_combat_targets() -> void:
 			actor.target = player_ship if _ship_detectable(actor, player_ship) else null
 		actor.observe_target(actor.target)
 
+func refit_hull_family(family_id: String) -> String:
+	if pilot.flying or aboard or session.connected:
+		return "Dock and leave multiplayer visits before changing hull layout."
+	var error := state.refit_hull_family(family_id)
+	if not error.is_empty(): return error
+	apply_ship_stats()
+	rebuild_player_ship()
+	return ""
+
+
 func rebuild_player_ship() -> void:
 	if is_instance_valid(ship_display):
 		remove_child(ship_display)

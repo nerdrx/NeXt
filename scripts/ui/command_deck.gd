@@ -3,6 +3,7 @@ extends Control
 
 var game: Node3D
 var page: String = "overview"
+var hull_family: String = "pathfinder"
 var content: VBoxContainer
 var heading: Label
 var feedback: Label
@@ -97,6 +98,7 @@ func show_page(value: String = "overview") -> void:
 		"survey": _survey()
 		"market": _market()
 		"shipyard": _shipyard()
+		"hulls": _hull_families()
 		"contracts": _contracts()
 		"company": _company()
 		"fleet": _fleet()
@@ -276,10 +278,51 @@ func _ship_stats_line(state: GameState) -> String:
 	var stats := state.ship_stats()
 	return "LOADED %.1f t   /   POWER %d / %d used   /   CARGO %d   /   SPEED %d m/s\nTHRUST %.2f MN   /   ACCELERATION %.2f g   /   BOOST %.2f g\nReactor reserve permits %.0f%% extra engine thrust.\nDRIVE %.0f K   /   RADIATOR AREA %.0f m²" % [stats.loaded_mass_kg / 1000.0, stats.power_demand, stats.power_generation, stats.cargo_capacity, stats.speed, stats.thrust_newtons / 1000000.0, stats.acceleration_mps2 / FlightDynamics.STANDARD_GRAVITY, stats.boost_acceleration_mps2 / FlightDynamics.STANDARD_GRAVITY, (stats.boost_multiplier - 1.0) * 100.0, state.drive_temperature_k, stats.radiator_area_m2]
 
+func _hull_families() -> void:
+	heading.text = "HULL LAYOUTS"
+	_button("BACK TO SHIP ARCHITECT", show_page.bind("shipyard"))
+	var choice := OptionButton.new()
+	for id: String in ShipBlueprint.FAMILIES:
+		choice.add_item(id.capitalize())
+		choice.set_item_metadata(choice.item_count-1,id)
+		if id == hull_family: choice.select(choice.item_count-1)
+	choice.item_selected.connect(func(index: int):
+		hull_family = str(choice.get_item_metadata(index))
+		show_page("hulls"))
+	content.add_child(choice)
+	var blueprint := ShipBlueprint.family(hull_family)
+	var preview := ShipDesigner.new()
+	preview.read_only = true
+	preview.modules = blueprint.modules.duplicate(true)
+	preview.layout = blueprint.layout.duplicate(true)
+	var rooms: Dictionary = {}
+	for module: Dictionary in blueprint.modules:
+		var key := ShipLayout.cell_key(Vector3i(module.x,module.y,module.z))
+		var room: String = blueprint.layout.rooms.get(key,ShipLayout.default_room(module.kind))
+		rooms[room] = int(rooms.get(room,0))+1
+	var room_summary: Array[String] = []
+	for room: String in rooms: room_summary.append("%d %s" % [rooms[room],room])
+	_text("WALKABLE / " + ", ".join(room_summary),15,InterfaceTheme.CYAN)
+	_text("Replaces your current assembly and room fittings. Cargo and crew transfer if capacity permits. Hull and shield condition, fuel and drive heat carry over. Custom construction remains available afterward.",15,InterfaceTheme.MUTED)
+	var quote: Dictionary = game.state.hull_family_quote(hull_family)
+	if not str(quote.error).is_empty():
+		_text(str(quote.error),16,InterfaceTheme.GOLD)
+		content.add_child(preview)
+		return
+	_text("Assembly %d CR / trade-in %d CR / %s %d CR" % [quote.price,quote.trade_in,"due" if quote.net >= 0 else "refund",absi(quote.net)],18,InterfaceTheme.CYAN)
+	var chosen := hull_family
+	var purchase := InterfaceTheme.button("REFIT TO " + chosen.to_upper(),_act.bind(game.refit_hull_family.bind(chosen),"Hull layout refitted."))
+	purchase.set_meta("hull_family_refit",chosen)
+	purchase.disabled = game.pilot.flying or game.aboard or game.session.connected or game.state.credits < quote.net
+	content.add_child(purchase)
+	content.add_child(preview)
+
+
 func _shipyard() -> void:
 	heading.text = "SHIP ARCHITECT"
 	var s: GameState = game.state
 	var stats_label := _text(_ship_stats_line(s), 15, InterfaceTheme.CYAN)
+	_button("COMPARE HULL LAYOUTS", show_page.bind("hulls"))
 	_text("Choose a deck and cell, then install a module. Every module must connect to the ship. Essential systems and cargo capacity are protected. Radiators cool faster when exposed; adjacent modules, armor and windows block their panels.", 15, InterfaceTheme.MUTED)
 	var designer := ShipDesigner.new()
 	designer.modules = s.ship_modules.duplicate(true)
