@@ -40,6 +40,7 @@ jobs:
         run: |
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_state.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_calendar.gd
+          timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_flight_save.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_calendar_gameplay.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_actors.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_network.gd

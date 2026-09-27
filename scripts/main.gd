@@ -192,6 +192,9 @@ func _capture_flight_location() -> void:
 		state.location.flying = false
 		state.location.rotation = [angles.x, angles.y, angles.z]
 		state.location.ship_address = landed_ship_address.to_save()
+	if state.location.flying:
+		var motion: Vector3 = coasting_hull.velocity if aboard and is_instance_valid(coasting_hull) else pilot.flight_velocity()
+		state.location.velocity = [motion.x, motion.y, motion.z]
 
 func _restore_flight_location() -> void:
 	var location: Dictionary = state.location
@@ -222,6 +225,8 @@ func _restore_flight_location() -> void:
 	pilot.teleport(address.local)
 	pilot.restore_view(Vector3(location.rotation[0], location.rotation[1], location.rotation[2]))
 	if bool(location.flying):
+		var motion: Array = location.get("velocity", [0.0, 0.0, 0.0])
+		pilot.restore_flight_velocity(Vector3(motion[0], motion[1], motion[2]))
 		ship_display.hide()
 	else:
 		manual_planet = int(location.surface)
@@ -1623,8 +1628,11 @@ func _integration_check() -> void:
 	if not _check(aboard and is_instance_valid(coasting_hull), "leave helm while coasting"): return
 	await get_tree().create_timer(0.3).timeout
 	if not _check(coasting_hull.position.x > coast_start.x + 10 and pilot.is_on_floor(), "moving interior supports passenger"): return
+	if not _check(save_commander(false), "save moving interior"): return
 	exit_interior()
 	if not _check(pilot.flying and pilot.velocity.x == 60, "return to moving helm"): return
+	load_commander()
+	if not _check(pilot.flying and pilot.flight_velocity() == Vector3(60, 0, 0), "restore saved ship momentum"): return
 	_build_system()
 	if not _check(purchase_insurance().is_empty(), "insurance service"): return
 	state.cargo.food = 5

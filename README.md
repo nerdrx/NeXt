@@ -107,4 +107,6 @@ Station Works supports editable service concourses: add up to 16 rooms, refit th
 
 Walkable ship interiors now occupy the ship’s actual position and orientation, with matching 2.8 m module spacing and gravity aligned to its deck. Disengage cruise before leaving the helm; the ship coasts at its current velocity while you walk, and returning restores that momentum. Hull contact stops the coast and returns you to the helm, with collision damage and rescue where applicable.
 
+Flight saves preserve ship velocity, including saves made from menus or while aboard. Loading resumes at the helm with that momentum; older saves without velocity start at rest. Closed worlds remain paused.
+
 Editable floor and ceiling window panels now have transparent apertures with solid collision barriers. You can see outside while walking on the glass; room lights and trim no longer cover the opening.

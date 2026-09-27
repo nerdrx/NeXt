@@ -746,14 +746,18 @@ func _new_crew_name() -> String:
 func _valid_location(value: Variant, current_system: int) -> bool:
 	if not value is Dictionary: return false
 	if value.is_empty(): return true
-	if value.size() < 5 or value.size() > 7 or not value.has_all(["system", "surface", "address", "rotation", "flying"]): return false
+	if value.size() < 5 or value.size() > 8 or not value.has_all(["system", "surface", "address", "rotation", "flying"]): return false
 	for key: Variant in value:
-		if not str(key) in ["system", "surface", "address", "rotation", "flying", "ship_address", "station_index"]: return false
+		if not str(key) in ["system", "surface", "address", "rotation", "flying", "ship_address", "station_index", "velocity"]: return false
 	if not _is_int(value.system) or int(value.system) != current_system or not _is_int(value.surface) or int(value.surface) < -1 or int(value.surface) > 7: return false
 	if not SectorPosition.from_save(value.address) is SectorPosition: return false
 	if not value.rotation is Array or value.rotation.size() != 3 or not value.flying is bool: return false
 	if value.has("ship_address") and (int(value.surface) < 0 or value.flying or not SectorPosition.from_save(value.ship_address) is SectorPosition): return false
 	if value.has("station_index") and (not _is_int(value.station_index) or int(value.station_index) < 0 or int(value.station_index) > 255 or int(value.surface) != -1 or value.flying or value.has("ship_address")): return false
+	if value.has("velocity") and (not value.flying or not value.velocity is Array or value.velocity.size() != 3): return false
+	if value.has("velocity"):
+		for component: Variant in value.velocity:
+			if not _is_number(component) or not is_finite(float(component)) or absf(float(component)) > 100000.0: return false
 	for component: Variant in value.rotation:
 		if not _is_number(component) or not is_finite(float(component)) or absf(float(component)) > 100000.0: return false
 	return true
@@ -767,6 +771,8 @@ func _normalize_location(value: Dictionary) -> Dictionary:
 	if result.has("ship_address"): result.ship_address = SectorPosition.from_save(result.ship_address).to_save()
 	if result.has("station_index"): result.station_index = int(result.station_index)
 	for index: int in range(3): result.rotation[index] = float(result.rotation[index])
+	if result.has("velocity"):
+		for index: int in range(3): result.velocity[index] = float(result.velocity[index])
 	return result
 
 func _save_data() -> Dictionary:

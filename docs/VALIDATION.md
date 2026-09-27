@@ -530,8 +530,8 @@ also enters a coasting interior, checks floor support and returns with momentum.
 This supersedes the stationary-only interior restriction, but only covers straight
 coasting with fixed attitude. Autopilot/crew steering while aboard, angular frame
 motion, shared multiplayer boarding and movement through physical airlocks remain
-unfinished. Existing flight saves still do not serialize momentum; reload starts
-at the recorded location. Nearby NPC combat remains paused while aboard. No target
+unfinished. At this increment, flight saves did not serialize momentum; the next
+increment below adds it. Nearby NPC combat remains paused while aboard. No target
 frame-rate claim is made for large interiors. Texture teardown warnings remain.
 
 The final menu-driven coasting test also passed under hidden Gamescope. The rebuilt
@@ -541,3 +541,25 @@ including the release-safe coasting checks. The wrapper required timeout cleanup
 failed on the previous commit now passes with the moving-interior implementation.
 The planetary regression's former world-UP expectation was updated to the parked
 hull's deck normal, with an additional physical floor-support check.
+
+## Persisted flight momentum
+
+Flight locations now include an optional world-space velocity vector. Saving while
+aboard takes the moving hull velocity; saving at the helm takes stored flight
+velocity, which survives a menu temporarily zeroing the public physics velocity.
+Loading restores momentum after teleporting and resumes at the helm. No elapsed
+offline travel is simulated. Legacy saves without this field start at rest.
+
+The optional field accepts only three finite numbers with each component bounded
+to 100000 m/s, and is rejected on non-flying locations. Normalization uses floats;
+the existing transactional load boundary protects state from malformed saves.
+The coasting gameplay check now loads while aboard, verifies helm momentum, saves
+again through the menu and exercises legacy fallback. These checks passed native
+headless and hidden Gamescope; the release-safe main smoke also checks momentum
+roundtrip. Existing texture teardown warnings remain.
+
+The focused save-schema test and existing state, spatial and planet gameplay
+regressions passed. Windows export and ZIP packaging completed; the release
+reported `NEXT_INTEGRATION_OK` under Proton in hidden Gamescope, including momentum
+roundtrip. Wrapper cleanup again reached its timeout (exit 137). The Windows SDR
+white-level warning remains. This is functional validation, not a 60 FPS benchmark.
