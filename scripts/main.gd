@@ -828,7 +828,7 @@ func _update_combat_targets() -> void:
 		if not actor is ShipActor: continue
 		if actor.faction == "player_fleet":
 			actor.target = _nearest_ship(actor, "pirate")
-			actor.hostile = actor.target != null
+			actor.hostile = true
 			var order := _patrol_order(str(actor.get_meta("fleet_ship_id", "")))
 			if bool(order.get("paused", true)):
 				actor.target = null
@@ -840,6 +840,7 @@ func _update_combat_targets() -> void:
 				actor.target = fleet_target
 		else:
 			actor.target = player_ship if _ship_detectable(actor, player_ship) else null
+		actor.observe_target(actor.target)
 
 func rebuild_player_ship() -> void:
 	if is_instance_valid(ship_display):
@@ -1710,6 +1711,19 @@ func _integration_check() -> void:
 	var cold_detection: float = signature_probe.ship_stats().thermal_detection_range_m
 	signature_probe.drive_temperature_k = 600.0
 	if not _check(signature_probe.ship_stats().thermal_detection_range_m > cold_detection * 3.9, "drive heat increases thermal detection range"): return
+	var search_probe := ShipActor.new()
+	var contact_probe := ShipActor.new()
+	add_child(search_probe)
+	add_child(contact_probe)
+	search_probe.set_physics_process(false)
+	contact_probe.set_physics_process(false)
+	contact_probe.position = Vector3(10000, 6000, 0)
+	search_probe.observe_target(contact_probe)
+	search_probe.observe_target(null)
+	contact_probe.position += Vector3(2000, 0, 0)
+	if not _check(search_probe.target == null and search_probe.last_contact_position == Vector3(10000, 6000, 0) and search_probe.search_seconds_remaining == ShipActor.CONTACT_SEARCH_SECONDS, "lost contacts preserve observed position without tracking hidden movement"): return
+	search_probe.queue_free()
+	contact_probe.queue_free()
 	var physical_sample := CelestialSystem.sample(deck.survey_catalog, 0, 0.0)
 	if not _check(not physical_sample.is_empty() and physical_sample.irradiance_w_m2 > 0.0, "orbital radiation model in release build"): return
 	await _capture("celestial-survey")

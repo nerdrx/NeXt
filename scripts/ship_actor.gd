@@ -13,6 +13,9 @@ var shields: float = 40.0
 var speed: float = 65.0
 var actor_id: String = ""
 var hostile: bool = true
+const CONTACT_SEARCH_SECONDS: float = 15.0
+var last_contact_position := Vector3.ZERO
+var search_seconds_remaining: float = 0.0
 
 var _visual: ShipVisual
 var _attack_cooldown: float = 0.0
@@ -42,12 +45,20 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if not active:
+	if not active or not is_finite(delta) or delta <= 0.0 or delta > 1.0:
 		return
+	if not hostile: search_seconds_remaining = 0.0
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
 	_patrol_phase += delta
 	var destination := _home + Vector3(sin(_patrol_phase * 0.22) * 26.0, sin(_patrol_phase * 0.31) * 8.0, cos(_patrol_phase * 0.22) * 26.0)
 	var attacking := hostile and _target_is_active()
+	if not attacking and hostile and search_seconds_remaining > 0.0:
+		search_seconds_remaining = maxf(0.0, search_seconds_remaining - delta)
+		if search_seconds_remaining > 0.0:
+			# Only the last observed point is available after contact is lost.
+			destination = last_contact_position
+			if global_position.distance_to(destination) < 80.0:
+				destination += Vector3(sin(_patrol_phase) * 35.0, sin(_patrol_phase * 0.7) * 12.0, cos(_patrol_phase) * 35.0)
 	if attacking:
 		var range := global_position.distance_to(target.global_position)
 		var away := (global_position - target.global_position).normalized()
@@ -100,6 +111,18 @@ func set_patrol_center(center: Vector3) -> void:
 	_patrol_center_set = true
 
 
+func observe_target(candidate: Node3D) -> void:
+	target = candidate
+	if not hostile:
+		search_seconds_remaining = 0.0
+		return
+	if _target_is_active() and target.global_position.is_finite():
+		last_contact_position = target.global_position
+		search_seconds_remaining = CONTACT_SEARCH_SECONDS
+	else:
+		target = null
+
+
 func _target_is_active() -> bool:
 	if not is_instance_valid(target) or target.is_queued_for_deletion():
 		return false
@@ -121,4 +144,5 @@ func _near_safe_zone() -> bool:
 func apply_origin_shift(delta: Vector3) -> void:
 	_safe_zone_center -= delta
 	_home -= delta
+	last_contact_position -= delta
 	reset_physics_interpolation()

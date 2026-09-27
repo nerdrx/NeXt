@@ -829,3 +829,11 @@ Thermal signature tests passed for temperature-to-the-fourth emission, area scal
 Existing fleet combat, aboard combat, drive thermal and radiator regressions passed. Native integration and the Windows export under Proton emitted NEXT_INTEGRATION_OK, including a release-safe thermal-range check. The export completed without script/shader errors; this is not a benchmark or multiplayer stealth validation. NPC signatures remain fixed approximations and contacts have no search memory.
 
 The thermal-signature Proton wrapper required timeout termination after the success marker (exit 137). The Windows ZIP was rebuilt. Both new thermal tests are included in CI.
+
+## Lost-contact search behavior
+
+The actual-scene contact-search test passes for hot acquisition, cold loss, remembered-point pursuit while the hidden player moves in the opposite direction, no firing without a current contact, reacquisition, paused clocks, invalid time steps, origin shifts, expiry toward home patrol and passive-state clearing. Actors, fleet combat, thermal detection and aboard combat regressions also pass. The new search test is included in CI.
+
+Native integration and the exported Windows executable under Proton emitted NEXT_INTEGRATION_OK, including a release-safe observed-position check. Windows export succeeded and the ZIP was rebuilt. These checks do not establish obstacle-aware route planning, coordinated search or persisted NPC knowledge; search memory is transient local simulation state.
+
+The search-build Proton wrapper required timeout cleanup after the success marker (exit 137); no script/shader errors were found. The preceding radiator commit f4791e9 passed both CI runs.
