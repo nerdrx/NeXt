@@ -19,6 +19,24 @@ A system should consume shared world state and produce consequences other system
 
 No hunger or thirst chores are introduced. Environmental life-support consequences and crew rescue remain compatible with the owner's convenience preferences.
 
+## When a simulation is worth building
+
+Include a system when it changes a player decision, another system's state, or an observable outcome. Choose the cheapest model that preserves those effects. Feasibility includes the high-end 1440p/60 FPS target and 2–8 player hosting; neither target is currently proven. Do not promise atom-by-atom simulation, full relativistic fluid dynamics or continuous processing of every inhabited system.
+
+Examples of intended connected behavior, not current feature claims:
+
+- Sustained thrust consumes fuel and produces waste heat; cooling capacity limits sustained output, while emitted heat affects detection.
+- A hull breach connects a compartment to vacuum; gas escapes, doors isolate connected volumes, and crew respond to the remaining safe routes.
+- An eclipse reduces incident stellar energy; thermal inertia delays cooling, and solar generation changes immediately with exposure.
+- Destroyed freight removes actual goods from delivery; shortage affects prices, replacement jobs and the affected company's finances.
+- Piracy leaves witnesses or sensor evidence; communication and jurisdiction determine police response rather than omniscient instant punishment.
+
+Every new model must identify its inputs, units, state owner, outputs, update rate and known omissions. A downstream consumer must use those outputs before the interaction is described as implemented. Tests should cover one causal chain, its boundary conditions, and save/load or representation changes where applicable. Resource sources and sinks must be explicit, including deliberately abstract services such as emergency refueling. Never silently create replacement cargo, energy or work when changing simulation detail.
+
+Transfers and settlements must apply each outcome once under one authority. Test repeated loads, jumps and reconnects, simultaneous claims, invalid quantities and permission failures. Approximation may reduce physical detail; it must not duplicate goods, replay income or bypass ownership.
+
+Casual controls automate actions within these rules. Autopilot, hired crew and menu services should expose costs and consequences without demanding repetitive manual handling. Environmental complexity is a source of choices, not an excuse to add hunger, thirst or maintenance chores.
+
 ## Simulation resolution
 
 Use detailed local simulation where players can observe or interact. Use cheaper strategic approximations for distant systems, with explicit transitions between representations. Preserve identity, inventory, condition and consequences when entities cross those boundaries. Avoid counting both detailed and strategic outcomes for the same entity.
