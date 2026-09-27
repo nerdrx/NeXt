@@ -685,3 +685,11 @@ Crew standing positions now prefer unoccupied modules before sharing a room. Wit
 The rotating/coasting gameplay test passes headlessly and in hidden Gamescope after this change. The Windows release export and its normal-entrypoint integration check pass under Proton Experimental in hidden Gamescope. The existing SDR and graphical shutdown Texture RID warnings remain; no new graphics-performance claim is made.
 
 The placement test validates its room layout before building, then covers role preferences, repeated-role distribution and fallback when preferred rooms do not exist, alongside real floor support and spacing. The corrected fixture passes in hidden Gamescope. CI for the preceding physical-crew commit `93a2d3c` completed successfully.
+
+## Planet cloud shells and atmospheric limb
+
+Atmospheric ocean worlds now render separate transparent cloud shells above the maximum height field. Seeded multi-scale noise produces drifting weather patterns, with day-side illumination and dark night-side clouds. This replaces the old cloud tint painted directly into terrain albedo. The atmosphere shell encloses the clouds and uses a softer limb and twilight color approximation. No weather bodies or collision shapes are created.
+
+`test_planet_weather` validates shell eligibility, altitude and absence of collision children, and captures orbital, night-side and below-cloud views in hidden Gamescope. All three captures were inspected; the initial flat white patches were replaced with softer multi-scale patterns. The same-scene planetary landing/save/return regression passes. Windows export succeeds. These are cosmetic shells, not volumetric clouds, physical scattering, terrain shadows or a climate simulation. No frame-rate guarantee is inferred from these captures. The art checklist identifies replacement points.
+
+The exported Windows build reached `NEXT_INTEGRATION_OK` through its normal entrypoint under Proton Experimental in hidden Gamescope. The shader logs show no compilation errors. The existing SDR white-level warning remains. The captured orbital view is published in `docs/planet-weather.png`.

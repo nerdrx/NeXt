@@ -86,3 +86,9 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Replace `scripts/ship_crew.gd` inherited procedural humanoids with authored crew suits, faces and idle animations. Preserve the 0.42 m radius / 1.75 m height collision capsule, local deck gravity and persistent crew identity.
 - [ ] Author diegetic name/role identification and duty indicators; the current billboard label sits 2.1 m above the feet.
 - [ ] Add bridge, engineering and habitation workstations with authored standing/seated sockets. Current placement queries clear floor space, distributes bodies across rooms with role preferences, faces them inward and keeps module centers available for passage.
+
+## Planet weather
+
+- [ ] Replace or art-direct `shaders/planet_clouds.gdshader`: seeded drifting weather patterns on a separate transparent shell, with lit day and dark night sides. Keep clouds non-colliding and above the maximum terrain height.
+- [ ] Replace the atmosphere limb approximation in `shaders/planet_atmosphere.gdshader` with calibrated scattering.
+- [ ] Add volumetric depth, weather simulation and terrain cloud shadows; current shells have none. Planet scale and streaming still need expansion.

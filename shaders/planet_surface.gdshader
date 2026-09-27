@@ -4,7 +4,6 @@ render_mode ambient_light_disabled, cull_back, diffuse_burley, specular_schlick_
 uniform vec4 surface_color : source_color = vec4(0.3, 0.5, 0.32, 1.0);
 uniform vec4 ocean_color : source_color = vec4(0.04, 0.12, 0.22, 1.0);
 uniform float seed = 0.0;
-uniform bool clouds = true;
 uniform bool has_ocean = true;
 uniform sampler2D height_map : filter_linear, repeat_enable;
 uniform vec2 height_map_size = vec2(512.0, 256.0);
@@ -64,7 +63,7 @@ void fragment() {
 	vec3 direction = normalize(planet_local_position);
 	float height = height_at(direction);
 	vec3 seed_offset = vec3(seed * 0.013);
-	// Low-frequency warp adds cosmetic variation to detail and clouds only.
+	// Low-frequency warp adds cosmetic variation without moving the saved terrain.
 	vec3 warp = vec3(
 		noise(direction * 2.7 + seed_offset),
 		noise(direction * 2.7 + seed_offset + vec3(19.1, 7.2, 3.4)),
@@ -89,12 +88,8 @@ void fragment() {
 	vec3 ocean = ocean_color.rgb * mix(0.88, 1.08, detail);
 	ocean = mix(ocean, surface_color.rgb * 0.72, coast * 0.48);
 	float polar = has_ocean ? smoothstep(0.76, 0.94, abs(direction.y)) : 0.0;
-	float cloud_warp = noise(direction * 4.5 + seed_offset + vec3(31.0, 2.0, 13.0));
-	float cloud_field = fbm(direction * 10.0 + warp * 1.1 + vec3(cloud_warp * 2.5, 17.0, 3.0));
-	float cloud_mask = (clouds && has_ocean) ? smoothstep(0.52, 0.62, cloud_field) : 0.0;
 	ALBEDO = has_ocean ? mix(ocean, terrain, land) : terrain;
 	ALBEDO = mix(ALBEDO, vec3(0.72, 0.76, 0.78), polar * 0.78);
-	ALBEDO = mix(ALBEDO, vec3(0.84, 0.87, 0.84), cloud_mask * 0.32);
 	ROUGHNESS = has_ocean ? mix(0.88, 0.58, 1.0 - land) : 0.92;
 	METALLIC = 0.0;
 	SPECULAR = 0.18;

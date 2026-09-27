@@ -3,6 +3,7 @@ extends Node3D
 
 const SKY_SHADER: Shader = preload("res://shaders/deep_space_sky.gdshader")
 const PLANET_SHADER: Shader = preload("res://shaders/planet_surface.gdshader")
+const CLOUD_SHADER: Shader = preload("res://shaders/planet_clouds.gdshader")
 const STAR_SHADER: Shader = preload("res://shaders/star_surface.gdshader")
 
 var data: Dictionary = {}
@@ -281,7 +282,6 @@ func _build_planets() -> void:
 		mat.set_shader_parameter("surface_color", tint)
 		mat.set_shader_parameter("ocean_color", Color("173747") if i == 0 else Color("102944").lerp(tint, 0.2))
 		mat.set_shader_parameter("seed", float(i * 41 + int(data.station_seed % 997)))
-		mat.set_shader_parameter("clouds", bool(planet.atmosphere))
 		mat.set_shader_parameter("has_ocean", bool(planet.has_ocean))
 		mat.set_shader_parameter("height_map", PlanetHeightField.texture_for(Universe._seed_for(system_index, 900 + i)))
 		mat.set_shader_parameter("height_scale", PlanetHeightField.HEIGHT_SCALE)
@@ -291,12 +291,25 @@ func _build_planets() -> void:
 		globe.mesh.radial_segments = 128
 		globe.mesh.rings = 64
 		if planet.atmosphere:
+			var sun_direction := Basis.from_euler(Vector3(deg_to_rad(-28), deg_to_rad(-34), 0)).z
+			var light_strength := 0.17 if data.star_type == "Black Hole" else 1.0
+			if planet.has_ocean:
+				var cloud_material := ShaderMaterial.new()
+				cloud_material.shader = CLOUD_SHADER
+				cloud_material.set_shader_parameter("seed", float(i * 41 + int(data.station_seed % 997)))
+				cloud_material.set_shader_parameter("sun_direction", sun_direction)
+				cloud_material.set_shader_parameter("light_strength", light_strength)
+				var cloud_shell := _sphere(str(planet.name) + " clouds", float(planet.visual_radius) * 1.01 + PlanetHeightField.HEIGHT_SCALE, planet.position, Color.WHITE, 0.0, 1.0, cloud_material, false)
+				cloud_shell.mesh.radial_segments = 128
+				cloud_shell.mesh.rings = 64
+				cloud_shell.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				cloud_shell.set_meta("planet_cloud_layer", i)
 			var halo_mat := ShaderMaterial.new()
 			halo_mat.shader = load("res://shaders/planet_atmosphere.gdshader")
 			halo_mat.set_shader_parameter("atmosphere_color", Color("75a8d6") if planet.has_ocean else Color("b6a18a"))
-			halo_mat.set_shader_parameter("sun_direction", Basis.from_euler(Vector3(deg_to_rad(-28), deg_to_rad(-34), 0)).z)
-			halo_mat.set_shader_parameter("light_strength", 0.17 if data.star_type == "Black Hole" else 1.0)
-			var halo := _sphere(str(planet.name) + " atmosphere", float(planet.visual_radius) * 1.012 + PlanetHeightField.HEIGHT_SCALE, planet.position, Color.WHITE, 0.0, 1.0, halo_mat, false)
+			halo_mat.set_shader_parameter("sun_direction", sun_direction)
+			halo_mat.set_shader_parameter("light_strength", light_strength)
+			var halo := _sphere(str(planet.name) + " atmosphere", float(planet.visual_radius) * 1.025 + PlanetHeightField.HEIGHT_SCALE, planet.position, Color.WHITE, 0.0, 1.0, halo_mat, false)
 			halo.mesh.radial_segments = 128
 			halo.mesh.rings = 64
 			halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
