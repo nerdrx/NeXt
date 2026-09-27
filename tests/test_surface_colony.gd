@@ -25,14 +25,23 @@ func _run() -> void:
 		var ramp_mid := (Vector3(15, 0, 22) + ramp_end) / 2
 		var ramp_hit := _ray(colony, ramp_mid + Vector3.UP * 3, ramp_mid + Vector3.DOWN * 3)
 		assert(not ramp_hit.is_empty() and colony.to_local(ramp_hit.position).distance_to(ramp_mid) < 0.01, "ramp top matches endpoints without a lip")
-		var wall_hit := _ray(colony, Vector3(18 * colony.footprint, 2, -19), Vector3(18 * colony.footprint, 2, -30))
-		assert(not wall_hit.is_empty(), "building facade blocks walking")
+		assert(colony.door_positions.size() == 4 and colony.interior_services.size() == 4)
+		for i in colony.door_positions.size():
+			var door: Vector3 = colony.door_positions[i]
+			var room: Vector3 = colony.interior_positions[i]
+			assert(_ray(colony, door + Vector3.UP * 1.5, room + Vector3.UP * 1.5).is_empty(), "doorway opens into room")
+			var facade := _ray(colony, door + Vector3(3, 1.5, 0), door + Vector3(3, 1.5, -3))
+			assert(not facade.is_empty(), "walls beside doorway remain solid")
+			var floor_hit := _ray(colony, room + Vector3.UP * 2, room + Vector3.DOWN)
+			assert(not floor_hit.is_empty() and absf(colony.to_local(floor_hit.position).y) < 0.01, "interior floor has no raised threshold")
+			assert(not _ray(colony, room + Vector3.UP, room + Vector3(8, 1, 0)).is_empty(), "room side wall is solid")
+			assert(not _ray(colony, room + Vector3.UP, room + Vector3.UP * 5).is_empty(), "room ceiling is solid")
 		var count: int = colony.get_child_count()
 		colony.build(radius, 314, "Copernicus")
 		assert(colony.get_child_count() == count, "rebuild removes old geometry")
 		colony.queue_free()
 		await process_frame
-	print("Surface colony tests passed: radial deck, streets, ramp and facade collision")
+	print("Surface colony tests passed: radial deck, streets, ramp, four open doorways and enclosed room collision at both radii")
 	quit()
 
 func _ray(colony: Node3D, start: Vector3, end: Vector3) -> Dictionary:

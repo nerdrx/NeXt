@@ -274,9 +274,19 @@ func _try_colony_landing() -> bool:
 	return false
 
 func _near_colony_terminal() -> bool:
-	if manual_planet < 0 or manual_planet >= colonies.size() or aboard: return false
+	return not _colony_service().is_empty()
+
+func _colony_service() -> Dictionary:
+	if manual_planet < 0 or manual_planet >= colonies.size() or aboard: return {}
 	var colony: Node3D = colonies[manual_planet]
-	return pilot.position.distance_to(colony.to_global(colony.service_position)) < 4.0
+	if pilot.position.distance_to(colony.to_global(colony.service_position)) < 4.0:
+		return {"page": "market", "label": "Port services"}
+	for service: Dictionary in colony.interior_services:
+		var target: Vector3 = colony.to_global(service.position + Vector3.UP * 1.5)
+		if pilot.position.distance_to(target) > 3.5: continue
+		var ray := PhysicsRayQueryParameters3D.create(pilot.camera.global_position, target, 1, [pilot.get_rid()])
+		if get_world_3d().direct_space_state.intersect_ray(ray).is_empty(): return service
+	return {}
 
 func _planet_center(index: int) -> Variant:
 	if index < 0 or index >= world.planets.size(): return null
@@ -767,7 +777,8 @@ func _rescue() -> void:
 	_rescuing = false
 
 func interaction_hint() -> String:
-	if _near_colony_terminal(): return "Port services"
+	var service := _colony_service()
+	if not service.is_empty(): return str(service.label)
 	if aboard: return "Return to helm  /  PgUp/PgDn change deck"
 	if surface_index >= 0: return "Board ship / return to orbit" if _near_person() == null else "Talk to " + _near_person().display_name
 	var person: Node3D = _near_person()
@@ -799,8 +810,9 @@ func _interact() -> void:
 		save_commander(false)
 		notify("Docking complete. Welcome aboard.")
 		return
-	if _near_colony_terminal():
-		open_menu("market")
+	var service := _colony_service()
+	if not service.is_empty():
+		open_menu(str(service.page))
 		return
 	var person: Node3D = _near_person()
 	if person != null:
@@ -1326,6 +1338,15 @@ func _integration_check() -> void:
 	load_commander()
 	close_menu()
 	if not _check(manual_planet == 0 and _ship_pad().distance_to(colonies[0].to_global(colonies[0].landing_position)) < 0.1, "restore surface port ship"): return
+	port = colonies[0]
+	pilot.teleport(port.to_global(port.interior_positions[0] + Vector3(0, 0.3, 0)))
+	pilot.reset_view()
+	await get_tree().create_timer(0.3).timeout
+	if not _check(pilot.is_on_floor(), "port interior floor"): return
+	_interact()
+	if not _check(ui_open and deck.page == str(port.interior_services[0].page), "port interior service interaction"): return
+	close_menu()
+	await _capture("port-interior")
 	pilot.teleport(_ship_pad() + landed_ship_normal * 2)
 	_interact()
 	if not _check(pilot.flying and manual_planet == -1, "surface port departure"): return

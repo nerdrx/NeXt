@@ -45,6 +45,49 @@ func _run() -> void:
 	game._interact()
 	if not _check(game.ui_open and game.deck.page == "market", "terminal interaction opens market"): return
 	game.close_menu()
+	# Enter all service rooms under walking physics, rather than teleporting inside.
+	for index in colony.door_positions.size():
+		var door: Vector3 = colony.door_positions[index]
+		var room: Vector3 = colony.interior_positions[index]
+		game.pilot.teleport(colony.to_global(door + Vector3(0, 0.3, 0.5)))
+		game.pilot.reset_view()
+		game.pilot.set_walk_up(colony.global_basis.y)
+		game.pilot.global_basis = colony.global_basis
+		await create_timer(0.2).timeout
+		var nearby_service: Dictionary = game._colony_service()
+		if not _check(nearby_service.is_empty() or nearby_service.label == "Port services", "interior services require entering doorway"): return
+		Input.action_press("move_forward")
+		var walked := 0
+		while colony.to_local(game.pilot.position).z > room.z + 0.7 and walked < 180:
+			await physics_frame
+			walked += 1
+		Input.action_release("move_forward")
+		await create_timer(0.2).timeout
+		if not _check(walked < 180 and game.pilot.is_on_floor(), "walk through doorway %d onto room floor" % index): return
+		game._interact()
+		if not _check(game.ui_open and game.deck.page == colony.interior_services[index].page, "interior service opens correct page %d" % index): return
+		game.close_menu()
+		if DisplayServer.get_name() != "headless" and index == 0:
+			await RenderingServer.frame_post_draw
+			root.get_texture().get_image().save_png("res://build/port-interior.png")
+	# An actual physics blocker must deny interaction even within service range.
+	var obstruction := StaticBody3D.new()
+	var collision := CollisionShape3D.new()
+	var obstruction_shape := BoxShape3D.new()
+	obstruction_shape.size = Vector3(0.6, 0.6, 0.6)
+	collision.shape = obstruction_shape
+	obstruction.add_child(collision)
+	game.add_child(obstruction)
+	var service_target: Vector3 = colony.to_global(colony.interior_services.back().position + Vector3.UP * 1.5)
+	var eye: Vector3 = game.pilot.camera.global_position
+	obstruction.global_position = eye + eye.direction_to(service_target)
+	await physics_frame
+	await physics_frame
+	if not _check(game._colony_service().is_empty(), "physical obstruction denies nearby service"): return
+	obstruction.queue_free()
+	await physics_frame
+	await physics_frame
+	if not _check(not game._colony_service().is_empty(), "removing obstruction restores nearby service"): return
 	var saved_ship: Dictionary = game.landed_ship_address.to_save()
 	if not _check(game.save_commander(false), "port save writes"): return
 	game.pilot.teleport(Vector3.ZERO)
@@ -74,7 +117,7 @@ func _run() -> void:
 	game.queue_free()
 	await process_frame
 	await process_frame
-	print("COLONY_GAMEPLAY_OK: approach, docking speed guard, same-scene port walking, services, save restore and liftoff")
+	print("COLONY_GAMEPLAY_OK: approach, docking speed guard, same-scene port walking, four doorway walks and interior services, save restore and liftoff")
 	quit()
 
 func _check(ok: bool, message: String) -> bool:

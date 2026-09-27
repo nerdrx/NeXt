@@ -6,11 +6,17 @@ var landing_position := Vector3.ZERO
 var stand_position := Vector3(12, 1, 0)
 var service_position := Vector3(17, 0, -19)
 var footprint: float = 1.0
+var door_positions: Array[Vector3] = []
+var interior_positions: Array[Vector3] = []
+var interior_services: Array[Dictionary] = []
 
 func build(radius: float, colony_seed: int, colony_name: String) -> void:
 	for child in get_children():
 		remove_child(child)
 		child.queue_free()
+	door_positions.clear()
+	interior_positions.clear()
+	interior_services.clear()
 	footprint = clampf(radius / 500.0, 0.72, 1.0)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = colony_seed
@@ -34,8 +40,13 @@ func build(radius: float, colony_seed: int, colony_name: String) -> void:
 			var x: float = side * (18 + row * 10) * footprint
 			var z: float = -29.0 - row * 24.0 * footprint
 			var height: float = rng.randf_range(8, 14)
-			_building(Vector3(x, 0, z), Vector3(13, height, 14), hull, trim, dark, cyan)
+			var services := ["market", "company", "shipyard", "contracts"]
+			var index := row * 2 + (1 if side > 0 else 0)
+			_building(Vector3(x, 0, z), Vector3(13, height, 14), hull, trim, dark, cyan, services[index])
+			_box(Vector3(x / 2, -0.025, z + 8.6), Vector3(absf(x) + 3.2, 0.05, 3.2), dark, true)
 			_support(Vector3(x, -0.6, z), radius, dark)
+		if side < 0:
+			_box(Vector3(0, -0.025, -20.4 - 12 * footprint), Vector3(3, 0.05, 24 * footprint + 3.2), dark, true)
 		_support(Vector3(side * 18, -0.6, 17), radius, dark)
 		_support(Vector3(side * 18, -0.6, -17), radius, dark)
 		# Ramps penetrate the base sphere; terrain naturally meets them partway down.
@@ -57,7 +68,7 @@ func build(radius: float, colony_seed: int, colony_name: String) -> void:
 	_label("PORT SERVICES\nE / ACCESS TERMINAL", service_position + Vector3(0, 3, 0.6), 0.012)
 	_label(colony_name.to_upper() + "\nSURFACE PORT 01", Vector3(0, 6, -23), 0.025)
 	# Low industrial utility spine, tanks and mast provide a distinct skyline.
-	_box(Vector3(0, 2, -54 * footprint), Vector3(8, 4, 12), dark, true)
+	_box(Vector3(0, 2, -68 * footprint), Vector3(8, 4, 12), dark, true)
 	for x in [-3, 3]:
 		var tank := MeshInstance3D.new()
 		var cylinder := CylinderMesh.new()
@@ -66,22 +77,48 @@ func build(radius: float, colony_seed: int, colony_name: String) -> void:
 		cylinder.height = 7
 		tank.mesh = cylinder
 		tank.material_override = trim
-		tank.position = Vector3(x, 7.5, -54 * footprint)
+		tank.position = Vector3(x, 7.5, -68 * footprint)
 		add_child(tank)
-	_box(Vector3(0, 15, -54 * footprint), Vector3(0.35, 22, 0.35), trim)
-	_box(Vector3(0, 26, -54 * footprint), Vector3(0.7, 0.7, 0.7), amber)
+	_box(Vector3(0, 15, -68 * footprint), Vector3(0.35, 22, 0.35), trim)
+	_box(Vector3(0, 26, -68 * footprint), Vector3(0.7, 0.7, 0.7), amber)
 
-func _building(at: Vector3, size: Vector3, hull: Material, trim: Material, dark: Material, light: Material) -> void:
-	_box(at + Vector3(0, size.y / 2, 0), size, hull, true)
+func _building(at: Vector3, size: Vector3, hull: Material, trim: Material, dark: Material, light: Material, page: String) -> void:
+	# Walkable room: floor top at y=0, ceiling at 4, and a 3.2 x 3.5 m front opening.
+	_box(at + Vector3(0, -0.15, 0), Vector3(size.x, 0.3, size.z), dark, true)
+	_box(at + Vector3(0, 2, -size.z / 2 + 0.15), Vector3(size.x, 4, 0.3), hull, true)
+	_box(at + Vector3(-size.x / 2 + 0.15, 2, 0), Vector3(0.3, 4, size.z), hull, true)
+	_box(at + Vector3(size.x / 2 - 0.15, 2, 0), Vector3(0.3, 4, size.z), hull, true)
+	var wall_width := (size.x - 3.2) / 2
+	_box(at + Vector3(-1.6 - wall_width / 2, 2, size.z / 2 - 0.15), Vector3(wall_width, 4, 0.3), hull, true)
+	_box(at + Vector3(1.6 + wall_width / 2, 2, size.z / 2 - 0.15), Vector3(wall_width, 4, 0.3), hull, true)
+	_box(at + Vector3(0, 3.75, size.z / 2 - 0.15), Vector3(3.2, 0.5, 0.3), hull, true)
+	_box(at + Vector3(0, 4.15, 0), Vector3(size.x, 0.3, size.z), hull, true)
+	# Keep the tall exterior silhouette above the occupied room.
+	_box(at + Vector3(0, (size.y + 4.3) / 2, 0), Vector3(size.x, size.y - 4.3, size.z), hull, true)
 	_box(at + Vector3(0, size.y + 0.25, 0), Vector3(size.x + 1, 0.5, size.z + 1), trim)
 	_box(at + Vector3(0, size.y + 1, 0), Vector3(4, 1.5, 5), dark)
 	for x in [-4, 0, 4]:
 		_box(at + Vector3(x, size.y - 3, size.z / 2 + 0.04), Vector3(2.2, 0.8, 0.1), light)
-	# Sealed facade doors are readable access points, not fake open interiors.
-	_box(at + Vector3(0, 1.5, size.z / 2 + 0.06), Vector3(2.6, 3, 0.15), dark)
-	_box(at + Vector3(0, 3.1, size.z / 2 + 0.2), Vector3(3, 0.15, 0.4), light)
 	for x in [-size.x / 2 + 0.3, size.x / 2 - 0.3]:
-		_box(at + Vector3(x, size.y / 2, size.z / 2 + 0.1), Vector3(0.4, size.y, 0.4), trim)
+		_box(at + Vector3(x, 2, size.z / 2 + 0.1), Vector3(0.4, 4, 0.4), trim)
+	var door := at + Vector3(0, 0, size.z / 2 + 1.6)
+	var interior := at
+	door_positions.append(door)
+	interior_positions.append(interior)
+	var labels := {"market": "TRADE", "company": "CREW", "shipyard": "SHIP SERVICES", "contracts": "CONTRACTS"}
+	var label: String = labels[page]
+	interior_services.append({"position": interior + Vector3(0, 0, -1.5), "page": page, "label": label})
+	_box(interior + Vector3(0, 0.5, -2.7), Vector3(4.2, 1, 0.8), trim, true)
+	for x in [-2.2, 2.2]:
+		_box(interior + Vector3(x, 0.55, 1.8), Vector3(0.8, 1.1, 0.8), dark, true)
+	_box(interior + Vector3(0, 1.65, -5.9), Vector3(3.2, 3.3, 0.12), dark)
+	_label(label, interior + Vector3(0, 2, -5.8), 0.006)
+	var lamp := OmniLight3D.new()
+	lamp.position = interior + Vector3(0, 3.2, 0)
+	lamp.light_color = Color("c9e3e0")
+	lamp.light_energy = 1.2
+	lamp.omni_range = 10
+	add_child(lamp)
 
 func _support(at: Vector3, radius: float, material: Material) -> void:
 	var bottom := sqrt(maxf(0, radius * radius - at.x * at.x - at.z * at.z)) - radius - 18

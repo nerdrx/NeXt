@@ -53,3 +53,9 @@ A CI patrol test intermittently expected combat after a quiet transit had alread
 SurfaceColony geometry checks cover apron, ramps and building collisions on radius 170 and 850 bodies, including a sideways transform. A main-scene colony test passes approach targeting, landing speed rejection, physical deck walking, service-terminal interaction, grounded save/load preserving the parked ship, and departure without scene replacement. The hidden Gamescope capture shows the generated industrial port and was inspected; these buildings are placeholders and have no inhabitable interiors yet. The graphical test reports seven texture RIDs at teardown.
 
 The normal-entrypoint Windows export also passed port docking, physical deck contact, terminal access, save/load of the port ship anchor and departure under Proton. Its surface-city capture was inspected. As before, the game completed its checks before the wrapper was timeout-terminated (137); the SDR warning remains.
+
+## Port ground-floor interiors
+
+Four ground-floor rooms now have physical door openings, walls, floors, counters and local service interactions. Geometry checks cover both current planet sizes. Main-scene tests physically walk through each doorway, open its correct service page, reject distant/occluded service access, save/load within a room, and depart from the original ship pad. A temporary collision obstruction proves service line-of-sight rejection and restored access after removal. Native headless and hidden Gamescope tests pass. The screenshot exposed an oversized counter; it was lowered and the refreshed capture inspected. The graphical teardown texture warning remains.
+
+The exported Windows normal-entrypoint check also entered a port room, verified its floor and service page, captured the interior and completed under Proton. The capture was inspected. Wrapper cleanup still required timeout termination (137), with the same SDR warning.
