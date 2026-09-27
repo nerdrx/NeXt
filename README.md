@@ -14,6 +14,8 @@ The [design decisions and questionnaire](docs/DESIGN_QUESTIONS.md) records the o
 
 Open `project.godot` in **Godot 4.7.2** and press F5 (Run Project). On a Linux development machine with Steam Godot installed, `./run-next.sh` starts the project and `./run-next.sh --editor` opens its editor. Do not launch component `.gd` files with `--script`: files such as `network_session.gd` extend Node and need the main scene. Windows build artifacts are available from successful GitHub Actions runs. Extract the entire archive and keep the executable with its `.pck` file. On Linux, add the Windows executable to Steam and select Proton. The project uses Forward+ and Vulkan; `--rendering-method gl_compatibility` is an optional fallback with reduced lighting features.
 
+For a hidden Linux validation of the Windows build, run `./tools/test-proton.sh`. It exports the current project, creates an isolated Proton prefix, and runs the normal game's smoke checks inside headless Gamescope. Evidence is retained under `build/proton-smoke.*`. Set `PROTON_BIN` or `STEAM_ROOT` for a different Steam installation, and `NEXT_SMOKE_TIMEOUT` for the runtime limit (90 seconds by default). A successful integration marker and a clean wrapper shutdown are reported separately; this is not a performance benchmark or a Steam multiplayer test.
+
 | Control | Action |
 | --- | --- |
 | WASD / mouse | Move / look |
