@@ -233,7 +233,7 @@ func _market() -> void:
 
 func _ship_stats_line(state: GameState) -> String:
 	var stats := state.ship_stats()
-	return "MASS %s   /   POWER %+d   /   CARGO %d   /   SPEED %d m/s" % [stats.mass, stats.power_balance, stats.cargo_capacity, stats.speed]
+	return "LOADED %.1f t   /   POWER %+d   /   CARGO %d   /   SPEED %d m/s\nTHRUST %.2f MN   /   ACCELERATION %.2f g" % [stats.loaded_mass_kg / 1000.0, stats.power_balance, stats.cargo_capacity, stats.speed, stats.thrust_newtons / 1000000.0, stats.acceleration_mps2 / FlightDynamics.STANDARD_GRAVITY]
 
 func _shipyard() -> void:
 	heading.text = "SHIP ARCHITECT"

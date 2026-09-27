@@ -33,9 +33,8 @@ func _run() -> void:
 	game.cruise_system_to(origin + Vector3(0, 0, -30))
 	for frame in 60:
 		await physics_frame
-		if not game.pilot.autopilot_active: break
 	if not _check(not game.pilot.autopilot_active and game.cruise_address == null and game.cruise_waypoints.is_empty(), "blocked cruise clears the full route"): return
-	if not _check(game.state.shield == 10.0 and game.state.hull == 100.0 and "obstacle ahead" in game.hud.message, "cruise obstruction stops without damage and explains manual recovery"): return
+	if not _check(game.pilot.flight_velocity().is_zero_approx() and game.state.shield == 10.0 and game.state.hull == 100.0 and "Obstacle ahead" in game.hud.message, "cruise obstruction brakes to a stop without damage and explains manual recovery"): return
 	game.pilot._flight_velocity = Vector3(0, 0, -150)
 	for frame in 12:
 		await physics_frame

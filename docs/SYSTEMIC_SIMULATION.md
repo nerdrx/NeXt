@@ -34,3 +34,9 @@ The hosted world owns authoritative simulation state. A closed world pauses. Det
 5. Extend faction, police and social decisions using the same persisted events and ownership rules.
 
 Order can change when dependencies or evidence justify it. Validate interactions, conservation or bounded approximations, save/load continuity, authority and transitions; do not use visual captures alone as proof of physical accuracy. Record omitted effects and numerical limits beside each model.
+
+## Current ship force approximation
+
+Module mass is interpreted as tonnes; each freight unit adds one tonne. Engine ratings provide 65,000 newtons per rating point. These are game tuning assumptions, not measured engine specifications. Translational acceleration uses thrust divided by loaded mass, capped at 3 standard g; boost doubles available force with a 6 g cap. Manual flight, autopilot approach, obstacle braking and an occupied walkable ship share this limit. The shipyard displays loaded mass, thrust and acceleration.
+
+Braking assumes equal thrust in every direction; rotation, fuel mass, inertia tensors, crew physiology, reactor power and heat do not yet constrain it. Top speed retains the existing gameplay limit. Obstacle queries cap lookahead at 100 km for finite physics queries; this is not a guarantee of stopping from arbitrary externally restored velocities.

@@ -847,6 +847,8 @@ func apply_ship_stats() -> void:
 	pilot.configure_ship_collision(state.ship_modules)
 	_last_stats = state.ship_stats()
 	pilot.flight_speed = float(_last_stats.speed)
+	pilot.acceleration_mps2 = float(_last_stats.acceleration_mps2)
+	if is_instance_valid(coasting_hull): coasting_hull.acceleration_mps2 = pilot.acceleration_mps2
 	state.hull = minf(state.hull, float(_last_stats.max_hull))
 	state.shield = minf(state.shield, float(_last_stats.max_shield))
 	if aboard: _populate_ship_crew()
@@ -1959,6 +1961,7 @@ func enter_interior() -> void:
 		coasting_hull.global_transform = hull_transform
 		coasting_hull.velocity = pilot.flight_velocity()
 		coasting_hull.braking = pilot.braking
+		coasting_hull.acceleration_mps2 = pilot.acceleration_mps2
 		_coasting_deck_bodies.clear()
 		for body: Node in interior.find_children("*", "StaticBody3D", true, false):
 			_coasting_deck_bodies.append(body)

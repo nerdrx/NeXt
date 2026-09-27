@@ -55,6 +55,27 @@ func _run() -> void:
 	await create_timer(0.5).timeout
 	Input.action_release("move_forward")
 	assert(game.pilot.flight_velocity().is_zero_approx() and not game.pilot.braking, "braking completes inside menu and ignores flight input")
+	# Cargo changes the same force/mass limit at the helm and aboard.
+	assert(game.state.trade("ore", 30, true).is_empty())
+	game.apply_ship_stats()
+	var loaded_acceleration: float = game.state.ship_stats().acceleration_mps2
+	assert(loaded_acceleration < 20.0)
+	assert(is_equal_approx(game.pilot.acceleration_mps2, loaded_acceleration))
+	game.close_menu()
+	Input.action_press("move_forward")
+	await create_timer(0.3).timeout
+	Input.action_release("move_forward")
+	assert(absf(game.pilot.thrust_g * FlightDynamics.STANDARD_GRAVITY - loaded_acceleration) < 0.01)
+	game.enter_interior()
+	assert(is_equal_approx(game.coasting_hull.acceleration_mps2, loaded_acceleration))
+	game.stop_cruise()
+	await create_timer(0.1).timeout
+	assert(absf(game.coasting_hull.thrust_g * FlightDynamics.STANDARD_GRAVITY - loaded_acceleration) < 0.01)
+	assert(game.state.add_module("engine", Vector3i(2, 0, 0)).is_empty())
+	game.apply_ship_stats()
+	assert(game.coasting_hull.acceleration_mps2 > loaded_acceleration)
+	game.exit_interior()
+	assert(is_equal_approx(game.pilot.acceleration_mps2, game.state.ship_stats().acceleration_mps2))
 	game.sound.shutdown()
 	game.session.leave()
 	game.queue_free()

@@ -1,0 +1,33 @@
+extends SceneTree
+
+const GameStateScript = preload("res://scripts/game_state.gd")
+
+func _initialize() -> void:
+	var state = GameStateScript.new()
+	var dry_stats: Dictionary = state.ship_stats()
+	assert(dry_stats.mass == 34 and dry_stats.dry_mass_kg == 34000, "legacy mass stays in tonnes and dry mass converts to kg")
+	assert(dry_stats.thrust_newtons == 18 * 65000)
+	var dry_acceleration: float = dry_stats.acceleration_mps2
+	assert(state.trade("ore", 10, true) == "", "cargo trade succeeds")
+	var loaded_stats: Dictionary = state.ship_stats()
+	assert(loaded_stats.loaded_mass_kg == dry_stats.dry_mass_kg + 10000)
+	assert(loaded_stats.acceleration_mps2 < dry_acceleration, "cargo mass reduces acceleration")
+	assert(state.trade("ore", 10, false) == "")
+	assert(state.ship_stats().loaded_mass_kg == dry_stats.dry_mass_kg)
+	assert(is_equal_approx(state.ship_stats().acceleration_mps2, dry_acceleration), "selling cargo restores dry acceleration")
+	assert(state.add_module("engine", Vector3i(2, 0, 0)) == "")
+	var engine_stats: Dictionary = state.ship_stats()
+	assert(engine_stats.thrust_newtons == dry_stats.thrust_newtons + 18 * 65000, "engine adds rated thrust")
+	assert(state.add_module("cargo", Vector3i(-2, 0, 0)) == "")
+	assert(state.ship_stats().dry_mass_kg == engine_stats.dry_mass_kg + 3000, "cargo module adds dry mass")
+	assert(state.trade("food", 3, true) == "")
+	var expected_stats: Dictionary = state.ship_stats()
+	var path: String = "user://ship-mass-%d.json" % OS.get_process_id()
+	assert(state.save(path) == "")
+	var loaded = GameStateScript.new()
+	assert(loaded.load_save(path) == "")
+	assert(loaded.ship_stats() == expected_stats, "save load recomputes cargo dependent stats")
+	assert(loaded._save_data() == state._save_data(), "derived stats do not alter save format")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	print("Ship mass tests passed")
+	quit()

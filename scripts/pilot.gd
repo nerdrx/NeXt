@@ -8,6 +8,7 @@ signal flight_impact(closing_speed: float)
 
 var braking: bool = false
 var thrust_g: float = 0.0
+var acceleration_mps2: float = FlightDynamics.STANDARD_GRAVITY * FlightDynamics.CRUISE_G
 var flying: bool = false
 var enabled: bool = true
 var camera: Camera3D
@@ -145,30 +146,30 @@ func _fly(delta: float) -> void:
 	if autopilot_active:
 		var offset := autopilot_target - global_position
 		var distance := offset.length()
-		if distance <= 2.0 and _flight_velocity.length() <= FlightDynamics.STANDARD_GRAVITY * FlightDynamics.CRUISE_G * delta:
+		if distance <= 2.0 and _flight_velocity.length() <= FlightDynamics.usable_acceleration(acceleration_mps2) * delta:
 			autopilot_active = false
 			_flight_velocity = Vector3.ZERO
 			desired = Vector3.ZERO
 			autopilot_arrived.emit()
 		else:
 			var direction := offset / distance if distance > 0.000001 else -_flight_velocity.normalized()
-			desired = direction * FlightDynamics.approach_speed(distance, flight_speed)
+			desired = direction * FlightDynamics.approach_speed(distance, flight_speed, acceleration_mps2)
 			rotation.y = lerp_angle(rotation.y, atan2(-direction.x, -direction.z), delta * 0.85)
 			_pitch = lerpf(_pitch, asin(clampf(direction.y, -1.0, 1.0)), minf(1.0, delta * 0.85))
 			camera.rotation.x = _pitch
 	else:
 		var boost_scale := 3.0 if boosting else 1.0
 		desired = Vector3.ZERO if braking else camera.global_basis * local_direction * flight_speed * boost_scale
-	_flight_velocity = FlightDynamics.command_velocity(_flight_velocity, desired, delta, boosting)
+	_flight_velocity = FlightDynamics.command_velocity(_flight_velocity, desired, delta, boosting, acceleration_mps2)
 	thrust_g = FlightDynamics.thrust_load(incoming_thrust, _flight_velocity, delta)
 	if not _flight_velocity.is_finite():
 		_flight_velocity = Vector3.ZERO
 	if autopilot_active:
 		_update_module_collision_basis()
-		var lookahead := maxf(5.0, FlightDynamics.braking_distance(incoming_thrust.length()) + incoming_thrust.length() * delta + 2.0)
+		var lookahead := maxf(5.0, FlightDynamics.braking_distance(incoming_thrust.length(), acceleration_mps2) + incoming_thrust.length() * delta + 2.0)
 		if lookahead > 0.0 and _flight_velocity.length_squared() > 0.0 and test_move(global_transform, _flight_velocity.normalized() * lookahead):
 			request_brake()
-			_flight_velocity = FlightDynamics.command_velocity(incoming_thrust, Vector3.ZERO, delta)
+			_flight_velocity = FlightDynamics.command_velocity(incoming_thrust, Vector3.ZERO, delta, false, acceleration_mps2)
 			thrust_g = FlightDynamics.thrust_load(incoming_thrust, _flight_velocity, delta)
 			autopilot_blocked.emit()
 	if braking and _flight_velocity.is_zero_approx(): braking = false

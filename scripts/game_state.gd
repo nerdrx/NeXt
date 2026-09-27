@@ -93,7 +93,10 @@ func cargo_total() -> int:
 	return total
 
 func ship_stats() -> Dictionary:
-	return _stats_for(ship_modules)
+	var result: Dictionary = _stats_for(ship_modules)
+	result.loaded_mass_kg = int(result.dry_mass_kg) + cargo_total() * 1000
+	result.acceleration_mps2 = minf(3.0 * 9.80665, float(result.thrust_newtons) / maxf(float(result.loaded_mass_kg), 1.0))
+	return result
 
 func price(good: String) -> int:
 	return price_at(good, system_index, day)
@@ -836,11 +839,13 @@ func _connected(modules: Array[Dictionary]) -> bool:
 	return seen.size() == modules.size()
 
 func _stats_for(modules: Array[Dictionary]) -> Dictionary:
-	var result := {"cargo_capacity": 20, "max_hull": 100.0, "max_shield": 100.0, "speed": 10.0, "damage": 10, "mass": 0, "power_balance": 0, "crew_capacity": 2, "walkable": false}
+	var result := {"cargo_capacity": 20, "max_hull": 100.0, "max_shield": 100.0, "speed": 10.0, "damage": 10, "mass": 0, "dry_mass_kg": 0, "thrust_newtons": 0, "power_balance": 0, "crew_capacity": 2, "walkable": false}
 	var habitat_count: int = 0
 	for m: Dictionary in modules:
 		var spec: Dictionary = MODULES.get(str(m.get("kind", "")), {})
 		result.mass += int(spec.get("mass", 0))
+		result.dry_mass_kg += int(spec.get("mass", 0)) * 1000
+		result.thrust_newtons += int(spec.get("thrust", 0)) * 65000
 		result.power_balance += int(spec.get("power", 0))
 		result.cargo_capacity += int(spec.get("cargo", 0))
 		result.max_hull += float(spec.get("hull", 0))

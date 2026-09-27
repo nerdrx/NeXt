@@ -717,3 +717,13 @@ Cruise stop requests now preserve velocity and brake at the normal thruster limi
 The physical braking test measures stopping time, distance and acceleration from 100 m/s, menu-disabled braking, moving-hull braking and an actual autopilot approach to a wall. The gameplay test verifies stop-command momentum, aboard braking, helm handoff and menu input isolation. Existing safety, coasting-navigation, aboard-route, crew, spatial and long cruise checks pass. CI for the preceding acceleration commit failed an old 0.35-second sector-crossing assumption; the test now waits up to 120 physics frames for the physical crossing and passes locally.
 
 The normal-entrypoint integration now explicitly verifies preserved momentum on Stop Cruise and decreasing speed while the menu remains open. It passes natively and in the exported Windows executable under hidden Gamescope/Proton, reaching `NEXT_INTEGRATION_OK`. The main gameplay menu/handoff check also passes in hidden Gamescope. Existing SDR and texture shutdown warnings remain.
+
+## Cargo mass and engine force
+
+Ship acceleration now derives from engine thrust divided by dry module mass plus cargo mass, retaining the 3 g normal / 6 g boost limits. Pilot and walkable-hull controllers use it for acceleration, cruise approach and obstacle stopping distance. Shipyard stats show loaded tonnes, thrust and available acceleration. The tuning assumptions and omissions are documented in SYSTEMIC_SIMULATION.md.
+
+Focused checks pass for commodity buy/sell mass changes, engine and cargo-module additions, save/load derived stats, bounded acceleration and braking-distance calculations. The actual-scene test also passes headlessly and in hidden Gamescope: loaded cargo lowers measured thrust load, aboard braking uses the same limit, and adding an engine updates both controllers through helm handoff. Braking, coasting-navigation, aboard-cruise and sector-rebasing regressions pass. Native and exported Windows/Proton integration reach NEXT_INTEGRATION_OK. Existing texture shutdown and Windows SDR warnings remain. These checks do not establish real-world propulsion accuracy or target frame rate.
+
+The previous CI run also exposed an outdated case-sensitive obstruction-message assertion. Its corrected check waits for completed braking, route cancellation and unchanged hull/shields; collision damage and rescue checks remain.
+
+The bounded Proton wrapper ended with status 137 after the integration marker; this is not a clean-wrapper-exit claim. No script or shader compilation errors appeared in this run.
