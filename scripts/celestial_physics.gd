@@ -76,8 +76,11 @@ static func orbital_state(mu_m3_s2: float, semi_major_m: float, eccentricity: fl
 	var y: float = semi_major_m * sqrt(1.0 - eccentricity * eccentricity) * sin_e
 	var speed_squared: float = mu_m3_s2 * (2.0 / radius - 1.0 / semi_major_m)
 	var speed: float = sqrt(speed_squared) if speed_squared >= 0.0 else NAN
-	if not is_finite(radius) or not is_finite(x) or not is_finite(y) or not is_finite(speed) or not is_finite(period): return {}
-	return {"distance_m": radius, "x_m": x, "y_m": y, "speed_mps": speed, "period_seconds": period}
+	var velocity_scale: float = exp(0.5 * (log(mu_m3_s2) - log(semi_major_m))) / (1.0 - eccentricity * cos_e)
+	var vx: float = -velocity_scale * sin_e
+	var vy: float = velocity_scale * sqrt(1.0 - eccentricity * eccentricity) * cos_e
+	if not is_finite(radius) or not is_finite(x) or not is_finite(y) or not is_finite(speed) or not is_finite(period) or not is_finite(vx) or not is_finite(vy): return {}
+	return {"distance_m": radius, "x_m": x, "y_m": y, "vx_mps": vx, "vy_mps": vy, "speed_mps": speed, "period_seconds": period}
 
 
 static func _valid_orbit_scale(mu_m3_s2: float, semi_major_m: float) -> bool:

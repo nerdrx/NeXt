@@ -1,15 +1,17 @@
 class_name CelestialSystem
 extends RefCounted
 
-# Physical catalog v1. Separate RNG leaves existing terrain, names and saves intact.
+# Physical catalog v2. Separate RNG leaves existing terrain, names and saves intact.
 # Stellar profiles are bounded game-generation approximations, not stellar evolution.
-const MODEL_VERSION := 1
+const MODEL_VERSION := 2
 const GRAVITATIONAL_CONSTANT := 6.67430e-11
 
 static func generate(index: int) -> Dictionary:
 	var address := clampi(index, 0, Universe.SYSTEM_LIMIT - 1)
 	var legacy := Universe.system_data(address)
 	var rng := Universe._rng(address, 2903)
+	# Orientation draws must not perturb v1 physical properties or legacy worlds.
+	var frame_rng := Universe._rng(address, 2904)
 	var star := _star(str(legacy.star_type), rng)
 	star["id"] = "%d:primary" % address
 	var bodies: Array[Dictionary] = []
@@ -30,6 +32,11 @@ static func generate(index: int) -> Dictionary:
 			"rotation_seconds": rng.randf_range(10.0, 72.0) * 3600.0,
 			"atmosphere": giant or bool(source.atmosphere),
 		}
+		body["inclination_rad"] = frame_rng.randf_range(-0.12, 0.12)
+		body["ascending_node_rad"] = frame_rng.randf_range(0.0, TAU)
+		body["periapsis_rad"] = frame_rng.randf_range(0.0, TAU)
+		body["axial_tilt_rad"] = frame_rng.randf_range(0.0, 0.65)
+		body["spin_phase_at_epoch"] = frame_rng.randf_range(0.0, TAU)
 		body["surface_gravity_mps2"] = CelestialPhysics.surface_gravity(body.mu_m3_s2, radius)
 		body["period_seconds"] = CelestialPhysics.orbital_period(float(star.mu_m3_s2) + mass * GRAVITATIONAL_CONSTANT, axis)
 		bodies.append(body)
@@ -42,13 +49,32 @@ static func sample(catalog: Dictionary, planet_index: int, elapsed_seconds: floa
 	var star: Dictionary = catalog.star
 	var orbit := CelestialPhysics.orbital_state(float(star.mu_m3_s2) + float(body.mu_m3_s2), body.semi_major_m, body.eccentricity, body.mean_anomaly_at_epoch, elapsed_seconds)
 	if orbit.is_empty(): return {}
-	var address := SectorPosition.from_meters(orbit.x_m, 0.0, orbit.y_m)
+	var oriented := CelestialFrame.oriented_orbit(orbit, body.get("inclination_rad", 0.0), body.get("ascending_node_rad", 0.0), body.get("periapsis_rad", 0.0))
+	if oriented.is_empty(): return {}
+	orbit.merge(oriented)
+	var position: Array = orbit.position_m
+	var address := SectorPosition.from_meters(position[0], position[1], position[2])
 	if address == null: return {}
 	orbit["address"] = address.to_save()
 	var flux := CelestialPhysics.irradiance(star.luminosity_w, orbit.distance_m)
 	orbit["irradiance_w_m2"] = flux
 	orbit["equilibrium_temperature_k"] = CelestialPhysics.equilibrium_temperature(flux, body.bond_albedo)
 	return orbit
+
+static func surface_sample(catalog: Dictionary, planet_index: int, local_point: Vector3, elapsed_seconds: float) -> Dictionary:
+	var orbit := sample(catalog, planet_index, elapsed_seconds)
+	if orbit.is_empty() or not local_point.is_finite() or local_point.length_squared() <= 0.0: return {}
+	var frame := CelestialFrame.surface_state(orbit, catalog.planets[planet_index], local_point, elapsed_seconds)
+	if frame.is_empty(): return {}
+	var position: Array = frame.position_m
+	var distance := sqrt(float(position[0]) * position[0] + float(position[1]) * position[1] + float(position[2]) * position[2])
+	if not is_finite(distance) or distance <= 0.0: return {}
+	var normal: Vector3 = frame.orientation * local_point.normalized()
+	var cosine := -(normal.x * float(position[0]) + normal.y * float(position[1]) + normal.z * float(position[2])) / distance
+	# Point-source illumination on a spherical surface, before atmospheric absorption.
+	frame["direct_irradiance_w_m2"] = CelestialPhysics.irradiance(catalog.star.luminosity_w, distance) * clampf(cosine, 0.0, 1.0)
+	frame["sun_above_horizon"] = cosine > 0.0
+	return frame
 
 static func _star(kind: String, rng: RandomNumberGenerator) -> Dictionary:
 	var mass_solar := rng.randf_range(0.8, 1.3)

@@ -1635,6 +1635,7 @@ func _integration_check() -> void:
 	open_menu("navigation")
 	deck.show_page("survey")
 	if not _check(deck.survey_labels.size() == world.planets.size() and "Equilibrium" in deck.survey_labels[0].text, "physical system survey is available in release build"): return
+	if not _check("Direct light" in deck.survey_labels[0].text, "rotating surface daylight is available in release build"): return
 	var physical_sample := CelestialSystem.sample(deck.survey_catalog, 0, 0.0)
 	if not _check(not physical_sample.is_empty() and physical_sample.irradiance_w_m2 > 0.0, "orbital radiation model in release build"): return
 	await _capture("celestial-survey")

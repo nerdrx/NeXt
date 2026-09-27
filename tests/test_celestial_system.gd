@@ -35,10 +35,38 @@ func _initialize() -> void:
 	assert(near.equilibrium_temperature_k > far.equilibrium_temperature_k)
 	assert(absf(near.irradiance_w_m2 / far.irradiance_w_m2 - 2.25) < 0.00001)
 	assert(absf(near.equilibrium_temperature_k / far.equilibrium_temperature_k - sqrt(1.5)) < 0.00001)
+	# Spin changes local daylight without changing the orbit-wide equilibrium model.
+	var body: Dictionary = fixture.planets[0]
+	body.eccentricity = 0.0
+	body.inclination_rad = 0.0
+	body.ascending_node_rad = 0.0
+	body.periapsis_rad = 0.0
+	body.axial_tilt_rad = 0.0
+	body.spin_phase_at_epoch = 0.0
+	body.rotation_seconds = 86400.0
+	var site := Vector3(float(body.radius_m), 0.0, 0.0)
+	var night := CelestialSystem.surface_sample(fixture, 0, site, 0.0)
+	var noon := CelestialSystem.surface_sample(fixture, 0, site, 43200.0)
+	assert(not night.sun_above_horizon and night.direct_irradiance_w_m2 == 0.0)
+	assert(noon.sun_above_horizon and noon.direct_irradiance_w_m2 > 0.0)
+	assert(CelestialSystem.surface_sample(fixture, 0, Vector3.ZERO, 0.0).is_empty())
+	# Existing v1 physical catalogs retain their unrotated XZ orbit interpretation.
+	var old := fixture.duplicate(true)
+	for key in ["inclination_rad", "ascending_node_rad", "periapsis_rad", "axial_tilt_rad", "spin_phase_at_epoch"]:
+		old.planets[0].erase(key)
+	var old_sample := CelestialSystem.sample(old, 0, 1234.0)
+	assert(old_sample.position_m == [old_sample.x_m, 0.0, old_sample.y_m])
+	assert(not CelestialSystem.surface_sample(old, 0, site, 1234.0).is_empty())
 	var state := GameState.new()
 	state.advance_time(1234.0)
 	var seconds := (state.day + state.day_progress / GameState.DAY_SECONDS) * 86400.0
 	var expected := CelestialSystem.sample(fixture, 0, seconds)
+	var site_before := CelestialSystem.surface_sample(fixture, 0, site, seconds - 0.1)
+	var site_now := CelestialSystem.surface_sample(fixture, 0, site, seconds)
+	var site_after := CelestialSystem.surface_sample(fixture, 0, site, seconds + 0.1)
+	for component in 3:
+		var derivative: float = (site_after.position_m[component] - site_before.position_m[component]) / 0.2
+		assert(absf(derivative - site_now.velocity_mps[component]) < 0.1, "surface motion combines orbit and spin velocity")
 	var path := "user://celestial-%d.json" % OS.get_process_id()
 	assert(state.save(path).is_empty())
 	var restored := GameState.new()

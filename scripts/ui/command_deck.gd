@@ -237,6 +237,9 @@ func _update_survey() -> void:
 			survey_labels[i].text = "Orbital estimate unavailable."
 			continue
 		survey_labels[i].text = "Radius %.0f km / Gravity %.2f g / Orbit %.3f AU\nYear %.1f days / Speed %.1f km/s / Equilibrium %.0f K\nReceived radiation %.1f W/m² / Reflectivity %.0f%%" % [body.radius_m / 1000.0, body.surface_gravity_mps2 / FlightDynamics.STANDARD_GRAVITY, sample.distance_m / CelestialPhysics.AU_M, body.period_seconds / 86400.0, sample.speed_mps / 1000.0, sample.equilibrium_temperature_k, sample.irradiance_w_m2, body.bond_albedo * 100.0]
+		var surface := CelestialSystem.surface_sample(survey_catalog, i, Vector3(float(body.radius_m), 0.0, 0.0), seconds)
+		if not surface.is_empty():
+			survey_labels[i].text += "\nSpin %.1f hours / Axial tilt %.1f° / Inclination %.1f°\nEquator, longitude 0°: %s / Direct light %.1f W/m² before atmosphere" % [body.rotation_seconds / 3600.0, rad_to_deg(body.axial_tilt_rad), rad_to_deg(body.inclination_rad), "Day" if surface.sun_above_horizon else "Night", surface.direct_irradiance_w_m2]
 
 func _select_destination(address: int) -> void:
 	destination = address

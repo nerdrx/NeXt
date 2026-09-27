@@ -13,6 +13,7 @@ func _run() -> void:
 	assert(game.deck.survey_labels.size() == Universe.system_data(0).planets.size())
 	var initial: String = game.deck.survey_labels[0].text
 	assert("Gravity" in initial and "Equilibrium" in initial and "Received radiation" in initial)
+	assert("Axial tilt" in initial and "Direct light" in initial)
 	game.state.advance_time(86400.0)
 	game.deck._update_clock()
 	assert(initial != game.deck.survey_labels[0].text, "persisted world time changes the displayed orbital and thermal estimates")
