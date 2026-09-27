@@ -1076,3 +1076,9 @@ A shared vessel blueprint supplies the loadout to previews, flight actors, inter
 Domain tests passed pricing, stats, power/habitat/structure/cargo/cash/occupied guards, shield clamping, save reload and atomic rejection of malformed equipment records. The actual menu callback installs a weapon, updates capacity and damage, survives reload, and feeds boarding/actor geometry and weapon stats. Hidden Gamescope passed that integration and the revised compact menu was visually inspected. Existing family, shield and patrol timing regressions passed. The full-scene seven-texture shutdown warning remains.
 
 The integration also spawns the refitted vessel through the main fleet controller and confirms its weapon rating. Windows export passed. No fresh Proton runtime result is claimed for this equipment increment.
+
+## Family hull surface paneling — 2026-09-28
+
+Pathfinder and Merchant pressure shells opt into object-space panel seams, subtle per-panel paint variation, rougher grooves and shallow bump relief. The module-grid origin keeps roof seams between module centers. Seam relief fades with projected pixel footprint. Existing fleet materials retain their previous finish when panel strength is zero. Hull geometry, occupied room volume and collision are unchanged.
+
+Hidden Gamescope completed six exterior, rear and cutaway captures with no shader or script errors. Exterior captures were visually inspected: seams add surface definition, but these remain visibly boxy pressure blockouts, below the requested cinematic target. The blueprint containment/collision regression and Windows export passed. No fresh Proton runtime check was performed for this material change. This check does not establish temporal stability at every distance, frame-rate performance or photorealism.

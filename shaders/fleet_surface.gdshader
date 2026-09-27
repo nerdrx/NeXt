@@ -4,7 +4,11 @@ uniform vec4 paint : source_color = vec4(0.45, 0.48, 0.5, 1.0);
 uniform float base_roughness = 0.45;
 uniform float metalness = 0.05;
 uniform float coating = 0.25;
+uniform float panel_strength : hint_range(0.0, 1.0) = 0.0;
+uniform vec2 panel_pitch = vec2(2.8, 2.8);
+uniform vec3 panel_origin = vec3(0.0);
 varying vec3 local_position;
+varying vec3 local_normal;
 float hash3(vec3 p) {
  p = fract(p * 0.1031);
  p += dot(p, p.yzx + 33.33);
@@ -14,21 +18,38 @@ float grain(vec3 p) {
  vec3 i = floor(p); vec3 f = fract(p); f = f*f*(3.0-2.0*f);
  return mix(mix(mix(hash3(i),hash3(i+vec3(1,0,0)),f.x),mix(hash3(i+vec3(0,1,0)),hash3(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash3(i+vec3(0,0,1)),hash3(i+vec3(1,0,1)),f.x),mix(hash3(i+vec3(0,1,1)),hash3(i+vec3(1,1,1)),f.x),f.y),f.z);
 }
-void vertex() { local_position = VERTEX; }
+void vertex() { local_position = VERTEX; local_normal = NORMAL; }
 void fragment() {
  float mottling = grain(local_position * 3.5);
  float footprint = length(fwidth(local_position)) * 95.0;
  float detail = 1.0 - smoothstep(0.3, 1.2, footprint);
  float micro = mix(0.5, grain(local_position * 95.0), detail);
  float abrasion = smoothstep(0.77, 0.94, grain(local_position * vec3(85.0, 2.0, 2.0))) * detail;
- ALBEDO = paint.rgb * (0.94 + 0.08 * mottling);
- ROUGHNESS = clamp(base_roughness + (mottling-0.5)*0.12 + (micro-0.5)*0.065 + abrasion*0.07, 0.12, 0.92);
+ // Project from object space: paneling follows the ship, never the world origin.
+ vec3 axis = abs(local_normal);
+ vec3 panel_position = local_position + panel_origin;
+ vec2 surface = panel_position.xz;
+ if (axis.x > axis.y && axis.x > axis.z) { surface = panel_position.zy; }
+ else if (axis.z > axis.y) { surface = panel_position.xy; }
+ vec2 pitch = max(panel_pitch, vec2(0.05));
+ vec2 panel_uv = surface / pitch + vec2(0.5);
+ vec2 edge = min(fract(panel_uv), 1.0-fract(panel_uv)) * pitch;
+ float edge_distance = min(edge.x, edge.y);
+ float pixel = max(length(fwidth(surface)), 0.0001);
+ float panel_detail = 1.0 - smoothstep(0.03, 0.14, pixel);
+ float groove = (1.0-smoothstep(0.003, 0.003+pixel, edge_distance)) * panel_detail * panel_strength;
+ float panel_tone = hash3(vec3(floor(panel_uv), 7.0));
+ float panel_height = smoothstep(0.0, 0.018, edge_distance) * 0.002 * panel_detail * panel_strength;
+ float finish_tone = mix(0.94 + 0.08 * mottling, 0.975 + 0.035 * mottling, panel_strength);
+ ALBEDO = paint.rgb * finish_tone * (1.0 + (panel_tone-0.5)*0.065*panel_strength);
+ ALBEDO *= 1.0 - groove * 0.42;
+ ROUGHNESS = clamp(base_roughness + (mottling-0.5)*0.12 + (micro-0.5)*0.065 + abrasion*0.07 + groove*0.14, 0.12, 0.92);
  METALLIC = metalness;
  SPECULAR = 0.5;
  CLEARCOAT = coating;
  CLEARCOAT_ROUGHNESS = 0.35;
  // Submillimetre finish variation; fade below pixel size to avoid sparkle.
- float height = (micro-0.5) * 0.00012;
+ float height = (micro-0.5) * 0.00012 + panel_height;
  vec3 q0 = dFdx(VERTEX); vec3 q1 = dFdy(VERTEX);
  vec3 r1 = cross(q1, NORMAL); vec3 r2 = cross(NORMAL, q0);
  float det = dot(q0, r1);

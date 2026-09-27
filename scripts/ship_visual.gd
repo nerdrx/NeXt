@@ -69,6 +69,8 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 		paint.set_shader_parameter("base_roughness",0.5)
 		paint.set_shader_parameter("metalness",0.04)
 		paint.set_shader_parameter("coating",0.1)
+		paint.set_shader_parameter("panel_strength",1.0)
+		paint.set_shader_parameter("panel_origin",center)
 		shell.material_override = paint
 		add_child(shell)
 	# Connected pressure modules form the hull; avoid a broad hidden keel that reads as a wing.
