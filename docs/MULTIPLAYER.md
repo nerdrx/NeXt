@@ -2,9 +2,9 @@
 
 `NetworkSession` provides ENet host/join, player presence, validated ship-design
 exchange, shared system travel, and rate-limited position/rotation updates. It
-does not yet synchronize combat, economy, cargo, or mission state. Each peer still
-simulates those systems locally, so this is a co-op presence foundation rather
-than authoritative multiplayer.
+now validates opted-in ship hits on the host. NPC combat, economy, cargo and
+mission state still simulate locally. Target ship health and rescue also remain
+local, so this is not fully authoritative multiplayer.
 
 ## Integration
 
@@ -85,3 +85,31 @@ so an incoming invite cannot silently replace the active world.
 callback orders, canceled/failed/timed-out joins, late callbacks, idle invitations
 and clean shutdown using a fake Steam facade. It does not prove real Steamworks
 API success, ownership, NAT traversal, overlay support or cross-machine play.
+
+## Agreed flight PvP
+
+Settings offers an explicit opt-in for combat with other opted-in pilots. Both
+participants must be flying, opted in and have a pose no older than one second.
+Consent resets on leaving, reconnecting or system travel. The game gives every
+session node the stable `NetworkSession` name required by RPC routing.
+
+The host attributes requests to the ENet sender, caps shots at one per 180 ms,
+traces centered 2.8 m module boxes within 2200 m and checks its physical world for
+occlusion. Damage comes from the validated attacker's modules, never a client
+amount. The nearest protected/docked ship blocks the shot. Host-only reliable
+RPCs deliver damage to the target, whose immediate local consent and flight state
+are checked again. Travel epochs reject delayed messages from previous systems.
+
+`publish_pose(position, rotation, origin_data, flying)` supplies flight presence;
+`set_pvp_allowed(bool)` changes consent and `request_pvp_shot(direction)` requests
+a shot. Hosts must supply `pvp_occlusion_check`; absent callbacks reject all hits.
+`pvp_damage_received(attacker, damage)` applies shields, hull and normal rescue in
+the game. Remote module colliders also stop ordinary local weapon rays and are
+disabled outside the rendering range.
+
+Loopback checks cover protocol consent, target-only delivery, cooldown, freshness,
+grounded protection and travel resets. A main-scene ENet guest fires through an
+actual wall test, then depletes host shields/hull; revocation prevents more damage.
+Live Steam, latency compensation, authoritative movement/health, on-foot PvP and
+shared NPC/world damage are not established by these checks. Client-authored
+movement and local saves are not an anti-cheat boundary.

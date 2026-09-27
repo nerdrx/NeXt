@@ -76,12 +76,15 @@ func _ready() -> void:
 	deck.game = self
 	canvas.add_child(deck)
 	session = NetworkSession.new()
+	session.name = "NetworkSession"
 	session.system_index = state.system_index
 	session.ship_modules = state.ship_modules.duplicate(true)
 	session.ship_layout = state.ship_layout.duplicate(true)
 	add_child(session)
 	session.world_joined.connect(_visit_host)
 	session.peers_changed.connect(_sync_visitors)
+	session.pvp_damage_received.connect(_receive_pvp_damage)
+	session.pvp_occlusion_check = _pvp_clear_shot
 	session.session_message.connect(notify)
 	session.steam_invitation_ready.connect(func(lobby_id: int):
 		pending_steam_lobby = lobby_id
@@ -764,6 +767,7 @@ func _ray(origin: Vector3, direction: Vector3, distance: float, exclude: Array[R
 
 func _player_fire(origin: Vector3, direction: Vector3) -> void:
 	if ui_open or jump_charge > 0: return
+	if session.connected and pilot.flying: session.request_pvp_shot(direction)
 	sound.play_sound("shot")
 	var distance: float = 2200 if pilot.flying else 150
 	var hit: Dictionary = _ray(origin, direction, distance, [pilot.get_rid()])
@@ -1101,7 +1105,7 @@ func _process(delta: float) -> void:
 	_network_clock += delta
 	if session != null and session.connected and _network_clock > 0.05:
 		_network_clock = 0
-		session.publish_pose(pilot.position, pilot.rotation, flight_origin.to_save())
+		session.publish_pose(pilot.position, Vector3(pilot.camera.rotation.x, pilot.rotation.y, pilot.camera.rotation.z) if pilot.flying else pilot.rotation, flight_origin.to_save(), pilot.flying and not aboard)
 		_update_remote_positions()
 
 func save_commander(show_message: bool = true) -> bool:
@@ -1197,6 +1201,57 @@ func _visit_host(index: int) -> void:
 	close_menu()
 	notify("Arrived in the host's system with your ship.")
 
+func _build_peer_collision(visual: ShipVisual, modules: Array, peer_id: int) -> void:
+	var previous: StaticBody3D = visual.get_meta("hit_body") if visual.has_meta("hit_body") else null
+	if is_instance_valid(previous):
+		previous.collision_layer = 0
+	var body := StaticBody3D.new()
+	body.collision_layer = 2
+	body.collision_mask = 0
+	body.set_meta("peer_id", peer_id)
+	visual.add_child(body)
+	visual.set_meta("hit_body", body)
+	var low := Vector3(99999, 99999, 99999)
+	var high := -low
+	for module: Dictionary in modules:
+		low = low.min(Vector3(module.x, module.y, module.z))
+		high = high.max(Vector3(module.x, module.y, module.z))
+	var center := (low + high) * 0.5 * ShipVisual.CELL_SIZE
+	for module: Dictionary in modules:
+		var collision := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = Vector3.ONE * ShipVisual.CELL_SIZE
+		collision.shape = box
+		collision.position = Vector3(module.x, module.y, module.z) * ShipVisual.CELL_SIZE - center
+		body.add_child(collision)
+
+func _pvp_clear_shot(attacker: int, target_id: int, direction: Vector3, distance: float) -> bool:
+	if not session.presence.has(attacker): return false
+	var address: SectorPosition = SectorPosition.from_save(session.presence[attacker].address)
+	if address == null: return false
+	var point: Variant = address.relative_to(flight_origin, 30000)
+	if point == null: return false
+	var excluded: Array[RID] = []
+	for id in [attacker, target_id]:
+		if id == multiplayer.get_unique_id(): excluded.append(pilot.get_rid())
+		if remote_ships.has(id):
+			var body: StaticBody3D = remote_ships[id].get_meta("hit_body") if remote_ships[id].has_meta("hit_body") else null
+			if is_instance_valid(body): excluded.append(body.get_rid())
+	var origin: Vector3 = point + Vector3.UP * 1.55
+	var query := PhysicsRayQueryParameters3D.create(origin, origin + direction.normalized() * maxf(0.0, distance - 0.01), 7, excluded)
+	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
+func _receive_pvp_damage(attacker: int, damage: float) -> void:
+	if not pilot.flying or aboard or not is_finite(damage) or damage <= 0: return
+	shield_delay = 6
+	var absorbed: float = minf(state.shield, damage)
+	state.shield -= absorbed
+	state.hull = maxf(0, state.hull - (damage - absorbed))
+	pilot.kick(0.5)
+	hud.flash = 0.5
+	notify("Ship hit by %s." % str(session.presence.get(attacker, {}).get("name", "visitor")))
+	if state.hull <= 0: _rescue()
+
 func _sync_visitors() -> void:
 	# Transform presence is independent of local commander economics.
 	for peer_id: int in remote_ships.keys():
@@ -1214,6 +1269,7 @@ func _sync_visitors() -> void:
 		var visual: ShipVisual = remote_ships[peer_id]
 		if not visual.has_meta("design_hash") or visual.get_meta("design_hash") != design_hash:
 			visual.build(profile.ship_modules, "player", profile.get("ship_layout", {}))
+			_build_peer_collision(visual, profile.ship_modules, peer_id)
 			visual.set_meta("design_hash", design_hash)
 
 func _update_remote_positions() -> void:
@@ -1223,6 +1279,8 @@ func _update_remote_positions() -> void:
 			var address: SectorPosition = SectorPosition.from_save(player.get("address", {}))
 			var point: Variant = address.relative_to(flight_origin, 30000) if address != null else null
 			remote_ships[peer_id].visible = point != null
+			var body: StaticBody3D = remote_ships[peer_id].get_meta("hit_body") if remote_ships[peer_id].has_meta("hit_body") else null
+			if is_instance_valid(body): body.collision_layer = 2 if point != null else 0
 			if point != null: remote_ships[peer_id].position = point
 			remote_ships[peer_id].rotation = player.rotation
 

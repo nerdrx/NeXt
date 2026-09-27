@@ -444,7 +444,17 @@ func _settings() -> void:
 			var error: String = game.join_steam_invitation()
 			note(error if not error.is_empty() else "Joining invited world…"), not steam_ready or game.session.connected)
 	_text("WORLD VISITS / LOCAL NETWORK", 13, InterfaceTheme.CYAN)
-	_text("Bring your current ship into a host's system. This connects presence and host travel; economy and combat remain local. Steam availability is shown above.", 15, InterfaceTheme.MUTED)
+	_text("Bring your current ship into a host's system. This connects presence, host travel and mutually opted-in ship combat. World economies and NPC combat remain local. Steam availability is shown above.", 15, InterfaceTheme.MUTED)
+	var consent := CheckButton.new()
+	consent.text = "Allow ship PvP with other opted-in pilots"
+	consent.button_pressed = game.session.is_pvp_allowed()
+	consent.disabled = not game.session.connected
+	consent.toggled.connect(func(allowed: bool): game.session.set_pvp_allowed(allowed))
+	content.add_child(consent)
+	_text("Both pilots must opt in and be flying. Consent resets when leaving or changing systems. The host checks shot range and obstructions; local ship damage and rescue still use your commander save.", 14, InterfaceTheme.MUTED)
+	for peer_id: int in game.session.presence:
+		var peer: Dictionary = game.session.presence[peer_id]
+		_text("%s  /  %s" % [peer.name, "PvP enabled" if peer.get("pvp", false) else "Protected"], 14)
 	var connection := _row()
 	var name_field := LineEdit.new()
 	name_field.placeholder_text = "Pilot callsign"

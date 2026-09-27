@@ -41,6 +41,9 @@ jobs:
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_state.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_actors.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_network.gd
+          timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_pvp_hits.gd
+          timeout 40s "$GODOT_BIN" --headless --path . -s tests/test_pvp_transport.gd
+          timeout 40s "$GODOT_BIN" --headless --path . -s tests/test_pvp_gameplay.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_visit.gd -- --capture-only
 
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_controls.gd -- --capture-only

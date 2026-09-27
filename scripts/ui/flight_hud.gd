@@ -55,6 +55,12 @@ func _draw() -> void:
 	_word(Vector2(w * 0.5 - 260, h - 24), "TAB  Command    E  Interact / dock    J  Navigation    F5  Save", 14, InterfaceTheme.MUTED)
 	if pilot.flying:
 		_draw_radar(Vector2(w - 130, 220))
+		for peer_id: int in game.remote_ships:
+			var ship: Node3D = game.remote_ships[peer_id]
+			if not ship.visible: continue
+			var profile: Dictionary = game.session.presence.get(peer_id, {})
+			var agreed: bool = game.session.is_pvp_allowed() and bool(profile.get("pvp", false)) and bool(profile.get("flying", false))
+			_draw_marker(ship.position, str(profile.get("name", "Pilot")) + (" / PVP" if agreed else " / PROTECTED"), Color("f08670") if agreed else InterfaceTheme.CYAN, pilot.camera)
 		for index in game.colonies.size():
 			var colony: Node3D = game.colonies[index]
 			if not bool(colony.get_meta("spatial_culled", false)):

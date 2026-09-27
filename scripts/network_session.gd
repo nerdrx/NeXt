@@ -5,6 +5,7 @@ signal world_joined(system_index: int)
 signal peers_changed
 signal session_message(message: String)
 signal steam_invitation_ready(lobby_id: int)
+signal pvp_damage_received(attacker: int, damage: float)
 
 const DEFAULT_PORT: int = 27840
 const MAX_PLAYERS: int = 8
@@ -29,6 +30,12 @@ var _steam_session: SteamSession
 var _join_sent: bool = false
 var _last_pose_msec: int = 0
 var _last_remote_pose_msec: Dictionary = {}
+var _last_pvp_shot_msec: Dictionary = {}
+var _pvp_epoch: int = 0
+var _local_pvp_allowed: bool = false
+var _local_flying: bool = false
+var pvp_occlusion_check: Callable
+
 
 
 func _ready() -> void:
@@ -145,6 +152,10 @@ func _start_client(peer: MultiplayerPeer, status: String) -> void:
 	_join_sent = false
 	presence.clear()
 	_last_remote_pose_msec.clear()
+	_last_pvp_shot_msec.clear()
+	_local_pvp_allowed = false
+	_local_flying = false
+	_last_pose_msec = -1000
 	session_message.emit(status)
 
 
@@ -191,6 +202,10 @@ func leave() -> void:
 	_join_sent = false
 	presence.clear()
 	_last_remote_pose_msec.clear()
+	_last_pvp_shot_msec.clear()
+	_local_pvp_allowed = false
+	_local_flying = false
+	_last_pose_msec = -1000
 	if had_session:
 		peers_changed.emit()
 
@@ -200,7 +215,7 @@ func _exit_tree() -> void:
 		_steam_session.shutdown()
 
 
-func publish_pose(position: Vector3, rotation: Vector3, origin_data: Dictionary = {}) -> void:
+func publish_pose(position: Vector3, rotation: Vector3, origin_data: Dictionary = {}, flying: bool = false) -> void:
 	if not connected or not _valid_vector(position, MAX_WORLD_COORD) or not _valid_rotation(rotation):
 		return
 	var origin: Variant = SectorPosition.new()
@@ -218,12 +233,15 @@ func publish_pose(position: Vector3, rotation: Vector3, origin_data: Dictionary 
 	if not normalized_layout.ok: return
 	ship_modules = normalized.modules
 	ship_layout = normalized_layout.layout
+	_local_flying = flying
+	if presence.has(multiplayer.get_unique_id()): presence[multiplayer.get_unique_id()].flying = flying
 	var now := Time.get_ticks_msec()
 	if now - _last_pose_msec < 50:
 		return
 	_last_pose_msec = now
 	var id := multiplayer.get_unique_id()
 	var profile: Dictionary = presence.get(id, _make_presence(Vector3.ZERO, Vector3.ZERO, ship_modules, ship_layout, display_name))
+	profile.flying = flying
 	profile.position = position
 	profile.rotation = rotation
 	profile.address = address_data
@@ -235,7 +253,7 @@ func publish_pose(position: Vector3, rotation: Vector3, origin_data: Dictionary 
 		_broadcast_presence(id, profile)
 		peers_changed.emit()
 	else:
-		_rpc_publish_pose.rpc_id(1, position, rotation, ship_modules.duplicate(true), ship_layout.duplicate(true), address_data)
+		_rpc_publish_pose.rpc_id(1, position, rotation, ship_modules.duplicate(true), ship_layout.duplicate(true), address_data, flying, _pvp_epoch)
 
 
 func travel(index: int) -> String:
@@ -245,8 +263,10 @@ func travel(index: int) -> String:
 		return "System address is out of range."
 	system_index = index
 	world_seed = _seed_for(index)
+	_pvp_epoch += 1
+	_reset_pvp()
 	for peer_id: int in multiplayer.get_peers():
-		_rpc_world_joined.rpc_id(peer_id, index, world_seed, world_id)
+		_rpc_world_joined.rpc_id(peer_id, index, world_seed, world_id, _pvp_epoch)
 	world_joined.emit(system_index)
 	session_message.emit("Traveling together to system %d." % system_index)
 	return ""
@@ -259,6 +279,7 @@ func _on_peer_connected(_peer_id: int) -> void:
 
 func _on_peer_disconnected(peer_id: int) -> void:
 	_last_remote_pose_msec.erase(peer_id)
+	_last_pvp_shot_msec.erase(peer_id)
 	if is_host:
 		if presence.erase(peer_id):
 			for remote_id: int in multiplayer.get_peers():
@@ -312,19 +333,19 @@ func _rpc_join_request(raw_name: String, raw_modules: Array, raw_layout: Variant
 	var safe_name := _sanitize_name(raw_name)
 	var profile := _make_presence(Vector3.ZERO, Vector3.ZERO, normalized.modules, normalized_layout.layout, safe_name)
 	presence[sender] = profile
-	_rpc_welcome.rpc_id(sender, system_index, world_seed, world_id, presence.duplicate(true))
+	_rpc_welcome.rpc_id(sender, system_index, world_seed, world_id, presence.duplicate(true), _pvp_epoch)
 	_broadcast_presence(sender, profile)
 	peers_changed.emit()
 	session_message.emit("%s joined." % safe_name)
 
 
 @rpc("any_peer", "call_remote", "unreliable_ordered")
-func _rpc_publish_pose(position: Vector3, rotation: Vector3, raw_modules: Array, raw_layout: Variant, raw_address: Variant) -> void:
+func _rpc_publish_pose(position: Vector3, rotation: Vector3, raw_modules: Array, raw_layout: Variant, raw_address: Variant, flying: bool = false, epoch: int = 0) -> void:
 	if not is_host or not connected:
 		return
 	var address: Variant = SectorPosition.from_save(raw_address)
 	var sender := multiplayer.get_remote_sender_id()
-	if address == null or not presence.has(sender) or not _valid_vector(position, MAX_WORLD_COORD) or not _valid_rotation(rotation) or raw_modules.size() > MAX_MODULES or not raw_layout is Dictionary:
+	if epoch != _pvp_epoch or address == null or not presence.has(sender) or not _valid_vector(position, MAX_WORLD_COORD) or not _valid_rotation(rotation) or raw_modules.size() > MAX_MODULES or not raw_layout is Dictionary:
 		return
 	var normalized := _normalize_modules(raw_modules)
 	if not normalized.ok: return
@@ -335,6 +356,7 @@ func _rpc_publish_pose(position: Vector3, rotation: Vector3, raw_modules: Array,
 		return
 	_last_remote_pose_msec[sender] = now
 	var profile: Dictionary = presence[sender]
+	profile.flying = flying
 	profile.position = position
 	profile.rotation = rotation
 	profile.address = address.to_save()
@@ -346,7 +368,7 @@ func _rpc_publish_pose(position: Vector3, rotation: Vector3, raw_modules: Array,
 
 
 @rpc("authority", "call_remote", "reliable")
-func _rpc_welcome(index: int, seed: int, incoming_world_id: String, players: Dictionary) -> void:
+func _rpc_welcome(index: int, seed: int, incoming_world_id: String, players: Dictionary, epoch: int = 0) -> void:
 	if is_host or index < 0 or index > MAX_SYSTEM_INDEX or players.size() > MAX_PLAYERS or not _valid_world_id(incoming_world_id):
 		return
 	var validated: Dictionary = {}
@@ -360,6 +382,7 @@ func _rpc_welcome(index: int, seed: int, incoming_world_id: String, players: Dic
 	system_index = index
 	world_id = incoming_world_id
 	world_seed = seed
+	_pvp_epoch = epoch
 	presence = validated
 	connected = true
 	var local_id := multiplayer.get_unique_id()
@@ -378,11 +401,16 @@ func _rpc_reject(reason: String) -> void:
 
 
 @rpc("authority", "call_remote", "unreliable_ordered")
-func _rpc_presence(peer_id: int, profile: Dictionary) -> void:
-	if is_host or not connected or peer_id <= 0 or peer_id > 0x7fffffff:
+func _rpc_presence(peer_id: int, profile: Dictionary, epoch: int = 0) -> void:
+	if is_host or not connected or epoch != _pvp_epoch or peer_id <= 0 or peer_id > 0x7fffffff:
 		return
 	var normalized_profile := _normalize_presence(profile)
 	if not normalized_profile.ok: return
+	# Consent has its own reliable stream; a delayed pose cannot restore an old choice.
+	if presence.has(peer_id): normalized_profile.profile.pvp = presence[peer_id].get("pvp", false)
+	if peer_id == multiplayer.get_unique_id():
+		normalized_profile.profile.pvp = normalized_profile.profile.pvp and _local_pvp_allowed
+		normalized_profile.profile.flying = _local_flying
 	presence[peer_id] = normalized_profile.profile
 	peers_changed.emit()
 
@@ -396,17 +424,19 @@ func _rpc_peer_left(peer_id: int) -> void:
 
 
 @rpc("authority", "call_remote", "reliable")
-func _rpc_world_joined(index: int, seed: int, incoming_world_id: String) -> void:
+func _rpc_world_joined(index: int, seed: int, incoming_world_id: String, epoch: int = 0) -> void:
 	if is_host or not connected or index < 0 or index > MAX_SYSTEM_INDEX or not _valid_world_id(incoming_world_id) or incoming_world_id != world_id:
 		return
 	system_index = index
 	world_seed = seed
+	_pvp_epoch = epoch
+	_reset_pvp()
 	world_joined.emit(system_index)
 
 
 func _make_presence(pos: Vector3, rot: Vector3, modules: Array, layout: Dictionary, player_name: String, address: Dictionary = {}) -> Dictionary:
 	var safe_address: Dictionary = address.duplicate(true) if not address.is_empty() and SectorPosition.from_save(address) != null else SectorPosition.new(Vector3i.ZERO, pos).to_save()
-	return {"position": pos, "rotation": rot, "address": safe_address, "ship_modules": modules.duplicate(true), "ship_layout": layout.duplicate(true), "name": _sanitize_name(player_name)}
+	return {"position": pos, "rotation": rot, "address": safe_address, "ship_modules": modules.duplicate(true), "ship_layout": layout.duplicate(true), "name": _sanitize_name(player_name), "pvp": false, "flying": false}
 
 
 func _valid_presence(value: Variant) -> bool:
@@ -414,13 +444,15 @@ func _valid_presence(value: Variant) -> bool:
 
 
 func _normalize_presence(value: Variant) -> Dictionary:
-	if not value is Dictionary or value.size() < 4 or value.size() > 6 or not value.has_all(["position", "rotation", "name", "ship_modules"]):
+	if not value is Dictionary or value.size() < 4 or value.size() > 8 or not value.has_all(["position", "rotation", "name", "ship_modules"]):
 		return {"ok": false}
 	for key: Variant in value:
-		if not str(key) in ["position", "rotation", "name", "ship_modules", "ship_layout", "address"]: return {"ok": false}
+		if not str(key) in ["position", "rotation", "name", "ship_modules", "ship_layout", "address", "pvp", "flying"]: return {"ok": false}
 	if not value.position is Vector3 or not value.rotation is Vector3 or not _valid_vector(value.position, MAX_WORLD_COORD) or not _valid_rotation(value.rotation):
 		return {"ok": false}
 	if not value.name is String or str(value.name).length() > 20 or not value.ship_modules is Array or value.ship_modules.size() > MAX_MODULES:
+		return {"ok": false}
+	if not value.get("pvp", false) is bool or not value.get("flying", false) is bool:
 		return {"ok": false}
 	var modules := _normalize_modules(value.ship_modules)
 	if not modules.ok: return {"ok": false}
@@ -430,7 +462,7 @@ func _normalize_presence(value: Variant) -> Dictionary:
 	var raw_address: Variant = value.get("address", SectorPosition.new(Vector3i.ZERO, value.position).to_save())
 	var address: Variant = SectorPosition.from_save(raw_address)
 	if address == null: return {"ok": false}
-	return {"ok": true, "profile": {"position": value.position, "rotation": value.rotation, "address": address.to_save(), "name": _sanitize_name(value.name), "ship_modules": modules.modules, "ship_layout": layout.layout}}
+	return {"ok": true, "profile": {"position": value.position, "rotation": value.rotation, "address": address.to_save(), "name": _sanitize_name(value.name), "ship_modules": modules.modules, "ship_layout": layout.layout, "pvp": value.get("pvp", false), "flying": value.get("flying", false)}}
 
 
 func _normalize_layout(raw_layout: Variant, modules: Array) -> Dictionary:
@@ -462,7 +494,7 @@ func _normalize_layout(raw_layout: Variant, modules: Array) -> Dictionary:
 
 func _broadcast_presence(peer_id: int, profile: Dictionary) -> void:
 	for remote_id: int in multiplayer.get_peers():
-		_rpc_presence.rpc_id(remote_id, peer_id, profile)
+		_rpc_presence.rpc_id(remote_id, peer_id, profile, _pvp_epoch)
 
 
 func _normalize_modules(raw_modules: Array) -> Dictionary:
@@ -527,3 +559,104 @@ func _valid_world_id(value: String) -> bool:
 		if not ((character >= "0" and character <= "9") or (character >= "a" and character <= "f")):
 			return false
 	return true
+
+
+func _reset_pvp() -> void:
+	_local_pvp_allowed = false
+	_local_flying = false
+	_last_pose_msec = -1000
+	_last_remote_pose_msec.clear()
+	_last_pvp_shot_msec.clear()
+	for id: int in presence:
+		presence[id].pvp = false
+		presence[id].flying = false
+	peers_changed.emit()
+
+
+func is_pvp_allowed() -> bool:
+	return connected and _local_pvp_allowed
+
+
+func set_pvp_allowed(allowed: bool) -> void:
+	if not connected: return
+	_local_pvp_allowed = allowed
+	var id := multiplayer.get_unique_id()
+	# Immediate local revocation cannot be undone by an in-flight host echo.
+	if not allowed and presence.has(id): presence[id].pvp = false
+	if is_host:
+		_accept_pvp_consent(id, allowed)
+	else:
+		_rpc_pvp_consent.rpc_id(1, allowed, _pvp_epoch)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_pvp_consent(allowed: bool, epoch: int) -> void:
+	if not is_host or not connected or epoch != _pvp_epoch: return
+	_accept_pvp_consent(multiplayer.get_remote_sender_id(), allowed)
+
+
+func _accept_pvp_consent(id: int, allowed: bool) -> void:
+	if not presence.has(id): return
+	presence[id].pvp = allowed
+	for remote_id: int in multiplayer.get_peers():
+		_rpc_pvp_consent_changed.rpc_id(remote_id, id, allowed, _pvp_epoch)
+	peers_changed.emit()
+
+
+@rpc("authority", "call_remote", "reliable")
+func _rpc_pvp_consent_changed(id: int, allowed: bool, epoch: int) -> void:
+	if not connected or epoch != _pvp_epoch or not presence.has(id): return
+	presence[id].pvp = allowed and (id != multiplayer.get_unique_id() or _local_pvp_allowed)
+	peers_changed.emit()
+
+
+func request_pvp_shot(direction: Vector3) -> void:
+	if not connected or not _local_pvp_allowed: return
+	if is_host:
+		_accept_pvp_shot(multiplayer.get_unique_id(), direction)
+	else:
+		_rpc_pvp_shot.rpc_id(1, direction, _pvp_epoch)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_pvp_shot(direction: Vector3, epoch: int) -> void:
+	if not is_host or not connected or epoch != _pvp_epoch: return
+	_accept_pvp_shot(multiplayer.get_remote_sender_id(), direction)
+
+
+func _fresh_flight_profile(id: int, now: int) -> bool:
+	if not presence.has(id) or not presence[id].get("pvp", false) or not presence[id].get("flying", false): return false
+	var stamp: int = _last_pose_msec if id == multiplayer.get_unique_id() else int(_last_remote_pose_msec.get(id, -10000))
+	return now - stamp >= 0 and now - stamp <= 1000
+
+
+func _accept_pvp_shot(attacker: int, direction: Vector3) -> void:
+	if not is_host or not connected: return
+	var now := Time.get_ticks_msec()
+	if not _fresh_flight_profile(attacker, now) or now - int(_last_pvp_shot_msec.get(attacker, -1000)) < 180: return
+	_last_pvp_shot_msec[attacker] = now
+	var candidates: Dictionary = {}
+	for id: int in presence:
+		if id == attacker: continue
+		candidates[id] = presence[id].duplicate(true)
+		if not _fresh_flight_profile(id, now): candidates[id].pvp = false
+	var hit: Dictionary = PvPHits.trace(presence[attacker], candidates, direction)
+	if hit.is_empty() or not pvp_occlusion_check.is_valid(): return
+	var target: int = hit.target
+	if not pvp_occlusion_check.call(attacker, target, direction, float(hit.distance)): return
+	if target == multiplayer.get_unique_id():
+		_receive_pvp_damage(attacker, float(hit.damage), _pvp_epoch)
+	else:
+		_rpc_pvp_damage.rpc_id(target, attacker, float(hit.damage), _pvp_epoch)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _rpc_pvp_damage(attacker: int, damage: float, epoch: int) -> void:
+	_receive_pvp_damage(attacker, damage, epoch)
+
+
+func _receive_pvp_damage(attacker: int, damage: float, epoch: int) -> void:
+	var local_id := multiplayer.get_unique_id()
+	if not connected or epoch != _pvp_epoch or not _local_pvp_allowed or not _local_flying: return
+	if attacker == local_id or not presence.has(attacker) or not is_finite(damage) or damage <= 0.0: return
+	pvp_damage_received.emit(attacker, damage)
