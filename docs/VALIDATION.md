@@ -1056,3 +1056,12 @@ The deterministic timing test passed a 1,204-second batch versus 1,204 one-secon
 The current exported Windows normal entrypoint completed `NEXT_INTEGRATION_OK` twice under Proton Experimental and headless Gamescope on the RX 7900 XTX. The second run used the new `tools/test-proton.sh` end to end, including a fresh export, isolated Proton prefix, explicit Godot log and bounded wrapper. No script or shader errors appeared in the game log. The Windows SDR-white-level warning remains; Gamescope/Proton required timeout termination (wrapper exit 137) after the integration marker, so clean shutdown is not claimed.
 
 The reusable command checks fresh per-run evidence, rejects missing success markers and Godot errors, and reports integration completion separately from wrapper exit status. Syntax and missing-runtime/invalid-timeout guards passed. Evidence for this run is in `build/proton-smoke.zISPNU/`; the Windows ZIP was rebuilt. These normal-entrypoint checks do not establish every standalone regression on Windows, Steam peer interoperability, visual acceptance, VR support or the 1440p/60 performance target.
+
+
+## Hidden ship-preview rendering — 2026-09-28
+
+ShipDesigner now disables its SubViewport rendering and stops model rotation while its parent UI is hidden; reopening resumes both. The focused visibility/lifetime regression passed headlessly and in hidden Gamescope, including repeated creation and teardown, without a texture RID warning. This verifies the rendering toggle, not a measured frame-rate gain.
+
+The separate seven-texture shutdown warning remains unresolved. Adding a second teardown frame did not remove it, and a minimal main-scene probe still emitted it after eight cleanup frames without opening a ship editor. Disabling SSAO, SSR and glow in an isolated diagnostic run also did not remove it. Those diagnostic edits and unhelpful test delays were not retained; no visual-quality settings were reduced.
+
+Windows export passed for the preview change. The earlier Proton normal-entrypoint pass predates this change; no new Proton run is claimed here.

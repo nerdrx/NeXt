@@ -237,5 +237,7 @@ func refresh(values: Array) -> void:
 		_update_selection()
 
 func _process(delta: float) -> void:
-	if orbit != null:
+	var preview_visible := is_visible_in_tree()
+	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS if preview_visible else SubViewport.UPDATE_DISABLED
+	if preview_visible and orbit != null:
 		orbit.rotation.y += delta * 0.15
