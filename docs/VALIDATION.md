@@ -1082,3 +1082,9 @@ The integration also spawns the refitted vessel through the main fleet controlle
 Pathfinder and Merchant pressure shells opt into object-space panel seams, subtle per-panel paint variation, rougher grooves and shallow bump relief. The module-grid origin keeps roof seams between module centers. Seam relief fades with projected pixel footprint. Existing fleet materials retain their previous finish when panel strength is zero. Hull geometry, occupied room volume and collision are unchanged.
 
 Hidden Gamescope completed six exterior, rear and cutaway captures with no shader or script errors. Exterior captures were visually inspected: seams add surface definition, but these remain visibly boxy pressure blockouts, below the requested cinematic target. The blueprint containment/collision regression and Windows export passed. No fresh Proton runtime check was performed for this material change. This check does not establish temporal stability at every distance, frame-rate performance or photorealism.
+
+## Family propulsion fairings — 2026-09-28
+
+Each family engine bay now has a tapered dorsal fairing above its twin nozzles, with a dark service strip. The first four-cover variant was visually rejected as cluttered and replaced with two longer fairings per ship. Existing nozzles and thrust remain; custom modular assemblies do not receive the family fittings.
+
+The blueprint regression checks every added fairing/strip vertex against cabin roof clearance and the existing collision union, alongside the original closed-shell/interior checks. It also confirms custom assemblies do not receive these fittings. Native tests passed, and hidden Gamescope generated six captures without shader/script errors; the revised rear view was inspected. Windows export passed; no new Proton runtime result is claimed. This is a small propulsion-detail improvement, not a completed hull redesign or the requested cinematic visual quality.

@@ -21,6 +21,17 @@ func _run() -> void:
 		var shell := visual.get_node_or_null("FamilyPressureHull") as MeshInstance3D
 		assert(shell != null, "family cells produce one connected pressure skin")
 		_assert_closed_mesh(shell.mesh.get_faces())
+		var engine_fittings := visual.find_children("FamilyEngine*", "MeshInstance3D", true, false)
+		assert(not engine_fittings.is_empty(), "habitable families have exterior propulsion housings")
+		for fitting: MeshInstance3D in engine_fittings:
+			for vertex: Vector3 in fitting.mesh.get_faces():
+				var point := fitting.transform * vertex
+				assert(point.y > ShipBlueprint.PRESSURE_SIZE.y * 0.5, "dorsal propulsion housings cannot intrude into cabins")
+				var contained := false
+				for cell in cells:
+					var collision := AABB(Vector3(cell)*ShipBlueprint.CELL_SIZE-center-ShipBlueprint.collision_size(cells)*0.5,ShipBlueprint.collision_size(cells))
+					if collision.grow(0.001).has_point(point): contained = true
+				assert(contained, "propulsion housings must stay inside flight collision")
 		var outline := ShipBlueprint.pressure_outline(cells)
 		var reordered := cells.duplicate()
 		reordered.reverse()
@@ -101,6 +112,11 @@ func _run() -> void:
 			visual.free()
 	var custom_cells: Array[Vector3i] = [Vector3i.ZERO]
 	assert(ShipBlueprint.collision_size(custom_cells) == ShipBlueprint.COLLISION_SIZE, "custom modular hulls keep their existing collision")
+	var custom_visual := ShipVisual.new()
+	root.add_child(custom_visual)
+	custom_visual.build([{"kind":"engine", "x":0, "y":0, "z":0}])
+	assert(custom_visual.find_children("FamilyEngine*", "MeshInstance3D", true, false).is_empty(), "family propulsion housings do not appear on custom assemblies")
+	custom_visual.free()
 	assert(ShipBlueprint.family("unknown").is_empty())
 	print("SHIP_BLUEPRINT_OK: families, rooms, exterior containment and collision share one spatial contract")
 	quit()

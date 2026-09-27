@@ -121,6 +121,8 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 				_add_box(p + Vector3(0.72, 0.44, -1.53), Vector3(0.06, 0.62, 0.08), plate_mat, Vector3(-0.16, 0, 0))
 				_add_box(p + Vector3(0, 0.44, -1.56), Vector3(0.035, 0.46, 0.04), glass_trim, Vector3(-0.16, 0, 0))
 			"engine":
+				if joined_hull:
+					_add_family_engine_housing(p, hull_mat, dark_mat)
 				for side in [-1, 1]:
 					_add_box(p + Vector3(float(side) * 0.72, 0.96, 1.20), Vector3(0.62, 0.26, 1.7), hull_mat, Vector3(-0.05, 0, 0))
 					var mount := _add_cylinder(p + Vector3(float(side) * 0.72, 0.45, 1.56), 0.43, 0.76, dark_mat)
@@ -351,6 +353,28 @@ func _add_box(pos: Vector3, size: Vector3, material: Material, angles: Vector3 =
 	add_child(mesh)
 	mesh.position = pos
 	mesh.rotation = angles
+
+
+func _add_family_engine_housing(cell_pos: Vector3, material: Material, vent_material: Material) -> void:
+	# One continuous fairing covers each twin-nozzle engine bay above its pressure roof.
+	var housing := MeshInstance3D.new()
+	housing.name = "FamilyEngineHousing%d" % get_child_count()
+	housing.mesh = HullGeometry.profile(PackedVector2Array([
+		Vector2(-0.68, -1.8), Vector2(0.68, -1.8), Vector2(1.24, -0.9),
+		Vector2(1.24, 1.5), Vector2(1.0, 1.8), Vector2(-1.0, 1.8),
+		Vector2(-1.24, 1.5), Vector2(-1.24, -0.9),
+	]), [Vector3(1.0, 1.335, 1.0), Vector3(0.92, 1.54, 0.96), Vector3(0.76, 1.82, 0.82)])
+	housing.material_override = material
+	add_child(housing)
+	housing.position = cell_pos + Vector3(0, 0, 0.45)
+	var vent := MeshInstance3D.new()
+	vent.name = "FamilyEngineVent%d" % get_child_count()
+	var vent_mesh := BoxMesh.new()
+	vent_mesh.size = Vector3(0.38, 0.018, 2.0)
+	vent.mesh = vent_mesh
+	vent.material_override = vent_material
+	add_child(vent)
+	vent.position = cell_pos + Vector3(0, 1.824, 0.45)
 
 
 func _add_cylinder(pos: Vector3, radius: float, height: float, material: Material) -> MeshInstance3D:
