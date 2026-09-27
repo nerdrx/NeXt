@@ -866,3 +866,14 @@ Snapshots are optional for older saves. Current local snapshots are bounded to 1
 The Windows export completed and its main-entrypoint integration emitted NEXT_INTEGRATION_OK under Proton in hidden Gamescope. No script/shader errors appeared. The usual SDR warning remained and the wrapper required timeout cleanup after completion (exit 137). The Windows ZIP was rebuilt; this is not a performance benchmark.
 
 The focused FLEET_FLIGHT_SAVE_OK check passes for moving-trader save/load, a different nonzero camera origin, fixed endpoint continuity, first-step momentum, cull/address preservation, legacy saves, malformed snapshots, route/phase mismatches and same-frame trade reassignment. Invalid loads preserve the existing state. The deliberately non-finite JSON fixture emits an expected exponent warning. This test is registered in CI.
+
+
+## Finite market supply
+
+MARKET_INVENTORY_OK verifies deterministic non-mutating stock reads, player purchase/sale conservation, exact batch settlement, no instant roundtrip profit, scarcity pricing, empty/full market rejection, sparse save/load, legacy defaults, invalid stock records rejected without changing state, separate world inventories, market-record capacity without eviction, and no automatic day-driven restocking. Fleet checks cover stock-limited purchases, cargo retained at a full destination, and a later delivery increasing destination inventory. The capacity test initially assumed an empty cargo dictionary; default cargo contains zero-valued commodity keys, so the assertion now checks cargo_total() == 0.
+
+State, crew, faction pricing, local traders and visit regressions passed. Native integration passed with release-safe checks for player supply conservation and hired traders taking cargo from the same inventory. The earlier fleet-flight-persistence commit completed both public CI runs successfully.
+
+Windows export completed and the main-entrypoint integration passed under Proton in hidden Gamescope. The new market-supply capture was inspected: available stock and whole-order prices fit the exchange layout. No script/shader errors appeared; the usual SDR white-level warning remains. This is not a performance benchmark or proof of shared multiplayer exchange authority. No art assets changed.
+
+The Proton wrapper required timeout cleanup after NEXT_INTEGRATION_OK (exit 137), and the Windows ZIP was rebuilt.

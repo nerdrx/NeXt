@@ -250,18 +250,21 @@ func _market() -> void:
 	heading.text = "ORBITAL EXCHANGE"
 	var s: GameState = game.state
 	_text("Hold %d / %d    •    Cash %d CR" % [s.cargo_total(), s.ship_stats().cargo_capacity, s.credits], 21, InterfaceTheme.CYAN)
+	_text("Prices respond to supply. Button prices include the entire order.", 14, InterfaceTheme.MUTED)
 	if game.pilot.flying or game.aboard: _text("Dock to trade commodities.", 16, InterfaceTheme.GOLD)
 	for good: String in GameState.GOODS:
 		var row := _row()
-		var label := InterfaceTheme.label("%s\nBuy %d / Sell %d CR  •  %d in hold" % [good.capitalize(), s.trade_quote(good, true), s.trade_quote(good, false), int(s.cargo.get(good, 0))], 17)
+		var label := InterfaceTheme.label("%s\n%d in market  •  %d in hold" % [good.capitalize(), s.market_stock(good), int(s.cargo.get(good, 0))], 17)
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(label)
 		for quantity in [1, 10]:
-			var buy := InterfaceTheme.button("BUY %d" % quantity, _act.bind(s.trade.bind(good, quantity, true), "Cargo purchased."))
-			buy.disabled = game.pilot.flying or game.aboard
+			var total: int = s.player_trade_total(good, quantity, true)
+			var buy := InterfaceTheme.button("BUY %d · %s" % [quantity, ("%d CR" % total) if total >= 0 else "NO STOCK"], _act.bind(s.trade.bind(good, quantity, true), "Cargo purchased."))
+			buy.disabled = game.pilot.flying or game.aboard or total < 0
 			row.add_child(buy)
-		var sell := InterfaceTheme.button("SELL 1", _act.bind(s.trade.bind(good, 1, false), "Cargo sold."))
-		sell.disabled = game.pilot.flying or game.aboard
+		var sale: int = s.player_trade_total(good, 1, false)
+		var sell := InterfaceTheme.button("SELL 1 · %s" % (("%d CR" % sale) if sale >= 0 else "FULL"), _act.bind(s.trade.bind(good, 1, false), "Cargo sold."))
+		sell.disabled = game.pilot.flying or game.aboard or sale < 0
 		row.add_child(sell)
 	var services := _row()
 	services.add_child(InterfaceTheme.button("REFUEL", _act.bind(s.refuel, "Fuel tanks replenished.")))

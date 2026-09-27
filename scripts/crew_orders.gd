@@ -36,7 +36,10 @@ func assign_trade_route(crew_id: String, ship_id: String, good: String, destinat
 		if int(ship.cargo[held_good]) > 0 and str(held_good) != key: return "Unload the other commodity before changing this route."
 	if _cargo_total(ship) >= int(ship.capacity): return "Fleet hold is full."
 	if _crew_busy(crew_id) or _ship_busy(ship_id): return "Crew member or ship already has an order."
-	var escrow: int = _price(key, int(ship.system)) * mini(quantity, int(ship.capacity) - _cargo_total(ship))
+	var available: int = mini(mini(quantity, int(ship.capacity) - _cargo_total(ship)), state.market_stock(key, int(ship.system)))
+	if available <= 0: return "Origin market is out of stock."
+	var escrow: int = state.market_total(key, int(ship.system), available, true)
+	if escrow < 0: return "Origin market cannot fill this order."
 	if state.credits < escrow: return "Insufficient credits for trade escrow (%d required)." % escrow
 	state.credits -= escrow
 	ship.erase("flight")
@@ -101,8 +104,11 @@ func route_quote(good: String, destination: int, quantity: int, ship_id: String 
 	if not GameState.GOODS.has(key) or destination < 0 or destination >= GameState.SYSTEM_LIMIT or destination == origin or quantity < 1 or quantity > 100:
 		return {"ok": false, "message": "Invalid route quote."}
 	var buy_unit: int = state.price_at(key, origin)
-	var sale_unit: int = floori(float(state.price_at(key, destination)) * 0.85)
-	return {"ok": true, "good": key, "origin": origin, "destination": destination, "quantity": quantity, "buy_unit": buy_unit, "sale_unit": sale_unit, "escrow": buy_unit * quantity, "expected_profit": (sale_unit - buy_unit) * quantity}
+	var sale_unit: int = state.market_total(key, destination, 1, false, 0.85)
+	var purchase: int = state.market_total(key, origin, quantity, true)
+	var sale: int = state.market_total(key, destination, quantity, false, 0.85)
+	if purchase < 0 or sale < 0: return {"ok": false, "message": "Market stock or receiving capacity cannot fill this quantity."}
+	return {"ok": true, "good": key, "origin": origin, "destination": destination, "quantity": quantity, "buy_unit": buy_unit, "sale_unit": sale_unit, "escrow": purchase, "expected_profit": sale - purchase}
 
 # Fleet menu calls this only when the ship is at the player's current dock.
 func unload_fleet_cargo(ship_id: String, good: String, quantity: int) -> String:
@@ -112,7 +118,10 @@ func unload_fleet_cargo(ship_id: String, good: String, quantity: int) -> String:
 	if _ship_busy(ship_id): return "Cancel the fleet ship's current order first."
 	if int(ship.system) != state.system_index: return "Fleet ship must be in the current system."
 	if not GameState.GOODS.has(key) or quantity <= 0 or quantity > int(ship.cargo.get(key, 0)): return "Invalid fleet cargo sale."
-	var revenue: int = floori(float(state.price_at(key, state.system_index)) * quantity * 0.85)
+	var revenue: int = state.market_total(key, state.system_index, quantity, false, 0.85)
+	if revenue < 0: return "Market has insufficient receiving capacity."
+	var transfer_error: String = state.market_transfer(key, state.system_index, quantity, false)
+	if not transfer_error.is_empty(): return transfer_error
 	ship.cargo[key] = int(ship.cargo[key]) - quantity
 	state.credits += revenue
 	return ""
@@ -190,11 +199,16 @@ func _trade_leg(order: Dictionary) -> Dictionary:
 			ship.erase("flight")
 			ship.system = int(order.origin)
 			return {"kind": "trade", "status": "returned to origin", "crew_id": order.crew_id, "ship_id": ship.id, "system": ship.system}
-		var unit_price: int = _price(good, int(order.origin))
 		var quantity: int = mini(int(order.quantity), int(ship.capacity) - _cargo_total(ship))
-		quantity = mini(quantity, int(order.escrow) / unit_price)
+		quantity = mini(quantity, state.market_stock(good, int(order.origin)))
+		if quantity <= 0: return {"kind": "trade", "status": "waiting: origin stock unavailable", "crew_id": order.crew_id}
+		var cost: int = state.market_total(good, int(order.origin), quantity, true)
+		while quantity > 0 and (cost < 0 or cost > int(order.escrow)):
+			quantity -= 1
+			cost = state.market_total(good, int(order.origin), quantity, true)
 		if quantity <= 0: return {"kind": "trade", "status": "escrow exhausted", "crew_id": order.crew_id}
-		var cost: int = unit_price * quantity
+		var transfer_error: String = state.market_transfer(good, int(order.origin), quantity, true)
+		if not transfer_error.is_empty(): return {"kind": "trade", "status": transfer_error, "crew_id": order.crew_id}
 		order.escrow = int(order.escrow) - cost
 		ship.cargo[good] = int(ship.cargo.get(good, 0)) + quantity
 		ship.erase("flight")
@@ -207,8 +221,10 @@ func _trade_leg(order: Dictionary) -> Dictionary:
 		ship.system = int(order.origin)
 		order.phase = "outbound"
 		return {"kind": "trade", "status": "no cargo to sell", "crew_id": order.crew_id}
-	var gross: int = _price(good, int(order.destination)) * sold
-	var revenue: int = floori(float(gross) * 0.85)
+	var revenue: int = state.market_total(good, int(order.destination), sold, false, 0.85)
+	if revenue < 0: return {"kind": "trade", "status": "waiting: destination market full", "crew_id": order.crew_id}
+	var transfer_error: String = state.market_transfer(good, int(order.destination), sold, false)
+	if not transfer_error.is_empty(): return {"kind": "trade", "status": transfer_error, "crew_id": order.crew_id}
 	ship.cargo[good] = 0
 	ship.erase("flight")
 	var refill: int = mini(revenue, int(order.escrow_limit) - int(order.escrow))

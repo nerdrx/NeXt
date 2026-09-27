@@ -1764,6 +1764,11 @@ func _integration_check() -> void:
 	fuel_probe.fuel = 0.01
 	var depleted_velocity := fuel_probe.consume_propulsion(Vector3(100, 0, 0), Vector3.ZERO)
 	if not _check(pilot.propulsion_limiter.is_valid() and fuel_probe.fuel == 0.0 and depleted_velocity.x > 90.0, "empty propellant preserves residual momentum in release build"): return
+	var market_probe := GameState.new()
+	var market_supply := market_probe.market_stock("ore")
+	var market_wallet := market_probe.credits
+	if not _check(market_probe.trade("ore", 10, true).is_empty() and market_probe.market_stock("ore") == market_supply - 10, "player buying reduces finite supply"): return
+	if not _check(market_probe.trade("ore", 10, false).is_empty() and market_probe.market_stock("ore") == market_supply and market_probe.credits <= market_wallet, "marginal stock quotes prevent roundtrip money creation"): return
 	var heat_probe := GameState.new()
 	heat_probe.drive_temperature_k = 699.0
 	var heat_limited_velocity := heat_probe.consume_propulsion(Vector3(100, 0, 0), Vector3.ZERO)
@@ -1859,6 +1864,9 @@ func _integration_check() -> void:
 	pilot.teleport(Vector3(12, 2, 26))
 	pilot.reset_view()
 	ship_display.show()
+	open_menu("market")
+	await _capture("market-supply")
+	close_menu()
 	await _capture("hangar")
 	pilot.set_flight(true)
 	pilot.teleport(Vector3(0, 80, -250))
@@ -1898,6 +1906,7 @@ func _integration_check() -> void:
 	if not _check(crew_operations().purchase_ship("Integration Courier").is_empty(), "commission fleet vessel"): return
 	var member_id: String = state.crew.back().id
 	var fleet_id: String = state.fleet_ships.back().id
+	var freight_supply_before: int = state.market_stock("food")
 	if not _check(crew_operations().assign_trade_route(member_id, fleet_id, "food", state.system_index + 1, 5).is_empty(), "assign fleet route"): return
 	var local_trade_patrols: Array[String] = _sync_fleet_actors()
 	if not _check(fleet_actors.has(fleet_id) and not bool(_local_trade_status().get(fleet_id, true)), "local trade actor starts en route"): return
@@ -1925,7 +1934,7 @@ func _integration_check() -> void:
 	trader_actor.velocity = Vector3.ZERO
 	crew_operations().tick(1.0, local_trade_patrols, _local_trade_status())
 	_sync_fleet_actors()
-	if not _check(int(state.fleet_ships.back().cargo.get("food", 0)) == 5, "fleet purchases actual cargo"): return
+	if not _check(int(state.fleet_ships.back().cargo.get("food", 0)) == 5 and state.market_stock("food") == freight_supply_before - 5, "fleet purchases cargo from finite local market supply"): return
 	if not _check(not fleet_actors.has(fleet_id), "departed trader retires from old local scene"): return
 	open_menu("fleet")
 	await _capture("fleet")

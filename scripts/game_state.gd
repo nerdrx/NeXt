@@ -15,6 +15,9 @@ const MAX_ITEMS: int = 1000
 const SHIP_CELL_LIMIT: int = 16
 const MAX_SHIP_MODULES: int = 100
 const MAX_WORLD_FLAGS: int = 10000
+const MARKET_CAPACITY: int = 100000
+const MAX_MARKETS: int = 10000
+const MAX_SCARCITY_MULTIPLIER: float = 3.0
 const GOODS: Dictionary = {"ore": 35, "alloys": 115, "food": 18, "fuel": 52, "medicine": 95, "electronics": 140, "luxuries": 210}
 const MODULES: Dictionary = {
 	"core": {"cost": 0, "mass": 8, "power": -1, "cargo": 0, "hull": 20, "thrust": 0},
@@ -70,6 +73,8 @@ var company_name: String = ""
 var company_balance: int = 0
 var crew_paid: bool = false
 var contracts: Array[Dictionary] = []
+# Persist changed market stocks; there is no passive restock/consumption yet.
+var market_stocks: Dictionary = {}
 
 func _init() -> void:
 	world_id = _new_world_id()
@@ -165,6 +170,9 @@ func price_at(good: String, system: int, simulation_day: int = -1) -> int:
 	var key: String = good.to_lower()
 	if not GOODS.has(key): return 0
 	if system < 0 or system >= SYSTEM_LIMIT: return 0
+	return _stock_price(key, system, market_stock(key, system), _base_price_at(key, system, simulation_day))
+
+func _base_price_at(key: String, system: int, simulation_day: int) -> int:
 	var salt: int = 0
 	for byte: int in key.to_ascii_buffer(): salt = (salt * 31 + byte) & 0x7fffffff
 	var rng := RandomNumberGenerator.new()
@@ -172,31 +180,93 @@ func price_at(good: String, system: int, simulation_day: int = -1) -> int:
 	rng.seed = ((system * 1103515245 + salt * 12345 + price_day * 7919) & 0x7fffffff)
 	return maxi(1, roundi(float(GOODS[key]) * rng.randf_range(0.65, 1.45)))
 
+func _stock_price(good: String, system: int, stock: int, base: int) -> int:
+	var initial: int = _initial_market_stock(good, system)
+	var scarcity: float = pow(float(initial + 1) / float(stock + 1), 0.35)
+	return maxi(1, roundi(float(base) * clampf(scarcity, 0.5, MAX_SCARCITY_MULTIPLIER)))
+
+func _initial_market_stock(good: String, system: int) -> int:
+	var salt: int = 0
+	for byte: int in good.to_ascii_buffer(): salt = (salt * 31 + byte) & 0x7fffffff
+	var rng := RandomNumberGenerator.new()
+	rng.seed = ((system * 1103515245 + salt * 12345 + 0x4D41524B) & 0x7fffffff)
+	return rng.randi_range(200, 600)
+
+func market_stock(good: String, system: int = -1) -> int:
+	var key: String = good.to_lower()
+	var index: int = system_index if system == -1 else system
+	if not GOODS.has(key) or index < 0 or index >= SYSTEM_LIMIT: return -1
+	return int(market_stocks.get(str(index), {}).get(key, _initial_market_stock(key, index)))
+
+func market_total(good: String, system: int, quantity: int, buy: bool, multiplier: float = 1.0) -> int:
+	var key: String = good.to_lower()
+	if not GOODS.has(key) or system < 0 or system >= SYSTEM_LIMIT or quantity <= 0 or quantity > MARKET_CAPACITY or not is_finite(multiplier) or multiplier <= 0.0 or multiplier > 1000000.0: return -1
+	var stock: int = market_stock(key, system)
+	if buy and stock < quantity or not buy and stock > MARKET_CAPACITY - quantity: return -1
+	var total: int = 0
+	var initial: int = _initial_market_stock(key, system)
+	var base: int = _base_price_at(key, system, day)
+	for i: int in range(quantity):
+		var marginal_stock: int = stock - i if buy else stock + i + 1
+		var scarcity: float = pow(float(initial + 1) / float(marginal_stock + 1), 0.35)
+		var unit: int = maxi(1, roundi(float(base) * clampf(scarcity, 0.5, MAX_SCARCITY_MULTIPLIER)))
+		unit = maxi(1, roundi(float(unit) * multiplier))
+		total += unit
+	return total
+
+func market_transfer(good: String, system: int, quantity: int, buy: bool) -> String:
+	var key: String = good.to_lower()
+	if not GOODS.has(key): return "Unknown good."
+	if system < 0 or system >= SYSTEM_LIMIT or quantity <= 0 or quantity > MARKET_CAPACITY: return "Invalid market transfer."
+	var stock: int = market_stock(key, system)
+	var next_stock: int = stock - quantity if buy else stock + quantity
+	if next_stock < 0: return "Insufficient market stock."
+	if next_stock > MARKET_CAPACITY: return "Market has insufficient capacity."
+	var system_key: String = str(system)
+	var updated: Dictionary = market_stocks.get(system_key, {}).duplicate(true)
+	if next_stock == _initial_market_stock(key, system): updated.erase(key)
+	else: updated[key] = next_stock
+	if updated.is_empty():
+		market_stocks.erase(system_key)
+	else:
+		if not market_stocks.has(system_key) and market_stocks.size() >= MAX_MARKETS: return "Market record limit reached."
+		market_stocks[system_key] = updated
+	return ""
+
 func trade(good: String, quantity: int, buy: bool) -> String:
 	var key: String = good.to_lower()
 	if not GOODS.has(key): return "Unknown good."
 	if quantity <= 0 or quantity > 100000: return "Quantity must be between 1 and 100000."
-	var unit: int = trade_quote(key, buy)
+	var total: int = player_trade_total(key, quantity, buy)
+	if total < 0: return "Insufficient market stock." if buy else "Market has insufficient capacity."
 	if buy:
 		if quantity > int(ship_stats().cargo_capacity) - cargo_total(): return "Insufficient cargo capacity."
-		if quantity > credits / unit: return "Insufficient credits."
-		credits -= unit * quantity
+		if total > credits: return "Insufficient credits."
+		var transfer_error: String = market_transfer(key, system_index, quantity, true)
+		if transfer_error != "": return transfer_error
+		credits -= total
 		cargo[key] = int(cargo.get(key, 0)) + quantity
 	else:
 		if int(cargo.get(key, 0)) < quantity: return "Insufficient cargo."
+		var transfer_error: String = market_transfer(key, system_index, quantity, false)
+		if transfer_error != "": return transfer_error
 		cargo[key] = int(cargo.get(key, 0)) - quantity
-		credits += unit * quantity
+		credits += total
 	return ""
 
 
-func trade_quote(good: String, buy: bool) -> int:
+func player_trade_total(good: String, quantity: int, buy: bool) -> int:
 	var key := good.to_lower()
-	if not GOODS.has(key): return 0
+	if not GOODS.has(key): return -1
 	var discount: int = mini(15, _paid_crew_count("trader") * 2)
 	var system_faction: String = str(Universe.system_data(system_index).faction)
 	var multiplier: float = PlayerFactionDomain.trade_multiplier(faction, system_faction, buy)
 	var sale_factor: float = 1.0 if buy else 0.85
-	return maxi(1, roundi(float(price(key)) * float(100 - discount) / 100.0 * sale_factor * multiplier))
+	var total: int = market_total(key, system_index, quantity, buy, float(100 - discount) / 100.0 * sale_factor * multiplier)
+	return total
+
+func trade_quote(good: String, buy: bool) -> int:
+	return maxi(0, player_trade_total(good, 1, buy))
 
 func add_module(kind: String, cell: Vector3i) -> String:
 	if not MODULES.has(kind) or kind == "core": return "Unknown or unavailable module."
@@ -559,6 +629,7 @@ func _load_v2(data: Dictionary) -> String:
 	var missing_faction: bool = not data.has("faction")
 	var missing_location: bool = not data.has("location")
 	var legacy: bool = int(data.get("version", -1)) == 2
+	var has_market_stocks: bool = data.has("market_stocks")
 	if legacy:
 		for extra: String in ["fleet_ships", "crew_orders", "recovery", "ship_layout"]: expected.erase(extra)
 	if missing_faction:
@@ -572,11 +643,24 @@ func _load_v2(data: Dictionary) -> String:
 		loaded_drive_temperature = float(data.drive_temperature_k)
 	var has_ephemeris: bool = data.has("ephemeris_seconds")
 	var has_day_progress: bool = data.has("day_progress")
-	if data.size() != expected.size() - (1 if missing_world_id else 0) + (1 if has_day_progress else 0) + (1 if has_ephemeris else 0) + (1 if has_drive_temperature else 0): return "Save fields do not match schema."
+	if data.size() != expected.size() - (1 if missing_world_id else 0) + (1 if has_day_progress else 0) + (1 if has_ephemeris else 0) + (1 if has_drive_temperature else 0) + (1 if has_market_stocks else 0): return "Save fields do not match schema."
 	for key: String in expected:
 		if key == "world_id" and missing_world_id: continue
 		if not data.has(key): return "Save is missing %s." % key
 	if not missing_world_id and not _valid_world_id(data.world_id): return "Invalid world identity."
+	var loaded_market_stocks: Dictionary = {}
+	if has_market_stocks:
+		if not data.market_stocks is Dictionary or data.market_stocks.size() > MAX_MARKETS: return "Invalid market stocks."
+		for system_key: Variant in data.market_stocks:
+			if not system_key is String or not _canonical_system_key(system_key): return "Invalid market system id."
+			var system_id: int = int(system_key)
+			var goods: Variant = data.market_stocks[system_key]
+			if not goods is Dictionary or goods.is_empty() or goods.size() > GOODS.size(): return "Invalid market stocks."
+			var loaded_goods: Dictionary = {}
+			for good: Variant in goods:
+				if not good is String or not GOODS.has(good) or not _is_int(goods[good]) or int(goods[good]) < 0 or int(goods[good]) > MARKET_CAPACITY or int(goods[good]) == _initial_market_stock(good, system_id): return "Invalid market stock record."
+				loaded_goods[good] = int(goods[good])
+			loaded_market_stocks[system_key] = loaded_goods
 	var loaded_day_progress: float = 0.0
 	if has_day_progress:
 		if not _is_number(data.day_progress) or not is_finite(float(data.day_progress)) or float(data.day_progress) < 0.0 or float(data.day_progress) >= DAY_SECONDS: return "Invalid day progress."
@@ -785,7 +869,15 @@ func _load_v2(data: Dictionary) -> String:
 	recovery = ShipRecovery.empty_data() if legacy else _normalize_recovery(data.recovery)
 	ship_layout = loaded_layout
 	faction = loaded_faction
+	market_stocks = loaded_market_stocks
 	return ""
+
+func _canonical_system_key(value: String) -> bool:
+	if value.is_empty() or (value.length() > 1 and value.begins_with("0")): return false
+	for index: int in range(value.length()):
+		if value.unicode_at(index) < 48 or value.unicode_at(index) > 57: return false
+	if value.length() > 10: return false
+	return int(value) < SYSTEM_LIMIT
 
 func _valid_contract(value: Variant) -> bool:
 	if not value is Dictionary or not value.has_all(["id", "kind", "origin", "destination", "good", "quantity", "reward", "accepted", "completed", "baseline_kills", "title", "description"]): return false
@@ -804,7 +896,7 @@ func _valid_order(value: Variant, crew_id: String, ship_ids: Dictionary, station
 	var kind: String = str(value.get("kind", ""))
 	if kind == "trade":
 		if value.size() != 13 or not value.has_all(["kind", "crew_id", "ship_id", "good", "origin", "destination", "quantity", "escrow", "escrow_limit", "progress", "phase", "earned", "paused"]): return false
-		return ship_ids.has(value.ship_id) and GOODS.has(value.good) and _is_int(value.origin) and _is_int(value.destination) and int(value.origin) >= 0 and int(value.origin) < SYSTEM_LIMIT and int(value.destination) >= 0 and int(value.destination) < SYSTEM_LIMIT and int(value.origin) != int(value.destination) and _is_int(value.quantity) and int(value.quantity) > 0 and int(value.quantity) <= 100 and _is_int(value.escrow) and int(value.escrow) >= 0 and _is_int(value.escrow_limit) and int(value.escrow_limit) >= int(value.escrow) and int(value.escrow_limit) <= int(value.quantity) * ceili(float(GOODS[value.good]) * 1.45) and value.phase in ["outbound", "inbound"] and _is_int(value.earned)
+		return ship_ids.has(value.ship_id) and GOODS.has(value.good) and _is_int(value.origin) and _is_int(value.destination) and int(value.origin) >= 0 and int(value.origin) < SYSTEM_LIMIT and int(value.destination) >= 0 and int(value.destination) < SYSTEM_LIMIT and int(value.origin) != int(value.destination) and _is_int(value.quantity) and int(value.quantity) > 0 and int(value.quantity) <= 100 and _is_int(value.escrow) and int(value.escrow) >= 0 and _is_int(value.escrow_limit) and int(value.escrow_limit) >= int(value.escrow) and int(value.escrow_limit) <= int(value.quantity) * ceili(float(GOODS[value.good]) * 1.45 * MAX_SCARCITY_MULTIPLIER) and value.phase in ["outbound", "inbound"] and _is_int(value.earned)
 	if kind == "patrol":
 		if value.size() != 7 or not value.has_all(["kind", "crew_id", "ship_id", "system", "progress", "encounters", "paused"]): return false
 		return ship_ids.has(value.ship_id) and _is_int(value.system) and int(value.system) >= 0 and int(value.system) < SYSTEM_LIMIT and _is_int(value.encounters) and int(value.encounters) >= 0
@@ -881,10 +973,10 @@ func _normalize_location(value: Dictionary) -> Dictionary:
 	return result
 
 func _save_data() -> Dictionary:
-	return {"version": SAVE_VERSION, "system_index": system_index, "world_id": world_id, "location": location, "credits": credits, "cargo": cargo, "hull": hull, "shield": shield, "fuel": fuel, "drive_temperature_k": drive_temperature_k, "kills": kills, "day": day, "day_progress": day_progress, "ephemeris_seconds": ephemeris_seconds, "visited": visited, "reputation": reputation, "wanted": wanted, "ship_modules": ship_modules, "stations": stations, "shares": shares, "crew": crew, "world_flags": world_flags, "company_name": company_name, "company_balance": company_balance, "crew_paid": crew_paid, "contracts": contracts, "fleet_ships": fleet_ships, "crew_orders": crew_orders, "recovery": recovery, "ship_layout": ship_layout, "faction": faction}
+	return {"version": SAVE_VERSION, "system_index": system_index, "world_id": world_id, "location": location, "credits": credits, "cargo": cargo, "hull": hull, "shield": shield, "fuel": fuel, "drive_temperature_k": drive_temperature_k, "kills": kills, "day": day, "day_progress": day_progress, "ephemeris_seconds": ephemeris_seconds, "visited": visited, "reputation": reputation, "wanted": wanted, "ship_modules": ship_modules, "stations": stations, "shares": shares, "crew": crew, "world_flags": world_flags, "company_name": company_name, "company_balance": company_balance, "crew_paid": crew_paid, "contracts": contracts, "fleet_ships": fleet_ships, "crew_orders": crew_orders, "recovery": recovery, "ship_layout": ship_layout, "faction": faction, "market_stocks": market_stocks}
 
 func _copy_from(other: GameState) -> void:
-	for key: String in ["system_index", "world_id", "location", "credits", "cargo", "hull", "shield", "fuel", "drive_temperature_k", "kills", "day", "day_progress", "ephemeris_seconds", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout", "faction"]:
+	for key: String in ["system_index", "world_id", "location", "credits", "cargo", "hull", "shield", "fuel", "drive_temperature_k", "kills", "day", "day_progress", "ephemeris_seconds", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout", "faction", "market_stocks"]:
 		set(key, other.get(key).duplicate(true) if other.get(key) is Array or other.get(key) is Dictionary else other.get(key))
 
 func _pay_crew_and_company() -> void:

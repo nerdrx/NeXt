@@ -29,7 +29,7 @@ func _initialize() -> void:
 	var ship_id: String = state.fleet_ships[0].id
 	var credit_before_order: int = state.credits
 	var quote: Dictionary = orders.route_quote("ore", 9001, 5, ship_id)
-	assert(quote.ok and quote.buy_unit == state.price_at("ore", int(state.fleet_ships[0].system)) and quote.sale_unit == floori(float(state.price_at("ore", 9001)) * 0.85), "route planner and market share exact prices")
+	assert(quote.ok and quote.buy_unit == state.price_at("ore", int(state.fleet_ships[0].system)) and quote.sale_unit == state.market_total("ore", 9001, 1, false, 0.85), "route planner and market share exact prices")
 	assert(orders.assign_trade_route(trader, ship_id, "ore", 9001, 5) == "")
 	assert(state.credits < credit_before_order, "route escrow is reserved")
 	assert(state._paid_crew_count("trader") == 0 and state._paid_crew_count("gunner") == 1, "assigned crew stop contributing passive role bonuses")
