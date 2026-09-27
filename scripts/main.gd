@@ -793,6 +793,7 @@ func _sync_fleet_actors() -> Array[String]:
 				actor.faction = "player_fleet"
 				actor.hostile = false if is_trader else true
 				actor.hull_family = str(ship.get("hull_family", ""))
+				actor.cargo_mass_kg = state._fleet_cargo_total(ship) * 1000.0
 				actor.set_meta("fleet_ship_id", id)
 				actor.set_meta("fleet_order_kind", desired_kind)
 				actor.set_meta("contact_name", str(ship.name))
@@ -832,6 +833,7 @@ func _sync_fleet_actors() -> Array[String]:
 			else:
 				var actor: ShipActor = fleet_actors[id]
 				actor.hp = float(ship.hull)
+				actor.cargo_mass_kg = state._fleet_cargo_total(ship) * 1000.0
 	for id: String in fleet_actors.keys():
 		if id in local_actor_ids: continue
 		var actor: Node = fleet_actors[id]

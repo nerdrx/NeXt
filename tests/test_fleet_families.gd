@@ -75,6 +75,43 @@ func _run() -> void:
 		actor.queue_free()
 		await process_frame
 
+	var merchant_blueprint: Dictionary = ShipBlueprint.family("merchant")
+	var merchant_model = GameStateScript.new()
+	merchant_model.ship_modules.assign(merchant_blueprint.modules)
+	merchant_model.ship_layout = merchant_blueprint.layout
+	var merchant_stats: Dictionary = merchant_model.ship_stats()
+	var empty_merchant: ShipActor = await _motion_probe(merchant_blueprint, 0.0, 0.0)
+	var loaded_merchant: ShipActor = await _motion_probe(merchant_blueprint, 160000.0, 1000.0)
+	assert(loaded_merchant.velocity.length() < empty_merchant.velocity.length(),
+		"160 t cargo reduces real merchant acceleration")
+	for probe: ShipActor in [empty_merchant, loaded_merchant]:
+		var dry_mass := float(merchant_stats.dry_mass_kg)
+		var thrust := float(merchant_stats.thrust_newtons)
+		var radiator_area := float(merchant_stats.radiator_area_m2)
+		assert(probe.dry_mass_kg == dry_mass and probe.thrust_newtons == thrust and probe.radiator_area_m2 == radiator_area,
+			"merchant actor drive stats come from family blueprint")
+		var mass := dry_mass + probe.cargo_mass_kg
+		var expected_acceleration := minf(3.0 * 9.80665, thrust / mass)
+		assert(is_equal_approx(probe.velocity.length(), expected_acceleration),
+			"merchant motion uses blueprint thrust and loaded mass: %s vs %s" % [probe.velocity.length(), expected_acceleration])
+		var heat_input := mass * probe.velocity.length() / 5000000.0 * 20.0
+		var cooling := maxf(0.0, ThermalSignature.emitted_power_w(450.0, radiator_area)
+			- ThermalSignature.emitted_power_w(300.0, radiator_area))
+		var expected_heat := maxf(300.0, 450.0 - cooling / 2500000.0) + heat_input
+		assert(is_equal_approx(probe.drive_temperature_k, expected_heat),
+			"merchant acceleration charges drive heat from mass times delta-v")
+		probe.queue_free()
+	await process_frame
+
+	var braking_merchant: ShipActor = await _motion_probe(merchant_blueprint, 160000.0, 2000.0, 300.0)
+	braking_merchant.set_travel_target(braking_merchant.position + Vector3(100, 0, 0))
+	braking_merchant.velocity = Vector3(80, 0, 0)
+	braking_merchant._physics_process(0.1)
+	assert(braking_merchant.velocity.x < 80.0 and braking_merchant.velocity.x > 0.0,
+		"loaded merchant brakes toward a nearby target")
+	braking_merchant.queue_free()
+	await process_frame
+
 	var game: Node = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 	await process_frame
@@ -86,20 +123,28 @@ func _run() -> void:
 	fleet_state.credits = 50000
 	assert(fleet_state.hire("trader").is_empty())
 	var integration_orders := CrewOrdersScript.new(fleet_state)
-	assert(integration_orders.purchase_ship("Integrated Pathfinder", "pathfinder").is_empty())
+	assert(integration_orders.purchase_ship("Integrated Merchant", "merchant").is_empty())
 	var fleet_ship: Dictionary = fleet_state.fleet_ships[0]
 	var trader_id: String = str(fleet_state.crew[0].id)
 	assert(integration_orders.assign_trade_route(trader_id, str(fleet_ship.id), "ore", (fleet_state.system_index + 1) % GameStateScript.SYSTEM_LIMIT).is_empty())
 	game.state = fleet_state
 	game._sync_fleet_actors()
 	var integrated: ShipActor = game.fleet_actors[str(fleet_ship.id)]
-	assert(integrated.hull_family == "pathfinder" and integrated._visual.get_node_or_null("FamilyPressureHull") != null,
+	assert(integrated.hull_family == "merchant" and integrated._visual.get_node_or_null("FamilyPressureHull") != null,
 		"main scene materializes commissioned family hull for its trader order")
+	assert(integrated.dry_mass_kg == merchant_stats.dry_mass_kg and integrated.thrust_newtons == merchant_stats.thrust_newtons
+		and integrated.speed == merchant_stats.speed and integrated.radiator_area_m2 == merchant_stats.radiator_area_m2,
+		"main scene initializes drive stats from merchant blueprint")
+	assert(integrated.cargo_mass_kg == 0.0, "new merchant actor starts with empty cargo mass")
+	fleet_ship.cargo["ore"] = 160
+	game._sync_fleet_actors()
+	assert(integrated.cargo_mass_kg == 160000.0, "main sync updates existing actor cargo mass")
 	game._clear_actors()
 	game._sync_fleet_actors()
 	var respawned: ShipActor = game.fleet_actors[str(fleet_ship.id)]
-	assert(respawned.hull_family == "pathfinder" and respawned._visual.get_node_or_null("FamilyPressureHull") != null,
-		"main scene respawn keeps the commissioned family hull")
+	assert(respawned.hull_family == "merchant" and respawned._visual.get_node_or_null("FamilyPressureHull") != null
+		and respawned.cargo_mass_kg == 160000.0,
+		"main scene respawn keeps family hull and cargo mass")
 	game.deck.show_page("fleet")
 	await process_frame
 	if DisplayServer.get_name() != "headless":
@@ -120,3 +165,18 @@ func _write(path: String, data: Dictionary) -> void:
 	assert(file != null)
 	file.store_string(JSON.stringify(data))
 	file.close()
+
+func _motion_probe(blueprint: Dictionary, cargo_mass: float, x: float, temperature: float = 450.0) -> ShipActor:
+	var actor := ShipActor.new()
+	actor.hull_family = str(blueprint.family)
+	actor.position = Vector3(x, 0, 0)
+	actor.cargo_mass_kg = cargo_mass
+	root.add_child(actor)
+	actor.set_physics_process(false)
+	await physics_frame
+	actor.position = Vector3(x, 0, 0)
+	actor.velocity = Vector3.ZERO
+	actor.drive_temperature_k = temperature
+	actor.set_travel_target(actor.position + Vector3(10000, 0, 0))
+	actor._physics_process(1.0)
+	return actor

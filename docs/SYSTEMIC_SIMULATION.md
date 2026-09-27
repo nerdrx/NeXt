@@ -211,3 +211,8 @@ Local ships start with a nominal 450 K drive loop and 40 square metres of radiat
 Acceleration is capped at 30 m/s² below 500 K and reduces linearly toward zero at 700 K. Available thermal headroom also caps the applied impulse. Radiators cool toward the regulated 300 K baseline using the existing emission model and 2.5 MJ/K heat capacity. Coasting does not add propulsion heat. Collision impulses are not treated as engine work. Actual thermal emission determines sensor range, so repeated manoeuvres affect detection and eventual manoeuvrability. Exhaust intensity follows commanded thrust rather than speed.
 
 Fleet drive temperatures are saved and restored independently of their route or flight snapshot. Older records start at 450 K. Temperature is frozen outside local simulation; generic regenerated NPCs start fresh. Detailed remote thermal simulation, NPC fuel, reactor and weapon heating, stellar heating and ship-specific mass/radiator layouts remain unfinished. These constants are gameplay tuning, not a measured spacecraft design.
+
+
+## Local commissioned-family propulsion
+
+Local Pathfinder and Merchant actors derive dry mass, thrust, cruise command speed and radiator area from their shared module blueprint. Each cargo unit adds 1,000 kg, matching player-ship mass accounting. The local drive applies thrust divided by loaded mass, the existing thermal derating and a 3 g acceleration cap; accumulated heat follows actual impulse. Approach speed uses available braking acceleration. Cargo changes refresh the existing actor as well as newly spawned actors. Distant fleet travel still uses the strategic voyage clock; hull damage/shields and weapons still need family-specific integration.

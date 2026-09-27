@@ -17,7 +17,10 @@ var actor_id: String = ""
 var hostile: bool = true
 const CONTACT_SEARCH_SECONDS: float = 15.0
 const DRIVE_HEAT_CAPACITY_J_K: float = 2500000.0
-const DRIVE_NOMINAL_MASS_KG: float = 40000.0
+var dry_mass_kg: float = 40000.0
+var cargo_mass_kg: float = 0.0
+var thrust_newtons: float = 1200000.0
+var acceleration_limit_mps2: float = 30.0
 var last_contact_position := Vector3.ZERO
 var search_seconds_remaining: float = 0.0
 var travel_active: bool = false
@@ -53,6 +56,15 @@ func _ready() -> void:
 		add_child(_visual)
 		fleet_visual.build(str(get_meta("fleet_order_kind", "patrol")), faction)
 	else:
+		var model := GameState.new()
+		model.ship_modules.assign(blueprint.modules)
+		model.ship_layout = blueprint.layout
+		var stats := model.ship_stats()
+		dry_mass_kg = float(stats.dry_mass_kg)
+		thrust_newtons = float(stats.thrust_newtons)
+		acceleration_limit_mps2 = 3.0 * FlightDynamics.STANDARD_GRAVITY
+		speed = float(stats.speed)
+		radiator_area_m2 = float(stats.radiator_area_m2)
 		var family_visual := ShipVisual.new()
 		_visual = family_visual
 		add_child(_visual)
@@ -111,16 +123,18 @@ func _physics_process(delta: float) -> void:
 	var offset := destination - global_position
 	var distance := offset.length()
 	var desired_speed := speed * (0.55 if attacking and hp < 30.0 else 1.0)
-	var command := _avoid_obstacles(offset.normalized() * minf(desired_speed, distance * 2.0))
 	var baseline_w := ThermalSignature.emitted_power_w(300.0, radiator_area_m2)
 	var cooling_w := maxf(0.0, thermal_emission_w() - baseline_w)
 	drive_temperature_k = maxf(300.0, drive_temperature_k - cooling_w * delta / DRIVE_HEAT_CAPACITY_J_K)
 	var heat_factor := clampf((700.0 - drive_temperature_k) / 200.0, 0.0, 1.0)
+	var mass := maxf(1.0, dry_mass_kg + cargo_mass_kg)
+	var acceleration := minf(acceleration_limit_mps2, thrust_newtons * heat_factor / mass)
+	var command := _avoid_obstacles(offset.normalized() * FlightDynamics.approach_speed(distance, desired_speed, acceleration))
 	var requested_dv := command - velocity
-	var dv_limit := minf(30.0 * heat_factor * delta, maxf(0.0, 700.0 - drive_temperature_k) / 20.0 * 5000000.0 / DRIVE_NOMINAL_MASS_KG)
+	var dv_limit := minf(acceleration * delta, maxf(0.0, 700.0 - drive_temperature_k) / 20.0 * 5000000.0 / mass)
 	var actual_dv := requested_dv.limit_length(dv_limit)
 	velocity += actual_dv
-	var fuel_equivalent := DRIVE_NOMINAL_MASS_KG * actual_dv.length() / 5000000.0
+	var fuel_equivalent := mass * actual_dv.length() / 5000000.0
 	drive_temperature_k = minf(700.0, drive_temperature_k + fuel_equivalent * 20.0)
 	_desired_velocity = velocity
 	if distance > 0.5:
@@ -129,7 +143,7 @@ func _physics_process(delta: float) -> void:
 		look_at(global_position + forward, up)
 	move_and_slide()
 	_desired_velocity = velocity
-	_visual.set_thrust(clampf(actual_dv.length() / maxf(30.0 * delta, 0.000001), 0.0, 1.0))
+	_visual.set_thrust(clampf(actual_dv.length() / maxf(acceleration * delta, 0.000001), 0.0, 1.0))
 
 
 func _avoid_obstacles(desired_velocity: Vector3) -> Vector3:
