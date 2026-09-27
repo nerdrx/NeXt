@@ -513,11 +513,20 @@ func _surface_site_issue(index: int, up: Vector3) -> String:
 		high = high.max(cell)
 	var size := (high - low + Vector3.ONE) * ShipVisual.CELL_SIZE
 	var ship_clearance := maxf(3.0, Vector2(size.x, size.z).length() * 0.5 + 1.0)
+	var hull_inverse := Basis(Quaternion(Vector3.UP, up)).inverse()
+	var hull_center := (low + high) * 0.5 * ShipVisual.CELL_SIZE
+	var half_cell := ShipVisual.CELL_SIZE * 0.5
 	for rock: Dictionary in PlanetGeology.placements(radius, up, maxf(ship_clearance + 20.0, pilot.hull_radius + 10.0), seed, ocean):
 		var rock_up := Vector3(rock.position).normalized()
 		var clearance := float(rock.clearance_radius)
-		if rock_up.distance_to(up) * radius < ship_clearance + clearance or rock_up.distance_to(foot_up) * radius < 1.0 + clearance:
+		if rock_up.distance_to(foot_up) * radius < 1.0 + clearance:
 			return "Rocky landing site. Find a clear area or use a surface port."
+		var local_rock := hull_inverse * (Vector3(rock.position) - up * (radius + height))
+		for module: Dictionary in state.ship_modules:
+			var offset := Vector3(module.x, module.y, module.z) * ShipVisual.CELL_SIZE - hull_center
+			var outside := Vector2(maxf(absf(local_rock.x - offset.x) - half_cell, 0.0), maxf(absf(local_rock.z - offset.z) - half_cell, 0.0))
+			if outside.length() < clearance + 0.5:
+				return "Rocky landing site. Find a clear area or use a surface port."
 	return ""
 
 func _surface_landing_direction(index: int, preferred: Vector3 = Vector3.RIGHT) -> Vector3:

@@ -25,7 +25,7 @@ func _initialize() -> void:
 	assert(state.remove_module(Vector3i(-1, 0, 2)) == "")
 	assert(state.remove_module(Vector3i(0, 0, 1)) != "", "ship connectivity is preserved")
 	assert(state.remove_module(Vector3i(1, 0, 0)) != "", "reactor is required")
-	assert(state.add_module("habitat", Vector3i(5, 0, 0)) != "", "construction bounds match designer grid")
+	assert(state.add_module("habitat", Vector3i(17, 0, 0)) != "", "construction bounds match designer grid")
 	assert(state.hire("engineer") == "")
 	assert(state.hire("trader") == "")
 	assert(state.dismiss_crew(0) == "" and state.crew.size() == 1)

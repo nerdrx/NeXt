@@ -9,6 +9,8 @@ const SYSTEM_LIMIT: int = 1_000_000_000
 const DAY_SECONDS: float = 1200.0
 const MAX_ELAPSED_SECONDS: float = 86400.0
 const MAX_ITEMS: int = 1000
+const SHIP_CELL_LIMIT: int = 16
+const MAX_SHIP_MODULES: int = 100
 const MAX_WORLD_FLAGS: int = 10000
 const GOODS: Dictionary = {"ore": 35, "alloys": 115, "food": 18, "fuel": 52, "medicine": 95, "electronics": 140, "luxuries": 210}
 const MODULES: Dictionary = {
@@ -134,8 +136,8 @@ func trade_quote(good: String, buy: bool) -> int:
 
 func add_module(kind: String, cell: Vector3i) -> String:
 	if not MODULES.has(kind) or kind == "core": return "Unknown or unavailable module."
-	if ship_modules.size() >= 100: return "Ship module limit reached."
-	if absi(cell.x) > 4 or absi(cell.z) > 4 or absi(cell.y) > 2: return "Cell is outside the construction grid."
+	if ship_modules.size() >= MAX_SHIP_MODULES: return "Ship module limit reached."
+	if absi(cell.x) > SHIP_CELL_LIMIT or absi(cell.z) > SHIP_CELL_LIMIT or absi(cell.y) > SHIP_CELL_LIMIT: return "Cell is outside the construction grid."
 	if _module_at(cell) >= 0: return "That ship cell is occupied."
 	if ship_modules.is_empty() or not _adjacent_to_ship(cell): return "Module must attach to the ship."
 	var spec: Dictionary = MODULES[kind]
@@ -484,7 +486,7 @@ func _load_v2(data: Dictionary) -> String:
 	if not data.cargo is Dictionary or not data.reputation is Dictionary or not data.shares is Dictionary or not data.world_flags is Dictionary or not data.visited is Array: return "Invalid collection field."
 	if not data.ship_modules is Array or not data.stations is Array or not data.crew is Array or not data.contracts is Array: return "Invalid collection field."
 	if not legacy and (not data.fleet_ships is Array or not data.crew_orders is Dictionary or not data.ship_layout is Dictionary or not ShipRecovery.validate_data(data.recovery)): return "Invalid fleet, crew orders, layout, or recovery state."
-	if data.cargo.size() > GOODS.size() or data.reputation.size() > 100 or data.shares.size() > COMPANIES.size() or data.world_flags.size() > MAX_WORLD_FLAGS or data.visited.size() > MAX_ITEMS or data.ship_modules.size() > 100 or data.stations.size() > MAX_ITEMS or data.crew.size() > 12 or data.contracts.size() > MAX_ITEMS: return "Save collection exceeds limits."
+	if data.cargo.size() > GOODS.size() or data.reputation.size() > 100 or data.shares.size() > COMPANIES.size() or data.world_flags.size() > MAX_WORLD_FLAGS or data.visited.size() > MAX_ITEMS or data.ship_modules.size() > MAX_SHIP_MODULES or data.stations.size() > MAX_ITEMS or data.crew.size() > 12 or data.contracts.size() > MAX_ITEMS: return "Save collection exceeds limits."
 	for key: Variant in data.cargo:
 		if not key is String or not GOODS.has(key) or not _is_int(data.cargo[key]) or int(data.cargo[key]) < 0: return "Invalid cargo record."
 		data.cargo[key] = int(data.cargo[key])
@@ -813,7 +815,7 @@ func _module_cells_duplicate(modules: Array[Dictionary]) -> bool:
 
 func _valid_module(value: Dictionary) -> bool:
 	if value.size() != 4 or not value.has_all(["kind", "x", "y", "z"]) or not value.kind is String or not MODULES.has(value.kind): return false
-	return _is_int(value.x) and _is_int(value.y) and _is_int(value.z) and absi(int(value.x)) <= 16 and absi(int(value.y)) <= 16 and absi(int(value.z)) <= 16
+	return _is_int(value.x) and _is_int(value.y) and _is_int(value.z) and absi(int(value.x)) <= SHIP_CELL_LIMIT and absi(int(value.y)) <= SHIP_CELL_LIMIT and absi(int(value.z)) <= SHIP_CELL_LIMIT
 
 func _valid_world_key(key: String) -> bool:
 	if key.is_valid_int(): return int(key) >= 0 and int(key) < SYSTEM_LIMIT

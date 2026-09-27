@@ -23,14 +23,9 @@ func _run() -> void:
 	var initial_radius: float = game.pilot.hull_radius
 	var initial_modules: Array = game.state.ship_modules.duplicate(true)
 	game.state.credits = 100000
-	for step in range(2, 5):
+	for step in range(2, 13):
 		for side in [-1, 1]:
 			if not _check(game.state.add_module("cargo", Vector3i(side * step, 0, 0)).is_empty(), "build connected wide wings"): return
-	# Saves support connected module cells through +/-16; the current builder UI
-	# exposes a smaller grid. Exercise a valid larger saved design separately.
-	for step in range(5, 13):
-		for side in [-1, 1]:
-			game.state.ship_modules.append({"kind": "cargo", "x": side * step, "y": 0, "z": 0})
 	game.apply_ship_stats()
 	await process_frame
 	await process_frame
@@ -47,6 +42,8 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	if not _check(is_equal_approx(game.pilot.hull_radius, expanded_radius) and game.pilot._module_shapes.size() == game.state.ship_modules.size(), "load restores custom collision geometry"): return
+	var dry_site: Vector3 = game._surface_landing_direction(0)
+	if not _check(dry_site != Vector3.ZERO, "wide ship can find open ground using occupied-module footprints"): return
 	game.approach_colony(0)
 	if not _check(game.cruise_address != null, "large ship can plan a surface port approach"): return
 	var destination: Vector3 = game.cruise_address.relative_to(SectorPosition.new(), 60000)

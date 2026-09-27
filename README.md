@@ -29,6 +29,8 @@ Open `project.godot` in **Godot 4.7.2** and press F5 (Run Project). On a Linux d
 
 Start in the orbital concourse. The ship is on the central pad. Approach it, press E, and launch. Use the command deck for navigation, trade, contracts, construction, hiring and company management. The calendar advances one day per 20 minutes of active world time, including menus; hyperdrive also advances one day. Daily salaries and company income follow this calendar, while assigned crew retain their operation timers. Closed worlds do not advance. Cruise autopilot handles local approaches, stops when its body sweep detects an obstruction, and cancels when you take manual control. Flight collision follows the occupied 2.8 m ship module cells. Fast collisions damage shields and hull; fatal impacts leave a recoverable wreck and trigger rescue. Planetary approaches account for hull size, and ships too wide for a surface port must use open ground. Planet orbit and ground elevation share a seeded height map; surface approaches seek clear dry ground and manual landing rejects submerged or rock-obstructed sites. Seeded boulders retain their positions across terrain patches, with collision on larger rocks.
 
+The ship architect supports cell coordinates from −16 to +16 on all axes, with a 100-module limit. Pan the grid or enter X, Z and deck coordinates; install/remove controls sit beneath the live preview. Assembly edits update ship statistics immediately.
+
 ## Implemented systems
 
 - Assisted first-person walking and ship flight, acceleration, boost, local cruise autopilot, cockpit and held weapon.

@@ -317,3 +317,39 @@ The Windows export reached `NEXT_INTEGRATION_OK` under hidden Proton; the known
 SDR warning remains.
 The Proton/Gamescope wrapper again required timeout cleanup (exit 137) after the
 game checks completed.
+
+
+## Larger ship construction in the menu
+
+Construction now accepts the same −16 through +16 coordinates on all three axes
+as saved ship data. The 100-module cap, attachment, essential-system, cargo, power
+and transaction rules remain. The readable 9×9 grid pans across the larger domain;
+X/Z/deck controls select cells directly, out-of-bounds clicks do nothing, and
+panning moves the highlighted selection. The non-installable core option is no
+longer offered. Preview framing adapts to hull size, and assembly edits refresh
+ship statistics without reopening the page. This supersedes the previous smaller
+builder UI limitation.
+
+The focused UI check drives grid clicks, coordinate controls, pan buttons and
+installation signals at the limits. The main-scene check uses the actual menu
+buttons to construct a 53-module ship across both X edges and deck 16, protects a
+structural connection, removes/refunds an outer module, reinstalls it and validates
+the saved design. It also checks live statistics, physical bounds and camera range.
+The hidden Vulkan capture was inspected; install/remove controls were moved below
+the preview after the first render revealed they were below the visible area. The
+final 1440×900 capture keeps those actions visible. Godot reported seven texture
+RID leaks on graphical teardown; exit is not resource-clean.
+
+Large-ship terrain landing clearance now checks occupied module footprints against
+rocks rather than a filled circular hull envelope, preserving usable open sites
+for wide sparse designs. Disembarkation retains its separate clearance check. The
+large-hull scene test finds a dry site through this path; planetary gameplay and
+state validation regressions pass. This update does not remove the module cap,
+validate arbitrary capital-ship station docking, or prove target performance.
+
+The Windows export completed and its normal entry point reached
+`NEXT_INTEGRATION_OK` under Proton Experimental with hidden Gamescope/Vulkan.
+The SDR white-level warning remains. The Proton/Gamescope wrapper remained alive
+after game completion and was terminated by the 55-second timeout (exit 137);
+this is not a clean wrapper exit. The Windows executable and pack were repackaged
+in `build/NeXt-Windows.zip`.

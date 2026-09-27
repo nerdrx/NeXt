@@ -227,11 +227,14 @@ func _market() -> void:
 	for child in services.get_children(): child.disabled = game.pilot.flying or game.aboard
 	_button("INSURANCE & WRECK RECOVERY", show_page.bind("recovery"))
 
+func _ship_stats_line(state: GameState) -> String:
+	var stats := state.ship_stats()
+	return "MASS %s   /   POWER %+d   /   CARGO %d   /   SPEED %d m/s" % [stats.mass, stats.power_balance, stats.cargo_capacity, stats.speed]
+
 func _shipyard() -> void:
 	heading.text = "SHIP ARCHITECT"
 	var s: GameState = game.state
-	var stats: Dictionary = s.ship_stats()
-	_text("MASS %s   /   POWER %+d   /   CARGO %d   /   THRUST %d m/s" % [stats.mass, stats.power_balance, stats.cargo_capacity, stats.speed], 15, InterfaceTheme.CYAN)
+	var stats_label := _text(_ship_stats_line(s), 15, InterfaceTheme.CYAN)
 	_text("Choose a deck and cell, then install a module. Every module must connect to the ship. Essential systems and cargo capacity are protected.", 15, InterfaceTheme.MUTED)
 	var designer := ShipDesigner.new()
 	designer.modules = s.ship_modules.duplicate(true)
@@ -248,6 +251,7 @@ func _shipyard() -> void:
 			var saved: bool = game.save_commander(false)
 			designer.layout = s.ship_layout.duplicate(true)
 			designer.refresh(s.ship_modules)
+			stats_label.text = _ship_stats_line(s)
 			note("Assembly updated." if saved else "Assembly updated but NOT SAVED. Check storage and save again.")
 		else: note(error))
 	_text("ROOM & HULL REFITS", 13, InterfaceTheme.CYAN)
