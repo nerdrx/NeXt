@@ -113,3 +113,25 @@ These are replaceable procedural primitives, not final photoreal cockpit art.
 
 The cockpit-enabled Windows export reached the normal Proton integration success
 marker. As before, the SDR warning remains and the wrapper needs timeout cleanup.
+
+
+## Orbital planet appearance
+
+The orbital material uses larger warped continents, narrower coast transitions,
+subdued mineral palettes, dry airless worlds and reduced specular glare. Planet
+and atmosphere meshes use 128 segments/64 rings; collision radius and saved
+positions are unchanged. The additive atmosphere now uses outward-facing geometry,
+world-space sunlight and a thin shell, fading on the night side. This is a limb
+approximation, not physical atmospheric scattering. Shader transforms follow the
+[Godot spatial shader reference](https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/spatial_shader.html).
+
+Native integrated smoke and hidden Gamescope gameplay checks pass. Day, night and
+side-lit planet captures were inspected; the night side is dark and the rim follows
+the directional light. A standalone capture run reported Godot texture RID leaks
+on teardown. No frame-rate target is established. Procedural orbit appearance still
+does not share a physical coastline model with walking terrain; planetary scale,
+cloud volumes and detailed surface assets remain unfinished.
+
+The Windows export with these planet materials reached the normal integrated
+smoke success marker under Proton. Live graphics/performance certification is
+still pending; the usual SDR white-level warning remains.

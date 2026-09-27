@@ -27,6 +27,11 @@ func build(system_index: int) -> void:
 	var source: Array = data.planets
 	for i in source.size():
 		var planet: Dictionary = source[i].duplicate()
+		# Appearance is derived without consuming the generation RNG or moving saved locations.
+		var palette := [Color("68785a"), Color("a38266"), Color("8a8c83"), Color("b39b7a"), Color("778480")]
+		var style: int = (int(data.station_seed) + i * 17) % palette.size()
+		planet["color"] = palette[style]
+		planet["has_ocean"] = bool(planet.atmosphere) and (i == 0 or style == 0 or style == 4)
 		planet["visual_radius"] = 850.0 if i == 0 else 170.0 + float(i) * 34.0
 		planet["position"] = Vector3(80.0 + float(i) * 500.0, 380.0 - float(i) * 100.0, -2200.0 - float(i) * 850.0)
 		planets.append(planet)
@@ -223,17 +228,25 @@ func _build_planets() -> void:
 		var planet: Dictionary = planets[i]
 		var mat := ShaderMaterial.new()
 		mat.shader = PLANET_SHADER
-		var tint: Color = Color("8d9b83") if i == 0 else planet.color
+		var tint: Color = planet.color
 		mat.set_shader_parameter("surface_color", tint)
 		mat.set_shader_parameter("ocean_color", Color("173747") if i == 0 else Color("102944").lerp(tint, 0.2))
 		mat.set_shader_parameter("seed", float(i * 41 + int(data.station_seed % 997)))
 		mat.set_shader_parameter("clouds", bool(planet.atmosphere))
-		_sphere(str(planet.name), float(planet.visual_radius), planet.position, tint, 0.0, 0.82, mat, true)
+		mat.set_shader_parameter("has_ocean", bool(planet.has_ocean))
+		var globe := _sphere(str(planet.name), float(planet.visual_radius), planet.position, tint, 0.0, 0.82, mat, true)
+		globe.mesh.radial_segments = 128
+		globe.mesh.rings = 64
 		if planet.atmosphere:
 			var halo_mat := ShaderMaterial.new()
 			halo_mat.shader = load("res://shaders/planet_atmosphere.gdshader")
-			halo_mat.set_shader_parameter("atmosphere_color", Color("83b3c2") if i == 0 else tint.lightened(0.32))
-			_sphere(str(planet.name) + " atmosphere", float(planet.visual_radius) * 1.035, planet.position, Color.WHITE, 0.0, 1.0, halo_mat, false)
+			halo_mat.set_shader_parameter("atmosphere_color", Color("75a8d6") if planet.has_ocean else Color("b6a18a"))
+			halo_mat.set_shader_parameter("sun_direction", Basis.from_euler(Vector3(deg_to_rad(-28), deg_to_rad(-34), 0)).z)
+			halo_mat.set_shader_parameter("light_strength", 0.17 if data.star_type == "Black Hole" else 1.0)
+			var halo := _sphere(str(planet.name) + " atmosphere", float(planet.visual_radius) * 1.012, planet.position, Color.WHITE, 0.0, 1.0, halo_mat, false)
+			halo.mesh.radial_segments = 128
+			halo.mesh.rings = 64
+			halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 func _build_distant_stars() -> void:
 	var mesh := SphereMesh.new()
@@ -261,7 +274,7 @@ func build_surface(planet_index: int) -> void:
 	if planets.is_empty():
 		return
 	var planet: Dictionary = planets[clampi(planet_index, 0, planets.size() - 1)]
-	var tint: Color = Color("8d9b83") if planet_index == 0 else planet.color
+	var tint: Color = planet.color
 	_build_environment()
 	_build_surface_environment(tint)
 	var ground_mat := ShaderMaterial.new()
