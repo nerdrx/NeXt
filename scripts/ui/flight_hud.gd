@@ -56,6 +56,7 @@ func _draw() -> void:
 	_draw_meter(Vector2(35, h - 131), "HULL" if pilot.flying else "SUIT", (game.suit_health / 100.0 if not pilot.flying else state.hull / hull_max), InterfaceTheme.GOLD)
 	_draw_meter(Vector2(35, h - 98), "SHIELD", state.shield / shield_max, InterfaceTheme.CYAN)
 	_draw_meter(Vector2(35, h - 65), "FUEL", state.fuel / 100.0, Color("b9bbf5"))
+	_word(Vector2(35, h - 155), "DRIVE %d K  /  THRUST %d%%" % [roundi(state.drive_temperature_k), roundi(float(stats.drive_thrust_factor) * 100.0)], 13, InterfaceTheme.GOLD if state.drive_temperature_k > 500.0 else InterfaceTheme.MUTED)
 	_word(Vector2(w - 250, h - 105), "%03d m/s" % int(pilot.velocity.length()), 30, InterfaceTheme.CYAN)
 	if pilot.flying or (game.aboard and is_instance_valid(game.coasting_hull)):
 		var thrust_g: float = pilot.thrust_g if pilot.flying else game.coasting_hull.thrust_g

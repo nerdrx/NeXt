@@ -95,6 +95,7 @@ static func destroy_ship(state: GameState, position: Vector3, surface: int, orig
 	state.hull = maxf(1.0, float(state.ship_stats().max_hull) * (0.60 if insured else 0.35))
 	state.shield = maxf(0.0, float(state.ship_stats().max_shield) * 0.25)
 	state.fuel = 25.0
+	state.drive_temperature_k = 300.0 # Rescue supplies a cooled replacement drive.
 	return _report(true, "Ship recovered with %s coverage; %d credits charged, %d added to recovery debt." % ["insurance" if insured else "uninsured replacement", paid, fee - paid], {"wreck_id": wreck_id, "insured": insured, "fee": fee, "paid": paid, "debt_added": fee - paid})
 
 

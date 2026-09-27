@@ -47,6 +47,7 @@ var cargo: Dictionary = {}
 var hull: float = 100.0
 var shield: float = 100.0
 var fuel: float = 100.0
+var drive_temperature_k: float = 300.0
 var kills: int = 0
 var day: int = 0
 var day_progress: float = 0.0
@@ -97,10 +98,19 @@ func cargo_total() -> int:
 
 func ship_stats() -> Dictionary:
 	var result: Dictionary = _stats_for(ship_modules)
+	result.drive_thrust_factor = clampf((700.0 - drive_temperature_k) / 200.0, 0.0, 1.0)
 	result.loaded_mass_kg = int(result.dry_mass_kg) + cargo_total() * 1000
-	result.acceleration_mps2 = minf(3.0 * 9.80665, float(result.thrust_newtons) / maxf(float(result.loaded_mass_kg), 1.0))
-	result.boost_acceleration_mps2 = minf(6.0 * 9.80665, float(result.thrust_newtons) * float(result.boost_multiplier) / maxf(float(result.loaded_mass_kg), 1.0))
+	result.acceleration_mps2 = minf(3.0 * 9.80665, float(result.thrust_newtons) * float(result.drive_thrust_factor) / maxf(float(result.loaded_mass_kg), 1.0))
+	result.boost_acceleration_mps2 = minf(6.0 * 9.80665, float(result.thrust_newtons) * float(result.drive_thrust_factor) * float(result.boost_multiplier) / maxf(float(result.loaded_mass_kg), 1.0))
 	return result
+
+func cool_drive(delta: float) -> void:
+	if not is_finite(delta) or delta <= 0.0 or delta > 1.0: return
+	if not is_finite(drive_temperature_k): return
+	# Tuned shared drive loop: 2.5 MJ/K, 40 m2 radiator, emissivity 0.8.
+	# 300 K is a regulated floor, not the temperature of space.
+	var watts := 0.8 * 5.670374419e-8 * 40.0 * (pow(drive_temperature_k, 4) - pow(300.0, 4))
+	drive_temperature_k = maxf(300.0, drive_temperature_k - maxf(0.0, watts) * delta / 2.5e6)
 
 func consume_propulsion(before: Vector3, commanded: Vector3) -> Vector3:
 	if not before.is_finite(): return Vector3.ZERO
@@ -110,10 +120,14 @@ func consume_propulsion(before: Vector3, commanded: Vector3) -> Vector3:
 	if not is_finite(speed_change) or speed_change <= 0.0: return before
 	var mass := maxf(float(ship_stats().loaded_mass_kg), 1.0)
 	var required := speed_change * mass / IMPULSE_PER_FUEL
-	var used := minf(fuel, required)
+	if not is_finite(drive_temperature_k) or drive_temperature_k < 300.0: return before
+	var thermal_budget := maxf(0.0, (700.0 - drive_temperature_k) / 20.0)
+	var used := minf(minf(fuel, thermal_budget), required)
 	var result := before + delta_velocity * (used / required)
 	if not result.is_finite(): return before
 	fuel = maxf(0.0, fuel - used)
+	# 50 MJ waste heat per tank unit into the shared 2.5 MJ/K loop.
+	drive_temperature_k = minf(700.0, drive_temperature_k + used * 20.0)
 	return result
 
 func emergency_refuel() -> String:
@@ -533,9 +547,14 @@ func _load_v2(data: Dictionary) -> String:
 		expected.erase("faction")
 	if missing_location:
 		expected.erase("location")
+	var has_drive_temperature: bool = data.has("drive_temperature_k")
+	var loaded_drive_temperature: float = 300.0
+	if has_drive_temperature:
+		if not _is_number(data.drive_temperature_k) or not is_finite(float(data.drive_temperature_k)) or float(data.drive_temperature_k) < 300.0 or float(data.drive_temperature_k) > 700.0: return "Invalid drive temperature."
+		loaded_drive_temperature = float(data.drive_temperature_k)
 	var has_ephemeris: bool = data.has("ephemeris_seconds")
 	var has_day_progress: bool = data.has("day_progress")
-	if data.size() != expected.size() - (1 if missing_world_id else 0) + (1 if has_day_progress else 0) + (1 if has_ephemeris else 0): return "Save fields do not match schema."
+	if data.size() != expected.size() - (1 if missing_world_id else 0) + (1 if has_day_progress else 0) + (1 if has_ephemeris else 0) + (1 if has_drive_temperature else 0): return "Save fields do not match schema."
 	for key: String in expected:
 		if key == "world_id" and missing_world_id: continue
 		if not data.has(key): return "Save is missing %s." % key
@@ -707,6 +726,7 @@ func _load_v2(data: Dictionary) -> String:
 	hull = float(data.hull)
 	shield = float(data.shield)
 	fuel = float(data.fuel)
+	drive_temperature_k = loaded_drive_temperature
 	kills = int(data.kills)
 	day = int(data.day)
 	day_progress = loaded_day_progress
@@ -824,10 +844,10 @@ func _normalize_location(value: Dictionary) -> Dictionary:
 	return result
 
 func _save_data() -> Dictionary:
-	return {"version": SAVE_VERSION, "system_index": system_index, "world_id": world_id, "location": location, "credits": credits, "cargo": cargo, "hull": hull, "shield": shield, "fuel": fuel, "kills": kills, "day": day, "day_progress": day_progress, "ephemeris_seconds": ephemeris_seconds, "visited": visited, "reputation": reputation, "wanted": wanted, "ship_modules": ship_modules, "stations": stations, "shares": shares, "crew": crew, "world_flags": world_flags, "company_name": company_name, "company_balance": company_balance, "crew_paid": crew_paid, "contracts": contracts, "fleet_ships": fleet_ships, "crew_orders": crew_orders, "recovery": recovery, "ship_layout": ship_layout, "faction": faction}
+	return {"version": SAVE_VERSION, "system_index": system_index, "world_id": world_id, "location": location, "credits": credits, "cargo": cargo, "hull": hull, "shield": shield, "fuel": fuel, "drive_temperature_k": drive_temperature_k, "kills": kills, "day": day, "day_progress": day_progress, "ephemeris_seconds": ephemeris_seconds, "visited": visited, "reputation": reputation, "wanted": wanted, "ship_modules": ship_modules, "stations": stations, "shares": shares, "crew": crew, "world_flags": world_flags, "company_name": company_name, "company_balance": company_balance, "crew_paid": crew_paid, "contracts": contracts, "fleet_ships": fleet_ships, "crew_orders": crew_orders, "recovery": recovery, "ship_layout": ship_layout, "faction": faction}
 
 func _copy_from(other: GameState) -> void:
-	for key: String in ["system_index", "world_id", "location", "credits", "cargo", "hull", "shield", "fuel", "kills", "day", "day_progress", "ephemeris_seconds", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout", "faction"]:
+	for key: String in ["system_index", "world_id", "location", "credits", "cargo", "hull", "shield", "fuel", "drive_temperature_k", "kills", "day", "day_progress", "ephemeris_seconds", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout", "faction"]:
 		set(key, other.get(key).duplicate(true) if other.get(key) is Array or other.get(key) is Dictionary else other.get(key))
 
 func _pay_crew_and_company() -> void:

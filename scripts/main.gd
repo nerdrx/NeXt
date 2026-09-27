@@ -855,18 +855,21 @@ func _consume_ship_propulsion(before: Vector3, commanded: Vector3) -> Vector3:
 func apply_ship_stats() -> void:
 	pilot.propulsion_limiter = _consume_ship_propulsion
 	pilot.configure_ship_collision(state.ship_modules)
-	_last_stats = state.ship_stats()
-	pilot.flight_speed = float(_last_stats.speed)
-	pilot.acceleration_mps2 = float(_last_stats.acceleration_mps2)
-	pilot.boost_acceleration_mps2 = float(_last_stats.boost_acceleration_mps2)
-	pilot.boost_speed_multiplier = 1.0 + 2.0 * (float(_last_stats.boost_multiplier) - 1.0)
-	if is_instance_valid(coasting_hull): coasting_hull.acceleration_mps2 = pilot.acceleration_mps2
+	_refresh_propulsion_limits()
 	state.hull = minf(state.hull, float(_last_stats.max_hull))
 	state.shield = minf(state.shield, float(_last_stats.max_shield))
 	if aboard: _populate_ship_crew()
 	if session != null:
 		session.ship_modules = state.ship_modules.duplicate(true)
 		session.ship_layout = state.ship_layout.duplicate(true)
+
+func _refresh_propulsion_limits() -> void:
+	_last_stats = state.ship_stats()
+	pilot.flight_speed = float(_last_stats.speed)
+	pilot.acceleration_mps2 = float(_last_stats.acceleration_mps2)
+	pilot.boost_acceleration_mps2 = float(_last_stats.boost_acceleration_mps2)
+	pilot.boost_speed_multiplier = 1.0 + 2.0 * (float(_last_stats.boost_multiplier) - 1.0)
+	if is_instance_valid(coasting_hull): coasting_hull.acceleration_mps2 = pilot.acceleration_mps2
 
 func edit_station_rooms(index: int, operation: String, room_index: int = 0, kind: String = "market") -> String:
 	if session.connected: return "Leave the multiplayer visit before changing station construction."
@@ -1352,6 +1355,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_F9: load_commander()
 
 func _physics_process(delta: float) -> void:
+	state.cool_drive(delta)
+	_refresh_propulsion_limits()
 	if not aboard or not is_instance_valid(coasting_hull):
 		_tick_ship_defense(delta)
 		return
@@ -1526,6 +1531,7 @@ func _visit_host(index: int) -> void:
 		visitor.hull = state.hull
 		visitor.shield = state.shield
 		visitor.fuel = state.fuel
+		visitor.drive_temperature_k = state.drive_temperature_k
 		visitor.world_id = session.world_id
 		state = visitor
 		save_path = visitor_path
@@ -1664,6 +1670,12 @@ func _integration_check() -> void:
 	fuel_probe.fuel = 0.01
 	var depleted_velocity := fuel_probe.consume_propulsion(Vector3(100, 0, 0), Vector3.ZERO)
 	if not _check(pilot.propulsion_limiter.is_valid() and fuel_probe.fuel == 0.0 and depleted_velocity.x > 90.0, "empty propellant preserves residual momentum in release build"): return
+	var heat_probe := GameState.new()
+	heat_probe.drive_temperature_k = 699.0
+	var heat_limited_velocity := heat_probe.consume_propulsion(Vector3(100, 0, 0), Vector3.ZERO)
+	if not _check(heat_probe.drive_temperature_k == 700.0 and heat_limited_velocity.x > 0.0 and heat_probe.ship_stats().acceleration_mps2 == 0.0, "drive heat limits braking without deleting momentum"): return
+	heat_probe.cool_drive(1.0)
+	if not _check(heat_probe.drive_temperature_k < 700.0 and heat_probe.ship_stats().acceleration_mps2 > 0.0, "radiator cooling restores available thrust"): return
 	var physical_sample := CelestialSystem.sample(deck.survey_catalog, 0, 0.0)
 	if not _check(not physical_sample.is_empty() and physical_sample.irradiance_w_m2 > 0.0, "orbital radiation model in release build"): return
 	await _capture("celestial-survey")
@@ -2139,6 +2151,7 @@ func _copy_carried_ship(source: GameState, destination: GameState) -> void:
 	destination.hull = source.hull
 	destination.shield = source.shield
 	destination.fuel = source.fuel
+	destination.drive_temperature_k = source.drive_temperature_k
 
 func leave_visit() -> void:
 	session.leave()
