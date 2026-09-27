@@ -11,9 +11,13 @@ var active: bool = true
 var hp: float = 100.0
 var shields: float = 40.0
 var speed: float = 65.0
+var drive_temperature_k: float = 450.0
+var radiator_area_m2: float = 40.0
 var actor_id: String = ""
 var hostile: bool = true
 const CONTACT_SEARCH_SECONDS: float = 15.0
+const DRIVE_HEAT_CAPACITY_J_K: float = 2500000.0
+const DRIVE_NOMINAL_MASS_KG: float = 40000.0
 var last_contact_position := Vector3.ZERO
 var search_seconds_remaining: float = 0.0
 var travel_active: bool = false
@@ -88,14 +92,24 @@ func _physics_process(delta: float) -> void:
 	var distance := offset.length()
 	var desired_speed := speed * (0.55 if attacking and hp < 30.0 else 1.0)
 	var command := _avoid_obstacles(offset.normalized() * minf(desired_speed, distance * 2.0))
-	_desired_velocity = _desired_velocity.lerp(command, minf(1.0, delta * 1.8))
-	velocity = _desired_velocity
+	var baseline_w := ThermalSignature.emitted_power_w(300.0, radiator_area_m2)
+	var cooling_w := maxf(0.0, thermal_emission_w() - baseline_w)
+	drive_temperature_k = maxf(300.0, drive_temperature_k - cooling_w * delta / DRIVE_HEAT_CAPACITY_J_K)
+	var heat_factor := clampf((700.0 - drive_temperature_k) / 200.0, 0.0, 1.0)
+	var requested_dv := command - velocity
+	var dv_limit := minf(30.0 * heat_factor * delta, maxf(0.0, 700.0 - drive_temperature_k) / 20.0 * 5000000.0 / DRIVE_NOMINAL_MASS_KG)
+	var actual_dv := requested_dv.limit_length(dv_limit)
+	velocity += actual_dv
+	var fuel_equivalent := DRIVE_NOMINAL_MASS_KG * actual_dv.length() / 5000000.0
+	drive_temperature_k = minf(700.0, drive_temperature_k + fuel_equivalent * 20.0)
+	_desired_velocity = velocity
 	if distance > 0.5:
 		var forward: Vector3 = velocity.normalized() if velocity.length_squared() > 0.25 else offset.normalized()
 		var up: Vector3 = Vector3.FORWARD if absf(forward.dot(Vector3.UP)) > 0.98 else Vector3.UP
 		look_at(global_position + forward, up)
 	move_and_slide()
-	_visual.set_thrust(clampf(velocity.length() / maxf(speed, 1.0), 0.0, 1.0))
+	_desired_velocity = velocity
+	_visual.set_thrust(clampf(actual_dv.length() / maxf(30.0 * delta, 0.000001), 0.0, 1.0))
 
 
 func _avoid_obstacles(desired_velocity: Vector3) -> Vector3:
@@ -195,6 +209,9 @@ func restore_flight_velocity(value: Vector3) -> void:
 	if not value.is_finite(): return
 	velocity = value
 	_desired_velocity = value
+
+func thermal_emission_w() -> float:
+	return ThermalSignature.emitted_power_w(drive_temperature_k, radiator_area_m2)
 
 func apply_origin_shift(delta: Vector3) -> void:
 	_safe_zone_center -= delta

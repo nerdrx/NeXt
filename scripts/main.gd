@@ -737,8 +737,11 @@ func _trade_order(ship_id: String) -> Dictionary:
 func _capture_fleet_flights() -> void:
 	for id: String in fleet_actors:
 		var actor: ShipActor = fleet_actors[id]
-		if not is_instance_valid(actor) or str(actor.get_meta("fleet_order_kind", "")) != "trade": continue
+		if not is_instance_valid(actor): continue
 		var ship := _fleet_record(id)
+		if not ship.is_empty() and int(ship.system) == state.system_index:
+			ship.drive_temperature_k = actor.drive_temperature_k
+		if str(actor.get_meta("fleet_order_kind", "")) != "trade": continue
 		var order := _trade_order(id)
 		if ship.is_empty() or order.is_empty() or int(ship.system) != state.system_index or not is_same(actor.get_meta("trade_order", {}), order): continue
 		var phase: String = str(order.get("phase", ""))
@@ -793,6 +796,7 @@ func _sync_fleet_actors() -> Array[String]:
 				actor.set_meta("fleet_order_kind", desired_kind)
 				actor.set_meta("contact_name", str(ship.name))
 				actor.hp = float(ship.hull)
+				actor.drive_temperature_k = float(ship.get("drive_temperature_k", 450.0))
 				actor.shields = 0
 				actor.set_meta("trade_phase", trade_phase)
 				if is_trader: actor.set_meta("trade_order", trade_order)
@@ -857,7 +861,9 @@ func approach_fleet_ship(ship_id: String) -> void:
 
 func _persist_fleet_damage(actor: ShipActor) -> void:
 	var ship := _fleet_record(str(actor.get_meta("fleet_ship_id", "")))
-	if not ship.is_empty(): ship.hull = actor.hp
+	if not ship.is_empty():
+		ship.hull = actor.hp
+		ship.drive_temperature_k = actor.drive_temperature_k
 
 func _nearest_ship(origin: ShipActor, faction: String) -> Node3D:
 	var nearest: Node3D = null
@@ -877,8 +883,7 @@ func _ship_detectable(observer: Node3D, candidate: Node3D) -> bool:
 		emission = ThermalSignature.emitted_power_w(state.drive_temperature_k, state.radiator_area_m2())
 	elif candidate is ShipActor:
 		if candidate.hp <= 0.0 or bool(candidate.get_meta("spatial_culled", false)): return false
-		# NPC propulsion is still abstract: use a fixed warm-drive signature.
-		emission = ThermalSignature.emitted_power_w(450.0, 40.0)
+		emission = candidate.thermal_emission_w()
 	else:
 		return false
 	var offset := candidate.global_position - observer.global_position
@@ -2113,7 +2118,11 @@ func _integration_check() -> void:
 	fleet_actors[patrol_id].active = true
 	fleet_actors[patrol_id].take_damage(9)
 	if not _check(state.fleet_ships.back().hull == 91, "physical fleet damage persists"): return
+	fleet_actors[patrol_id].drive_temperature_k = 610.0
+	_capture_fleet_flights()
+	if not _check(state.fleet_ships.back().drive_temperature_k == 610.0, "local fleet heat captured"): return
 	if not _check(save_commander(false) and restored.load_save(save_path).is_empty() and restored.fleet_ships.back().hull == 91, "local fleet damage save round trip"): return
+	if not _check(restored.fleet_ships.back().drive_temperature_k == 610.0, "fleet temperature save roundtrip"): return
 	close_menu()
 	docked_station = -1
 	pilot.set_flight(true)

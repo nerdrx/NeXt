@@ -911,3 +911,12 @@ The focused fleet cargo recovery test covers atomic cargo transfer, disabled/loc
 Native main-entrypoint integration passes through actual ShipActor damage, cargo cache creation, save/load and recovery near the combat site. The first run exposed runtime StringName cargo keys from dotted assignment; normalization at the helper boundary fixed that case while preserving strict saved-data validation. The new procedural cache is listed in the asset replacement checklist. Cargo containers are stationary approximations; remote ambushes and pirate looting are not implemented by this change.
 
 The final exported Windows build passed its main-entrypoint integration under Proton in hidden Gamescope. The corrected freight-cache capture was inspected: container and beacon are visible ahead of the cockpit. The usual SDR warning remained; wrapper timeout cleanup followed successful integration. No script/shader failures appeared. The Windows ZIP was rebuilt. Both public CI runs for the preceding station-supply commit completed successfully.
+
+
+## NPC drive thermal interaction
+
+The focused NPC thermal check uses live actors to verify thrust heating, coasting cooling without deleting momentum, heat-limited acceleration, varying emission, inactive simulation pause, and bounded temperatures. Fleet temperature save/load, missing-field compatibility and transactional rejection of 299 K, 701 K and string values pass. Scene detection explicitly loses a cooled NPC and reacquires the heated same ship at the same distance.
+
+Station supply arrival, local trade, fleet flight persistence, contact search, thermal detection and obstacle avoidance regressions pass. Contact search previously assumed near-instant reversal after expiry; the updated check requires acceleration toward home followed by reversal after braking. Native main-entrypoint integration verifies captured and restored fleet temperature alongside its physical damage check. Distant NPC thermal state is frozen and generic scene regeneration still resets unowned ships.
+
+Windows/Proton main-entrypoint integration passed under hidden Gamescope. The exported fleet screen was inspected and the drive-temperature line fits. The usual SDR warning remained; the wrapper needed timeout cleanup after NEXT_INTEGRATION_OK (exit 137). No script/shader failures appeared. The Windows ZIP was rebuilt. No art assets changed.

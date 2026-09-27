@@ -58,7 +58,12 @@ func _run() -> void:
 	for _i in range(160):
 		pirate._physics_process(0.1)
 	assert(pirate.search_seconds_remaining <= 0.001, "search expires after fifteen seconds")
-	assert(pirate.velocity.x < 0.0, "expired search returns toward home patrol")
+	# A thrust-limited ship must brake its search velocity before returning.
+	var return_velocity: float = pirate.velocity.x
+	pirate._physics_process(0.1)
+	assert(pirate.velocity.x < return_velocity, "expired search commands acceleration back toward home")
+	for _i in range(60): pirate._physics_process(0.1)
+	assert(pirate.velocity.x < 0.0, "expired search brakes and then returns toward home patrol")
 	pirate.hostile = true
 	pirate.observe_target(game.pilot)
 	pirate.hostile = false

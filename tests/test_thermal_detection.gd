@@ -24,6 +24,11 @@ func _run() -> void:
 	game._update_combat_targets()
 	assert(pirate.target == game.pilot, "hot player ship is acquired at 1500 m")
 	assert(game._ship_detectable(game.pilot, pirate), "NPC's default 450 K, 40 m² signature is detected within 1800 m")
+	pirate.drive_temperature_k = 300.0
+	assert(not game._ship_detectable(game.pilot, pirate), "cooled NPC falls below sensor threshold at the same distance")
+	pirate.drive_temperature_k = 650.0
+	assert(game._ship_detectable(game.pilot, pirate), "heated NPC becomes detectable at the same distance")
+	pirate.drive_temperature_k = 450.0
 	pirate.position = game.pilot.position + Vector3(1801, 0, 0)
 	assert(not game._ship_detectable(game.pilot, pirate), "NPC signature falls beyond its 1800 m detection range")
 	pirate.position = game.pilot.position + Vector3(1500, 0, 0)
