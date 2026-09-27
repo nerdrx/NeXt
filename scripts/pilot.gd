@@ -9,6 +9,8 @@ signal flight_impact(closing_speed: float)
 var braking: bool = false
 var thrust_g: float = 0.0
 var acceleration_mps2: float = FlightDynamics.STANDARD_GRAVITY * FlightDynamics.CRUISE_G
+var boost_acceleration_mps2: float = -1.0
+var boost_speed_multiplier: float = 3.0
 var flying: bool = false
 var enabled: bool = true
 var camera: Camera3D
@@ -158,9 +160,9 @@ func _fly(delta: float) -> void:
 			_pitch = lerpf(_pitch, asin(clampf(direction.y, -1.0, 1.0)), minf(1.0, delta * 0.85))
 			camera.rotation.x = _pitch
 	else:
-		var boost_scale := 3.0 if boosting else 1.0
+		var boost_scale := boost_speed_multiplier if boosting else 1.0
 		desired = Vector3.ZERO if braking else camera.global_basis * local_direction * flight_speed * boost_scale
-	_flight_velocity = FlightDynamics.command_velocity(_flight_velocity, desired, delta, boosting, acceleration_mps2)
+	_flight_velocity = FlightDynamics.command_velocity(_flight_velocity, desired, delta, boosting, acceleration_mps2, boost_acceleration_mps2)
 	thrust_g = FlightDynamics.thrust_load(incoming_thrust, _flight_velocity, delta)
 	if not _flight_velocity.is_finite():
 		_flight_velocity = Vector3.ZERO
@@ -199,7 +201,7 @@ func _fly(delta: float) -> void:
 func _update_view_effects(delta: float) -> void:
 	if camera == null:
 		return
-	var boost_amount := 1.0 if flying and Input.is_action_pressed("boost") else 0.0
+	var boost_amount := clampf((boost_speed_multiplier - 1.0) * 0.5, 0.0, 1.0) if flying and Input.is_action_pressed("boost") else 0.0
 	camera.fov = lerpf(camera.fov, 75.0 + boost_amount * 11.0, minf(1.0, delta * 4.0))
 	camera.position.x = _look_sway.x * 0.00035 + randf_range(-_shake, _shake) * 0.004
 	camera.position.y = 1.55 + _recoil * 0.08 + _look_sway.y * 0.0002 + randf_range(-_shake, _shake) * 0.004

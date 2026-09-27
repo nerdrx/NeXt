@@ -850,6 +850,8 @@ func apply_ship_stats() -> void:
 	_last_stats = state.ship_stats()
 	pilot.flight_speed = float(_last_stats.speed)
 	pilot.acceleration_mps2 = float(_last_stats.acceleration_mps2)
+	pilot.boost_acceleration_mps2 = float(_last_stats.boost_acceleration_mps2)
+	pilot.boost_speed_multiplier = 1.0 + 2.0 * (float(_last_stats.boost_multiplier) - 1.0)
 	if is_instance_valid(coasting_hull): coasting_hull.acceleration_mps2 = pilot.acceleration_mps2
 	state.hull = minf(state.hull, float(_last_stats.max_hull))
 	state.shield = minf(state.shield, float(_last_stats.max_shield))
@@ -1644,6 +1646,7 @@ func _integration_check() -> void:
 	deck.show_page("survey")
 	if not _check(deck.survey_labels.size() == world.planets.size() and "Equilibrium" in deck.survey_labels[0].text, "physical system survey is available in release build"): return
 	if not _check("Direct light" in deck.survey_labels[0].text, "rotating surface daylight is available in release build"): return
+	if not _check(is_equal_approx(pilot.boost_acceleration_mps2, state.ship_stats().boost_acceleration_mps2), "reactor-limited boost reaches the flight controller in release build"): return
 	var physical_sample := CelestialSystem.sample(deck.survey_catalog, 0, 0.0)
 	if not _check(not physical_sample.is_empty() and physical_sample.irradiance_w_m2 > 0.0, "orbital radiation model in release build"): return
 	await _capture("celestial-survey")

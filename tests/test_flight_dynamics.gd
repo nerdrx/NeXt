@@ -19,5 +19,8 @@ func _initialize() -> void:
 	assert(is_equal_approx(FlightDynamics.approach_speed(501, 1000, 10), 100.0))
 	assert(FlightDynamics.command_velocity(Vector3.ONE, Vector3.ZERO, 1, false, NAN) == Vector3.ONE)
 	assert(is_finite(FlightDynamics.braking_distance(100, 0)))
+	assert(is_equal_approx(FlightDynamics.command_velocity(Vector3.ZERO, Vector3(100, 0, 0), 1.0, true, 10.0, 15.0).x, 15.0), "explicit reactor budget limits boosted force")
+	assert(FlightDynamics.command_velocity(Vector3.ONE, Vector3.ZERO, 1, true, 10.0, NAN) == Vector3.ONE)
+	assert(is_equal_approx(FlightDynamics.command_velocity(Vector3.ZERO, Vector3(100, 0, 0), 1.0, true, 10.0, 100.0).x, 6.0 * 9.80665), "boost retains the crew-load tuning cap")
 	print("FLIGHT_DYNAMICS_OK: step independence, cruise and boost limits, braking, invalid input and stopping distance")
 	quit()

@@ -7,10 +7,13 @@ const STANDARD_GRAVITY := 9.80665
 const CRUISE_G := 3.0
 const BOOST_G := 6.0
 
-static func command_velocity(current: Vector3, desired: Vector3, delta: float, boost: bool = false, acceleration: float = STANDARD_GRAVITY * CRUISE_G) -> Vector3:
+static func command_velocity(current: Vector3, desired: Vector3, delta: float, boost: bool = false, acceleration: float = STANDARD_GRAVITY * CRUISE_G, boost_acceleration: float = -1.0) -> Vector3:
 	if not current.is_finite(): return Vector3.ZERO
 	if not desired.is_finite() or not is_finite(delta) or delta <= 0.0 or delta > 1.0: return current
-	return current.move_toward(desired, usable_acceleration(acceleration) * (2.0 if boost else 1.0) * delta)
+	var limit := usable_acceleration(acceleration)
+	if boost:
+		limit = limit * 2.0 if boost_acceleration == -1.0 else (clampf(boost_acceleration, 0.0, STANDARD_GRAVITY * BOOST_G) if is_finite(boost_acceleration) else 0.0)
+	return current.move_toward(desired, limit * delta)
 
 static func approach_speed(distance: float, maximum: float, acceleration: float = STANDARD_GRAVITY * CRUISE_G) -> float:
 	if not is_finite(distance) or not is_finite(maximum): return 0.0

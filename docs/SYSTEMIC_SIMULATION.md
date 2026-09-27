@@ -37,9 +37,9 @@ Order can change when dependencies or evidence justify it. Validate interactions
 
 ## Current ship force approximation
 
-Module mass is interpreted as tonnes; each freight unit adds one tonne. Engine ratings provide 65,000 newtons per rating point. These are game tuning assumptions, not measured engine specifications. Translational acceleration uses thrust divided by loaded mass, capped at 3 standard g; boost doubles available force with a 6 g cap. Manual flight, autopilot approach, obstacle braking and an occupied walkable ship share this limit. The shipyard displays loaded mass, thrust and acceleration.
+Module mass is interpreted as tonnes; each freight unit adds one tonne. Engine ratings provide 65,000 newtons per rating point. These are game tuning assumptions, not measured engine specifications. Translational acceleration uses thrust divided by loaded mass, capped at 3 standard g; boost uses reactor headroom to increase force by up to two times, with a 6 g cap. Manual flight, autopilot approach, obstacle braking and an occupied walkable ship share this limit. The shipyard displays loaded mass, thrust and acceleration.
 
-Braking assumes equal thrust in every direction; rotation, fuel mass, inertia tensors, crew physiology, reactor power and heat do not yet constrain it. Top speed retains the existing gameplay limit. Obstacle queries cap lookahead at 100 km for finite physics queries; this is not a guarantee of stopping from arbitrary externally restored velocities.
+Braking assumes equal thrust in every direction; rotation, fuel mass, inertia tensors, crew physiology and heat do not yet constrain it. Reactor headroom constrains boost as described below. Top speed retains the existing gameplay limit. Obstacle queries cap lookahead at 100 km for finite physics queries; this is not a guarantee of stopping from arbitrary externally restored velocities.
 
 ## Celestial catalog and scale migration
 
@@ -68,3 +68,9 @@ The current flight scene still places fixed planets of radius 850 m or less with
 ## Physical clock persistence
 
 `ephemeris_seconds` is an optional extension to the existing v3 save schema, required in new writes. Existing v2/v3 saves derive `(day + day_progress / 1200) * 86400` once; v1 derives its default calendar epoch. Invalid or non-finite epochs are rejected transactionally. The capacity is 10^12 seconds (about 31,000 years), keeping double time resolution below one millisecond; an overflowing tick is rejected before either clock changes. Older binaries may reject the new save field, so retain backups and use matching builds.
+
+## Reactor reserve and boosted thrust
+
+Module power values are abstract capacity ratings, not watts. All nominal loads are reserved continuously, including weapons and shields while idle. Remaining generation can serve additional engine demand: the thrust multiplier is `clamp(1 + surplus / engine_demand, 1, 2)`. Boost acceleration uses that force divided by loaded mass before the 6 g cap; it does not multiply an already-capped normal acceleration. Normal thrust retains the 3 g comfort cap. The boost speed target scales from normal to the existing three-times target as reserve rises; this remains a flight-assist tuning limit rather than a physical speed limit.
+
+Adding powered modules can reduce boost reserve. Adding a reactor restores capacity but also adds mass, so acceleration remains mass-dependent. Shipyard stats expose demand/generation, normal and boost acceleration, and extra thrust percentage. This model does not yet redistribute idle power, simulate batteries, reactor damage, propellant expenditure or heat. Shields and weapons retain their reserved nominal supply; dynamic engineering priorities remain unfinished.

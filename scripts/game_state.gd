@@ -98,6 +98,7 @@ func ship_stats() -> Dictionary:
 	var result: Dictionary = _stats_for(ship_modules)
 	result.loaded_mass_kg = int(result.dry_mass_kg) + cargo_total() * 1000
 	result.acceleration_mps2 = minf(3.0 * 9.80665, float(result.thrust_newtons) / maxf(float(result.loaded_mass_kg), 1.0))
+	result.boost_acceleration_mps2 = minf(6.0 * 9.80665, float(result.thrust_newtons) * float(result.boost_multiplier) / maxf(float(result.loaded_mass_kg), 1.0))
 	return result
 
 func price(good: String) -> int:
@@ -851,14 +852,20 @@ func _connected(modules: Array[Dictionary]) -> bool:
 	return seen.size() == modules.size()
 
 func _stats_for(modules: Array[Dictionary]) -> Dictionary:
-	var result := {"cargo_capacity": 20, "max_hull": 100.0, "max_shield": 100.0, "speed": 10.0, "damage": 10, "mass": 0, "dry_mass_kg": 0, "thrust_newtons": 0, "power_balance": 0, "crew_capacity": 2, "walkable": false}
+	# Power values are abstract ratings; generation serves nominal systems before boost headroom.
+	var result := {"cargo_capacity": 20, "max_hull": 100.0, "max_shield": 100.0, "speed": 10.0, "damage": 10, "mass": 0, "dry_mass_kg": 0, "thrust_newtons": 0, "power_balance": 0, "power_generation": 0, "power_demand": 0, "engine_power_demand": 0, "boost_multiplier": 1.0, "crew_capacity": 2, "walkable": false}
 	var habitat_count: int = 0
 	for m: Dictionary in modules:
 		var spec: Dictionary = MODULES.get(str(m.get("kind", "")), {})
 		result.mass += int(spec.get("mass", 0))
 		result.dry_mass_kg += int(spec.get("mass", 0)) * 1000
 		result.thrust_newtons += int(spec.get("thrust", 0)) * 65000
-		result.power_balance += int(spec.get("power", 0))
+		var module_power: int = int(spec.get("power", 0))
+		result.power_balance += module_power
+		if module_power > 0: result.power_generation += module_power
+		elif module_power < 0:
+			result.power_demand -= module_power
+			if m.get("kind") == "engine": result.engine_power_demand -= module_power
 		result.cargo_capacity += int(spec.get("cargo", 0))
 		result.max_hull += float(spec.get("hull", 0))
 		result.speed += float(spec.get("thrust", 0))
@@ -867,6 +874,8 @@ func _stats_for(modules: Array[Dictionary]) -> Dictionary:
 		if m.get("kind") == "habitat": habitat_count += 1
 	result.speed = maxf(25.0, (10.0 + maxf(0.0, float(result.speed) - 10.0) * 7.2) * 34.0 / maxf(10.0, float(result.mass)))
 	result.crew_capacity = mini(12, 2 + habitat_count * 4)
+	if int(result.engine_power_demand) > 0:
+		result.boost_multiplier = clampf(1.0 + maxf(float(result.power_balance), 0.0) / float(result.engine_power_demand), 1.0, 2.0)
 	result.walkable = habitat_count > 0 and modules.size() >= 8
 	if crew_paid: result.damage += _paid_crew_count("gunner") * 5
 	return result
