@@ -410,10 +410,44 @@ func _stations() -> void:
 		_button("%s  /  SYSTEM %d  /  LEVEL %d  /  EXPAND" % [station.name, station.get("system", station.get("system_index", 0)), station.level], func():
 			_act(s.upgrade_station.bind(index), "Station expanded.")
 			game.rebuild_owned_stations())
+		_station_rooms(index, station)
 		for good: String in station.get("stock", {}):
 			var amount: int = int(station.stock[good])
 			if amount <= 0: continue
 			_button("COLLECT %d %s" % [amount, good.to_upper()], _act.bind(game.collect_station_stock.bind(index, good, amount), "Station stock delivered to your hold."), game.pilot.flying or game.aboard or int(station.system) != s.system_index)
+
+func _station_rooms(index: int, station: Dictionary) -> void:
+	var rooms := StationLayout.rooms_for(station)
+	_text("CONCOURSE / %d OF %d ROOMS" % [rooms.size(), StationLayout.MAX_ROOMS], 13, InterfaceTheme.CYAN)
+	var row := _row()
+	var room_selector := OptionButton.new()
+	room_selector.set_meta("station_room_selector", index)
+	for room_index in rooms.size():
+		room_selector.add_item("%02d / %s" % [room_index + 1, rooms[room_index].to_upper()])
+	room_selector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(room_selector)
+	var kind_selector := OptionButton.new()
+	kind_selector.set_meta("station_room_kind", index)
+	var kinds: Array[String] = ["market", "company", "shipyard", "contracts", "factions", "stations"]
+	for kind in kinds: kind_selector.add_item(kind.to_upper())
+	kind_selector.select(kinds.find(rooms[0]))
+	row.add_child(kind_selector)
+	room_selector.item_selected.connect(func(room_index: int): kind_selector.select(kinds.find(rooms[room_index])))
+	var blocked: bool = game.session.connected or int(station.system) != game.state.system_index or (game.docked_station == index and not game.pilot.flying)
+	var change := InterfaceTheme.button("REFIT / 250 CR", func(): _act(game.edit_station_rooms.bind(index, "set", room_selector.selected, kinds[kind_selector.selected]), "Room refitted."))
+	change.set_meta("station_room_refit", index)
+	change.disabled = blocked
+	row.add_child(change)
+	var actions := _row()
+	var append := InterfaceTheme.button("ADD ROOM / 1,000 CR + 5 ALLOYS", func(): _act(game.edit_station_rooms.bind(index, "add", 0, kinds[kind_selector.selected]), "Concourse room added."))
+	append.set_meta("station_room_add", index)
+	append.disabled = blocked or rooms.size() >= StationLayout.MAX_ROOMS
+	actions.add_child(append)
+	var remove := InterfaceTheme.button("REMOVE LAST / +500 CR", func(): _act(game.edit_station_rooms.bind(index, "remove"), "Last room salvaged."))
+	remove.set_meta("station_room_remove", index)
+	remove.disabled = blocked or rooms.size() <= 1
+	actions.add_child(remove)
+	if blocked: _text("Room construction requires this system, outside the station and outside a multiplayer visit.", 14, InterfaceTheme.MUTED)
 
 func _settings() -> void:
 	heading.text = "FLIGHT SETTINGS"

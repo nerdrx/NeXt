@@ -4,6 +4,7 @@ extends RefCounted
 const SAVE_VERSION: int = 3
 const ShipRecovery = preload("res://scripts/ship_recovery.gd")
 const ShipLayout = preload("res://scripts/ship_layout.gd")
+const StationLayoutDomain = preload("res://scripts/station_layout.gd")
 const PlayerFactionDomain = preload("res://scripts/player_faction.gd")
 const SYSTEM_LIMIT: int = 1_000_000_000
 const DAY_SECONDS: float = 1200.0
@@ -332,6 +333,39 @@ func upgrade_station(index: int) -> String:
 	stations[index].level = int(stations[index].level) + 1
 	return ""
 
+func add_station_room(index: int, kind: String) -> String:
+	if index < 0 or index >= stations.size(): return "Station does not exist."
+	if not StationLayoutDomain.ROOM_KINDS.has(kind): return "Unknown station room."
+	var rooms: Array[String] = StationLayoutDomain.rooms_for(stations[index])
+	if rooms.size() >= StationLayoutDomain.MAX_ROOMS: return "Station room limit reached."
+	if credits < 1000 or int(cargo.get("alloys", 0)) < 5: return "Adding a room requires 1000 credits and 5 alloys."
+	stations[index].rooms = rooms
+	stations[index].rooms.append(kind)
+	credits -= 1000
+	cargo.alloys -= 5
+	return ""
+
+func set_station_room(index: int, room_index: int, kind: String) -> String:
+	if index < 0 or index >= stations.size(): return "Station does not exist."
+	if not StationLayoutDomain.ROOM_KINDS.has(kind): return "Unknown station room."
+	var rooms: Array[String] = StationLayoutDomain.rooms_for(stations[index])
+	if room_index < 0 or room_index >= rooms.size(): return "Station room does not exist."
+	if rooms[room_index] == kind: return ""
+	if credits < 250: return "Changing a room requires 250 credits."
+	stations[index].rooms = rooms
+	stations[index].rooms[room_index] = kind
+	credits -= 250
+	return ""
+
+func remove_station_room(index: int) -> String:
+	if index < 0 or index >= stations.size(): return "Station does not exist."
+	var rooms: Array[String] = StationLayoutDomain.rooms_for(stations[index])
+	if rooms.size() <= 1: return "A station must keep at least one room."
+	stations[index].rooms = rooms
+	stations[index].rooms.pop_back()
+	credits += 500
+	return ""
+
 func contract_board() -> Array[Dictionary]:
 	var board: Array[Dictionary] = []
 	for i: int in range(3):
@@ -531,8 +565,15 @@ func _load_v2(data: Dictionary) -> String:
 	if over_capacity: return "Cargo exceeds hold capacity."
 	var loaded_stations: Array[Dictionary] = []
 	for value: Variant in data.stations:
-		if not value is Dictionary or not value.has_all(["name", "system", "level"]) or value.size() > 4 or not value.name is String or value.name.length() < 2 or value.name.length() > 40 or not _is_int(value.system) or not _is_int(value.level) or int(value.system) < 0 or int(value.system) >= SYSTEM_LIMIT or int(value.level) < 1 or int(value.level) > 100: return "Invalid station record."
+		if not value is Dictionary or not value.has_all(["name", "system", "level"]) or value.size() > 5 or not value.name is String or value.name.length() < 2 or value.name.length() > 40 or not _is_int(value.system) or not _is_int(value.level) or int(value.system) < 0 or int(value.system) >= SYSTEM_LIMIT or int(value.level) < 1 or int(value.level) > 100: return "Invalid station record."
+		for key: Variant in value:
+			if not str(key) in ["name", "system", "level", "stock", "rooms"]: return "Invalid station record."
 		var station: Dictionary = {"name": value.name, "system": int(value.system), "level": int(value.level)}
+		if value.has("rooms"):
+			if not StationLayoutDomain.validate_data(value.rooms): return "Invalid station rooms."
+			var station_rooms: Array[String] = []
+			for room: Variant in value.rooms: station_rooms.append(room)
+			station.rooms = station_rooms
 		var stock: Dictionary = value.get("stock", {})
 		if not stock is Dictionary or stock.size() > GOODS.size(): return "Invalid station stock."
 		for good: Variant in stock:

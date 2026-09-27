@@ -58,6 +58,8 @@ jobs:
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_steam_session.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_faction.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_station_gameplay.gd -- --capture-only
+          timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_station_layout.gd -- --capture-only
+          timeout 45s "$GODOT_BIN" --headless --path . -s tests/test_station_construction.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_large_berth.gd -- --capture-only
           timeout 40s "$GODOT_BIN" --headless --path . -s tests/test_public_large_berth.gd -- --capture-only
           timeout 70s "$GODOT_BIN" --headless --path . -s tests/test_station_interior.gd -- --capture-only

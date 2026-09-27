@@ -408,3 +408,35 @@ The exported Windows build reached `NEXT_INTEGRATION_OK` under Proton Experiment
 and hidden Gamescope/Vulkan. The SDR white-level warning persists. The wrapper
 remained alive after game completion and ended on the timeout with exit 143;
 this is not a clean wrapper exit or a dedicated Windows berth test.
+
+## Editable station service concourses
+
+Owned station records may now store a validated room-purpose sequence. Older
+saves keep their procedural 3–8-room layout until the first edit; explicit layouts
+survive station-level upgrades. The Station Works menu adds rooms for 1,000 CR
+and five alloys, refits a room for 250 CR, and salvages the last room for 500 CR.
+The limit is 16 connected rooms and the minimum is one. Selecting an unchanged
+purpose does not charge credits. Unknown/oversized/empty saved room sequences are
+rejected before commander state is committed.
+
+Room choices determine actual scene services and numbered signs. Construction is
+blocked during multiplayer visits, in other systems, or while walking inside the
+edited station. The gameplay test exercises the real menu buttons through 16
+rooms, refit/removal/refund, save persistence and the occupied-station guard. It
+then walks through the bridge and expanded corridor to room 16, opens its chosen
+faction service and restores a save made there. This passed in hidden Gamescope
+with Vulkan; the 1440x900 menu capture was inspected. General state tests and the
+main integration smoke also passed. Seven texture RID leaks remain on graphical
+teardown.
+
+This adds editable room purposes and linear expansion. It does not yet provide
+free placement of station modules, editable hull panels, multiple floors or
+fully simulated room-specific businesses. Station-level income remains separate.
+
+Automated graphical checks must use hidden Gamescope; this is now recorded in
+AGENTS.md. Unwrapped agent test instances discovered during this work were stopped.
+
+The focused domain suite passed under a bounded headless process, including real
+save roundtrip, corrupt-room rejection without state mutation, and legacy saves.
+The Windows executable/pack were exported and the ZIP rebuilt; this increment
+was not separately run under Proton.

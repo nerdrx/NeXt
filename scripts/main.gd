@@ -803,6 +803,20 @@ func apply_ship_stats() -> void:
 		session.ship_modules = state.ship_modules.duplicate(true)
 		session.ship_layout = state.ship_layout.duplicate(true)
 
+func edit_station_rooms(index: int, operation: String, room_index: int = 0, kind: String = "market") -> String:
+	if session.connected: return "Leave the multiplayer visit before changing station construction."
+	if index < 0 or index >= state.stations.size(): return "Station does not exist."
+	if int(state.stations[index].system) != state.system_index: return "Travel to the station system before construction."
+	if docked_station == index and not pilot.flying: return "Leave the station before changing its rooms."
+	var error: String
+	match operation:
+		"add": error = state.add_station_room(index, kind)
+		"set": error = state.set_station_room(index, room_index, kind)
+		"remove": error = state.remove_station_room(index)
+		_: return "Unknown station construction operation."
+	if error.is_empty(): rebuild_owned_stations()
+	return error
+
 func rebuild_owned_stations() -> void:
 	if is_instance_valid(owned_root):
 		remove_child(owned_root)

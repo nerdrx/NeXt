@@ -1,6 +1,8 @@
 class_name OwnedStation
 extends Node3D
 
+const STATION_LAYOUT = preload("res://scripts/station_layout.gd")
+
 var dock_position := Vector3(0, 0, 70)
 var stand_position := Vector3(18, 0.15, 70)
 var launch_position := Vector3(0, 22, 108)
@@ -27,6 +29,7 @@ func build(station: Dictionary) -> void:
 	var glass := _material(Color(0.28, 0.42, 0.48, 0.1), 0.0)
 	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	var level: int = clampi(int(station.get("level", 1)), 1, 100)
+	var rooms: Array[String] = STATION_LAYOUT.rooms_for(station)
 	# Exterior detail is bounded while industrial volume grows with station level.
 	var bays: int = mini(8, 2 + level / 3)
 	_box(Vector3(0, -9, -10), Vector3(24, 20, 145), hull, true)
@@ -68,7 +71,7 @@ func build(station: Dictionary) -> void:
 	_box(Vector3(25, 2.1, 30), Vector3(3.5, 0.2, 1.7), light)
 	_build_large_berth(hull, trim, dark, light, amber)
 	var title := Label3D.new()
-	title.text = "%s\nDOCK 01  /  LEVEL %d" % [str(station.get("name", "Outpost")).to_upper(), level]
+	title.text = "%s\nDOCK 01  /  LEVEL %d  /  %d ROOMS" % [str(station.get("name", "Outpost")).to_upper(), level, rooms.size()]
 	title.position = Vector3(0, 7, 36)
 	title.font_size = 64
 	title.pixel_size = 0.035
@@ -87,7 +90,7 @@ func build(station: Dictionary) -> void:
 		lamp.light_energy = 4
 		lamp.omni_range = 55
 		add_child(lamp)
-	_build_concourse(level, hull, trim, dark, light, amber, glass)
+	_build_concourse(rooms, level, hull, trim, dark, light, amber, glass)
 
 func _build_large_berth(hull: Material, trim: Material, dark: Material, light: Material, amber: Material) -> void:
 	# Open 120 m apron supports a 92.4 m hull with clearance around its full span.
@@ -116,8 +119,8 @@ func _build_large_berth(hull: Material, trim: Material, dark: Material, light: M
 	_box(Vector3(54, 0.03, 220), Vector3(9, 0.06, 116), dark)
 	_label("LARGE BERTH  /  SERVICE LANE", Vector3(54, 3.6, 220), 0.018, Color("61e3d8"))
 
-func _build_concourse(level: int, hull: Material, trim: Material, dark: Material, light: Material, amber: Material, glass: Material) -> void:
-	var room_count := clampi(3 + level / 18, 3, 8)
+func _build_concourse(rooms: Array[String], level: int, hull: Material, trim: Material, dark: Material, light: Material, amber: Material, glass: Material) -> void:
+	var room_count := rooms.size()
 	var corridor_start := 44.0
 	var room_zs: Array[float] = []
 	for room_index in room_count:
@@ -164,8 +167,8 @@ func _build_concourse(level: int, hull: Material, trim: Material, dark: Material
 		_box(Vector3(128, 2.25, (wall_cursor + corridor_start) / 2.0), Vector3(0.3, 4.5, corridor_start - wall_cursor), hull, true)
 	_box(Vector3(124, 2.25, corridor_start), Vector3(8, 4.5, 0.3), hull, true)
 	_box(Vector3(124, 2.25, corridor_end), Vector3(8, 4.5, 0.3), hull, true)
-	for z in room_zs:
-		_build_service_room(z, level, hull, trim, dark, light, amber, glass)
+	for room_index in room_count:
+		_build_service_room(room_zs[room_index], room_index + 1, rooms[room_index], level, hull, trim, dark, light, amber, glass)
 	_box(Vector3(124, 0.05, corridor_mid), Vector3(0.16, 0.08, corridor_length), light)
 	_box(Vector3(120.2, 0.05, corridor_mid), Vector3(0.14, 0.08, corridor_length), amber)
 	_box(Vector3(127.8, 0.05, corridor_mid), Vector3(0.14, 0.08, corridor_length), amber)
@@ -183,7 +186,7 @@ func _build_concourse(level: int, hull: Material, trim: Material, dark: Material
 	_add_walk_region(Vector3(36.5, 0, 36), Vector3(83.5, 0, 8))
 	_add_walk_region(Vector3(120, 0, corridor_end), Vector3(8, 0, 44 - corridor_end))
 
-func _build_service_room(z: float, level: int, hull: Material, trim: Material, dark: Material, light: Material, amber: Material, glass: Material) -> void:
+func _build_service_room(z: float, room_number: int, page: String, level: int, hull: Material, trim: Material, dark: Material, light: Material, amber: Material, glass: Material) -> void:
 	var room_center := Vector3(138, 0, z)
 	var room_width := 20.0
 	var room_depth := 18.0
@@ -204,12 +207,10 @@ func _build_service_room(z: float, level: int, hull: Material, trim: Material, d
 	for x in [133.0, 143.0]:
 		_box(Vector3(x, 0.08, z - 8.7), Vector3(0.16, 0.12, 0.16), light)
 		_box(Vector3(x, 0.08, z + 8.7), Vector3(0.16, 0.12, 0.16), light)
-	var pages := ["market", "company", "shipyard", "contracts", "factions", "stations"]
-	var page: String = pages[interior_services.size() % pages.size()]
 	var labels := {"market": "MARKET", "company": "COMPANY", "shipyard": "SHIPYARD", "contracts": "CONTRACTS", "factions": "FACTIONS", "stations": "STATIONS"}
-	var label: String = labels[page]
+	var label: String = labels.get(page, page.to_upper())
 	var target := Vector3(144, 0.1, z)
-	interior_services.append({"position": target, "page": page, "label": label})
+	interior_services.append({"position": target, "page": page, "label": label, "room": room_number})
 	_add_walk_region(Vector3(128, 0, z - 9), Vector3(20, 0, 18))
 	# Console and seating stay against the room edges, clear of the central walk lane.
 	_box(Vector3(146, 0.65, z), Vector3(1.6, 1.3, 1), dark, true)
@@ -217,8 +218,8 @@ func _build_service_room(z: float, level: int, hull: Material, trim: Material, d
 	for side in [-1, 1]:
 		_box(Vector3(145.8, 0.48, z + side * 6), Vector3(1, 0.9, 1), trim, true)
 	_box(Vector3(138, 1.55, z - 8.7), Vector3(4, 2.8, 0.12), dark)
-	_label("%s  /  LEVEL %d" % [label, level], Vector3(138, 2.05, z - 8.6), 0.009, Color("61e3d8"))
-	_label("%s\nACCESS" % label, Vector3(124, 3.6, z), 0.015, Color("ffb65c"))
+	_label("ROOM %02d  /  %s  /  LEVEL %d" % [room_number, label, level], Vector3(138, 2.05, z - 8.6), 0.009, Color("61e3d8"))
+	_label("ROOM %02d\n%s ACCESS" % [room_number, label], Vector3(124, 3.6, z), 0.015, Color("ffb65c"))
 	var task_light := _material(Color("d2c4a4"), 0.0, 1.2)
 	for x in [133.0, 143.0]:
 		_box(Vector3(x, 4.52, z), Vector3(0.7, 0.06, 10), task_light)
