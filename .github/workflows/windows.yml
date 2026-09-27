@@ -59,6 +59,8 @@ jobs:
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_planet_gameplay.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_surface_colony.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_colony_gameplay.gd -- --capture-only
+          timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_cruise_route.gd
+          timeout 65s "$GODOT_BIN" --headless --path . -s tests/test_cruise_gameplay.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_operations_gameplay.gd -- --capture-only
 
       - name: Test integrated gameplay

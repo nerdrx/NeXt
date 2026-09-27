@@ -40,6 +40,7 @@ var docked_station: int = -1
 var fleet_actors: Dictionary = {}
 var flight_origin := SectorPosition.new()
 var flight_frame := FlightFrame.new()
+var cruise_waypoints: Array[SectorPosition] = []
 var cruise_address: SectorPosition
 var colonies: Array[Node3D] = []
 var planet_terrain: PlanetTerrain
@@ -61,7 +62,7 @@ func _ready() -> void:
 	pilot = Pilot.new()
 	add_child(pilot)
 	pilot.fired.connect(_player_fire)
-	pilot.autopilot_arrived.connect(func(): notify("Cruise approach complete. Manual control restored."))
+	pilot.autopilot_arrived.connect(_cruise_arrived)
 	sound = Soundscape.new()
 	sound.muted = automation
 	add_child(sound)
@@ -115,6 +116,7 @@ func _build_system() -> void:
 	flight_frame.clear()
 	flight_origin = SectorPosition.new()
 	cruise_address = null
+	cruise_waypoints.clear()
 	world.position = Vector3.ZERO
 	_clear_actors()
 	surface_index = -1
@@ -221,8 +223,48 @@ func _start_address_cruise(address: SectorPosition) -> void:
 		return
 	cruise_address = address
 	close_menu()
-	pilot.autopilot_to(_cruise_point(address))
-	notify("Cruise autopilot engaged. Movement or mouse input returns manual control.")
+	if _plan_cruise_leg():
+		notify("Cruise route engaged. Movement or mouse input returns manual control.")
+
+func _plan_cruise_leg() -> bool:
+	cruise_waypoints.clear()
+	if cruise_address == null: return false
+	var obstacles: Array[Dictionary] = []
+	for index in world.planets.size():
+		var center: Variant = _planet_center(index)
+		if center != null: obstacles.append({"center": center, "radius": float(world.planets[index].visual_radius)})
+	var route: Dictionary = CruiseRoute.plan(pilot.position, _cruise_point(cruise_address), obstacles)
+	if not bool(route.ok):
+		pilot.cancel_autopilot()
+		cruise_address = null
+		notify("Cruise cannot find a clear planetary route. Reposition manually and retry.")
+		return false
+	for point: Vector3 in route.points:
+		var waypoint := SectorPosition.new(flight_origin.sector, flight_origin.local)
+		if not waypoint.move_delta(point):
+			cruise_address = null
+			cruise_waypoints.clear()
+			pilot.cancel_autopilot()
+			return false
+		cruise_waypoints.append(waypoint)
+	if cruise_waypoints.is_empty():
+		cruise_address = null
+		return false
+	pilot.autopilot_to(cruise_waypoints[0].relative_to(flight_origin, SectorPosition.MAX_RELATIVE_DISTANCE))
+	return true
+
+func _cruise_arrived() -> void:
+	if cruise_address != null:
+		if not cruise_waypoints.is_empty(): cruise_waypoints.pop_front()
+		if not cruise_waypoints.is_empty():
+			pilot.autopilot_to(cruise_waypoints[0].relative_to(flight_origin, SectorPosition.MAX_RELATIVE_DISTANCE))
+			return
+		var destination: Variant = cruise_address.relative_to(flight_origin, 60000)
+		if destination == null or pilot.position.distance_to(destination) > 2.1:
+			_plan_cruise_leg()
+			return
+		cruise_address = null
+	notify("Cruise approach complete. Manual control restored.")
 
 func _clear_colonies() -> void:
 	for colony in colonies:
@@ -896,6 +938,7 @@ func land(planet_index: int) -> void:
 	flight_origin = SectorPosition.new()
 	world.position = Vector3.ZERO
 	cruise_address = null
+	cruise_waypoints.clear()
 	docked_station = -1
 	surface_index = planet_index
 	_clear_colonies()
@@ -975,8 +1018,11 @@ func _process(delta: float) -> void:
 	_rebase_flight()
 	_update_planet_terrain()
 	if cruise_address != null:
-		if pilot.autopilot_active: pilot.autopilot_target = _cruise_point(cruise_address)
-		else: cruise_address = null
+		if pilot.autopilot_active and not cruise_waypoints.is_empty():
+			pilot.autopilot_target = cruise_waypoints[0].relative_to(flight_origin, SectorPosition.MAX_RELATIVE_DISTANCE)
+		else:
+			cruise_address = null
+			cruise_waypoints.clear()
 	var local_patrols: Array[String] = _sync_fleet_actors()
 	var reports: Array = crew_operations().tick(delta, local_patrols)
 	if not reports.is_empty():

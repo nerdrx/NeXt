@@ -19,7 +19,11 @@ when the player returns. WorldEnvironment remains in the tree. Remote ship poses
 carry validated absolute sector addresses and are rendered relative to the local
 origin only within 30 km.
 
-Cruise destinations retain absolute addresses across rebases. Long approaches
+Cruise destinations and planned waypoints retain absolute addresses across rebases.
+A bounded spherical route planner inserts radial/arc detours around planets, rejects
+below-clearance destinations and reports failure when a safe bounded route cannot
+be found. Arrival advances the waypoint queue; manual input discards it. This
+planner does not model ships, buildings or station geometry. Long approaches
 use bounded forward waypoints until their target enters the local range. Orbital
 saves persist location and helm orientation (also when saving from the interior),
 and resume at rest. Manual planetary ground saves retain the player address, radial
