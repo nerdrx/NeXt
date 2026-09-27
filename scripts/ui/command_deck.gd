@@ -12,6 +12,8 @@ var destination: int = 0
 var navigation_info: Label
 var _clock_label := ""
 var balance_label: Label
+var survey_catalog: Dictionary = {}
+var survey_labels: Array[Label] = []
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -75,6 +77,8 @@ func _ready() -> void:
 
 func show_page(value: String = "overview") -> void:
 	page = value
+	survey_catalog = {}
+	survey_labels.clear()
 	show()
 	game.ui_open = true
 	game.pilot.enabled = false
@@ -90,6 +94,7 @@ func show_page(value: String = "overview") -> void:
 	match page:
 		"overview": _overview()
 		"navigation": _navigation()
+		"survey": _survey()
 		"market": _market()
 		"shipyard": _shipyard()
 		"contracts": _contracts()
@@ -108,6 +113,7 @@ func _update_clock() -> void:
 	var text := "%03d %s" % [state.day, state.clock_text()]
 	if text == _clock_label: return
 	_clock_label = text
+	if page == "survey" and not survey_catalog.is_empty(): _update_survey()
 	subtitle.text = "%s  /  %s  /  DAY %s" % [Universe.system_data(state.system_index).name, game.location_title(), text]
 
 func refresh() -> void:
@@ -187,6 +193,7 @@ func _navigation() -> void:
 		chart.destination = int(address.value)
 		chart.queue_redraw()))
 	controls.add_child(InterfaceTheme.button("ENGAGE HYPERDRIVE", func(): game.request_jump(destination)))
+	_button("INSPECT SYSTEM PHYSICS", show_page.bind("survey"))
 	_button("RECOVERY BEACONS", show_page.bind("recovery"))
 	_text("LOCAL SYSTEM / SURFACE APPROACH", 13, InterfaceTheme.CYAN)
 	_button("CRUISE TO ORBITAL DOCK", game.approach_public_station, not game.pilot.flying or game.aboard)
@@ -202,6 +209,34 @@ func _navigation() -> void:
 		var land_button := InterfaceTheme.button("COLONY APPROACH", game.approach_colony.bind(index))
 		land_button.disabled = not game.pilot.flying or game.surface_index >= 0
 		row.add_child(land_button)
+
+func _survey() -> void:
+	heading.text = "PHYSICAL SYSTEM SURVEY"
+	survey_catalog = CelestialSystem.generate(destination)
+	var star: Dictionary = survey_catalog.star
+	_text("%s / %s%s" % [Universe.system_data(destination).name, star.kind, " within a nebula" if star.embedded_nebula else ""], 22, InterfaceTheme.CYAN)
+	if star.kind == "Black Hole":
+		_text("Mass %.2f solar / Event horizon %.1f km\nNon-rotating, inactive model; accretion radiation excluded." % [star.mu_m3_s2 / CelestialPhysics.SOLAR_MU, star.radius_m / 1000.0], 17)
+	else:
+		_text("Mass %.2f solar / Radius %.0f km / Effective temperature %.0f K\nLuminosity %.4f solar" % [star.mu_m3_s2 / CelestialPhysics.SOLAR_MU, star.radius_m / 1000.0, star.temperature_k, star.luminosity_w / CelestialPhysics.SOLAR_LUMINOSITY_W], 17)
+	_text("Orbital and radiation model. Flight locations currently remain compressed and stationary. Equilibrium temperature excludes atmosphere warming and internal heat.", 16, InterfaceTheme.GOLD)
+	for body: Dictionary in survey_catalog.planets:
+		_text(str(body.name).to_upper() + " / " + str(body.kind), 16, InterfaceTheme.CYAN)
+		survey_labels.append(_text("", 17))
+	if survey_catalog.planets.is_empty(): _text("No planets catalogued in this system.")
+	_update_survey()
+	_button("RETURN TO NAVIGATION", show_page.bind("navigation"))
+
+func _update_survey() -> void:
+	# Astronomical time follows the persisted accelerated calendar, never OS/shader time.
+	var seconds: float = (float(game.state.day) + game.state.day_progress / GameState.DAY_SECONDS) * 86400.0
+	for i in survey_labels.size():
+		var body: Dictionary = survey_catalog.planets[i]
+		var sample := CelestialSystem.sample(survey_catalog, i, seconds)
+		if sample.is_empty():
+			survey_labels[i].text = "Orbital estimate unavailable."
+			continue
+		survey_labels[i].text = "Radius %.0f km / Gravity %.2f g / Orbit %.3f AU\nYear %.1f days / Speed %.1f km/s / Equilibrium %.0f K\nReceived radiation %.1f W/m² / Reflectivity %.0f%%" % [body.radius_m / 1000.0, body.surface_gravity_mps2 / FlightDynamics.STANDARD_GRAVITY, sample.distance_m / CelestialPhysics.AU_M, body.period_seconds / 86400.0, sample.speed_mps / 1000.0, sample.equilibrium_temperature_k, sample.irradiance_w_m2, body.bond_albedo * 100.0]
 
 func _select_destination(address: int) -> void:
 	destination = address

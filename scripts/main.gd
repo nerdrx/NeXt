@@ -1626,6 +1626,13 @@ func _integration_check() -> void:
 	await get_tree().process_frame
 	await get_tree().physics_frame
 	if not _check(world.planets.size() > 0, "home system planets"): return
+	open_menu("navigation")
+	deck.show_page("survey")
+	if not _check(deck.survey_labels.size() == world.planets.size() and "Equilibrium" in deck.survey_labels[0].text, "physical system survey is available in release build"): return
+	var physical_sample := CelestialSystem.sample(deck.survey_catalog, 0, 0.0)
+	if not _check(not physical_sample.is_empty() and physical_sample.irradiance_w_m2 > 0.0, "orbital radiation model in release build"): return
+	await _capture("celestial-survey")
+	close_menu()
 	if not _check(state.trade("food", 1, true).is_empty(), "commodity buy"): return
 	if not _check(state.trade("food", 1, false).is_empty(), "commodity sell"): return
 	var before: int = state.credits

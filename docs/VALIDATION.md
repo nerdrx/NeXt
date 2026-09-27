@@ -727,3 +727,15 @@ Focused checks pass for commodity buy/sell mass changes, engine and cargo-module
 The previous CI run also exposed an outdated case-sensitive obstruction-message assertion. Its corrected check waits for completed braking, route cancellation and unchanged hull/shields; collision damage and rescue checks remain.
 
 The bounded Proton wrapper ended with status 137 after the integration marker; this is not a clean-wrapper-exit claim. No script or shader compilation errors appeared in this run.
+
+## Celestial catalog and physical survey
+
+CelestialPhysics reference checks cover Earth surface gravity, the Sun–Earth orbital period and received radiation, equilibrium temperature, solar effective temperature, Schwarzschild radius, periapsis/apoapsis, orbital closure and invalid inputs. Scalar formulas use logarithmic arithmetic to avoid intermediate overflow; tests include finite extreme values whose direct intermediate products overflow. Generated systems use scalar doubles, not astronomical-scale Vector3 coordinates.
+
+Catalog tests cover all existing stellar categories over 100 seeded systems, deterministic regeneration, non-crossing initial radial orbit bands, and radiation/temperature changes caused by the same changing orbital distance. Four pre-change legacy catalog hashes remain identical. Persisted calendar save/load restores the sampled orbital/thermal state. The Navigation survey test checks selection, live calendar refresh and page cleanup; it passes headlessly and in hidden Gamescope, and the rendered capture was inspected for readability.
+
+These are a physical data foundation and survey, not implemented physical-scale flight. The current collision/rendering bodies remain compressed and fixed, as the survey explicitly states. Planetary force integration, greenhouse warming, thermal inertia, accretion, relativistic trajectories, tidal effects and multi-body perturbations remain unimplemented. The migration requirements are recorded in SYSTEMIC_SIMULATION.md.
+
+The exported Windows normal-entrypoint check opens the physical survey and verifies a populated label and positive home-system radiation sample using release-safe checks. The final Windows build reached NEXT_INTEGRATION_OK under hidden Gamescope/Proton with no script or shader compilation errors. The native full integration also passed. Existing SDR and texture shutdown warnings remain.
+
+The final bounded Proton wrapper ended 137 after the integration marker; wrapper shutdown is not claimed clean.
