@@ -9,7 +9,7 @@ var _tracked: Dictionary = {}
 func track(node: Node3D, origin: SectorPosition, absolute: SectorPosition = null) -> bool:
 	if not is_instance_valid(node) or origin == null:
 		return false
-	var address := SectorPosition.new(absolute.sector, absolute.local) if absolute != null else SectorPosition.new(origin.sector, origin.local)
+	var address := absolute.clone() if absolute != null else origin.clone()
 	if absolute == null and not address.move_delta(node.position): return false
 	var id: int = node.get_instance_id()
 	var prior: Dictionary = _tracked.get(id, {})
@@ -36,7 +36,7 @@ func rebase(old_origin: SectorPosition, new_origin: SectorPosition) -> void:
 			continue
 		if not bool(entry.get("culled", false)):
 			var address: SectorPosition = entry.address
-			address = SectorPosition.new(old_origin.sector, old_origin.local)
+			address = old_origin.clone()
 			if not address.move_delta(node.position):
 				continue
 			entry.address = address

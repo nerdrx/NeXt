@@ -739,3 +739,17 @@ These are a physical data foundation and survey, not implemented physical-scale 
 The exported Windows normal-entrypoint check opens the physical survey and verifies a populated label and positive home-system radiation sample using release-safe checks. The final Windows build reached NEXT_INTEGRATION_OK under hidden Gamescope/Proton with no script or shader compilation errors. The native full integration also passed. Existing SDR and texture shutdown warnings remain.
 
 The final bounded Proton wrapper ended 137 after the integration marker; wrapper shutdown is not claimed clean.
+
+## Region-aware astronomical addresses
+
+SectorPosition version 2 adds regions of 2^30 sectors while preserving the existing 8192 m local sector size. Tests cover positive/negative region boundaries, transactional capacity overflow, far-direction queries, scalar-double conversion at multiple AU and 10,000 AU, metre offsets, JSON round trips, and normalization of version-1 extreme sector values. The JSON test caught strict int/float membership in the version guard; explicit validated integer comparison fixes raw JSON loading.
+
+Actual-scene tests restore a ship in region (5000, -3000, 0), cross the adjacent region boundary, cruise locally, save/reload, render another ship with a 0.25 m relative offset, and recover a wreck only at the correct remote address. The same check passes in hidden Gamescope. Loopback PvP now exercises nonzero regions for normal host/client shots, retaining consent, freshness, occlusion, cooldown and authority checks. Standard network, saved-flight, spatial gameplay and coasting-interior regressions pass.
+
+This removes an address-range blocker; it does not move rendered planets into their catalog orbits or generate objects in empty remote regions. Physics positions remain bounded and the current culling distance is unchanged.
+
+Native and exported Windows normal-entrypoint integration now explicitly restore region 5001, save/reload it, and check bounded player coordinates and retained velocity. Both reach NEXT_INTEGRATION_OK; the Windows run uses hidden Gamescope/Proton. No script or shader compilation errors appeared in that run. Existing SDR/shutdown warnings are not considered fixed.
+
+The bounded Proton wrapper ended 137 after the integration marker; clean wrapper shutdown is not claimed.
+
+Final review also found that remote cruise directions omitted within-sector offsets beyond the relative-position cap. The shared direction helper now includes them; a regression checks the transverse offset just beyond 1,000 km. The corrected helper and far-region gameplay tests pass.

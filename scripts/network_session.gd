@@ -649,7 +649,7 @@ func _accept_pvp_shot(attacker: int, direction: Vector3) -> void:
 	var distance := float(hit.distance)
 	if origin == null or not is_finite(distance) or distance < 0.0 or distance > PvPHits.RANGE: return
 	if not origin.move_delta(PvPHits.CAMERA_OFFSET): return
-	var end_position := SectorPosition.new(origin.sector, origin.local)
+	var end_position: SectorPosition = origin.clone()
 	if not end_position.move_delta(direction.normalized() * distance): return
 	var origin_data: Dictionary = origin.to_save()
 	var end_data: Dictionary = end_position.to_save()

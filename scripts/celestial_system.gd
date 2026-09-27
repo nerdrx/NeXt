@@ -42,6 +42,9 @@ static func sample(catalog: Dictionary, planet_index: int, elapsed_seconds: floa
 	var star: Dictionary = catalog.star
 	var orbit := CelestialPhysics.orbital_state(float(star.mu_m3_s2) + float(body.mu_m3_s2), body.semi_major_m, body.eccentricity, body.mean_anomaly_at_epoch, elapsed_seconds)
 	if orbit.is_empty(): return {}
+	var address := SectorPosition.from_meters(orbit.x_m, 0.0, orbit.y_m)
+	if address == null: return {}
+	orbit["address"] = address.to_save()
 	var flux := CelestialPhysics.irradiance(star.luminosity_w, orbit.distance_m)
 	orbit["irradiance_w_m2"] = flux
 	orbit["equilibrium_temperature_k"] = CelestialPhysics.equilibrium_temperature(flux, body.bond_albedo)

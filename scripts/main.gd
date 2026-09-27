@@ -162,9 +162,9 @@ func _rebase_flight() -> void:
 	if surface_index >= 0 or (not coasting and (aboard or not pilot.flying)): return
 	var frame_position: Vector3 = coasting_hull.position if coasting else pilot.position
 	if maxf(absf(frame_position.x), maxf(absf(frame_position.y), absf(frame_position.z))) < SectorPosition.HALF_SECTOR: return
-	var address := SectorPosition.new(flight_origin.sector, flight_origin.local)
+	var address := flight_origin.clone()
 	if not address.move_delta(frame_position): return
-	var new_origin := SectorPosition.new(address.sector)
+	var new_origin := address.sector_origin()
 	var shift: Variant = new_origin.relative_to(flight_origin, SectorPosition.MAX_RELATIVE_DISTANCE)
 	if shift == null: return
 	_register_spatial_nodes()
@@ -185,7 +185,7 @@ func _rebase_flight() -> void:
 func _capture_flight_location() -> void:
 	state.location = {}
 	if surface_index >= 0 or (manual_planet < 0 and docked_station < 0 and not pilot.flying and not (aboard and return_flying)): return
-	var address := SectorPosition.new(flight_origin.sector, flight_origin.local)
+	var address := flight_origin.clone()
 	if not address.move_delta(return_position if aboard else pilot.position): return
 	var angles: Vector3 = return_view if aboard else Vector3(pilot.camera.rotation.x, pilot.rotation.y, pilot.camera.rotation.z)
 	state.location = {"system": state.system_index, "surface": -1, "address": address.to_save(), "rotation": [angles.x, angles.y, angles.z], "flying": true}
@@ -214,7 +214,7 @@ func _restore_flight_location() -> void:
 	if not bool(location.flying) and not location.has("ship_address"): return
 	var address: SectorPosition = SectorPosition.from_save(location.address)
 	if address == null: return
-	var new_origin := SectorPosition.new(address.sector)
+	var new_origin := address.sector_origin()
 	if not bool(location.flying):
 		var index: int = int(location.surface)
 		if index < 0: return
@@ -256,7 +256,7 @@ func _restore_station_location(location: Dictionary) -> void:
 	# Stations are generated in system coordinates before the scene origin shifts.
 	var system_point: Variant = address.relative_to(SectorPosition.new(), SectorPosition.MAX_RELATIVE_DISTANCE)
 	if system_point == null or not station.contains_walk_position(station.to_local(system_point)): return
-	var new_origin := SectorPosition.new(address.sector)
+	var new_origin := address.sector_origin()
 	_register_spatial_nodes()
 	flight_frame.rebase(flight_origin, new_origin)
 	flight_origin = new_origin
@@ -271,7 +271,7 @@ func _restore_station_location(location: Dictionary) -> void:
 func _cruise_point(address: SectorPosition) -> Vector3:
 	var point: Variant = address.relative_to(flight_origin, 60000)
 	if point != null: return point
-	var direction := Vector3(float(address.sector.x) - flight_origin.sector.x, float(address.sector.y) - flight_origin.sector.y, float(address.sector.z) - flight_origin.sector.z).normalized()
+	var direction := flight_origin.direction_to(address)
 	return _helm_position() + direction * 20000
 
 func _helm_position() -> Vector3:
@@ -311,7 +311,7 @@ func _plan_cruise_leg() -> bool:
 		notify("Cruise cannot find a clear planetary route. Reposition manually and retry.")
 		return false
 	for point: Vector3 in route.points:
-		var waypoint := SectorPosition.new(flight_origin.sector, flight_origin.local)
+		var waypoint := flight_origin.clone()
 		if not waypoint.move_delta(point):
 			cruise_address = null
 			cruise_waypoints.clear()
@@ -407,7 +407,7 @@ func _try_colony_landing() -> bool:
 			return true
 		manual_planet = index
 		landed_ship_normal = colony.basis.y
-		landed_ship_address = SectorPosition.new(flight_origin.sector, flight_origin.local)
+		landed_ship_address = flight_origin.clone()
 		landed_ship_address.move_delta(pad)
 		pilot.set_flight(false)
 		pilot.teleport(colony.to_global(colony.stand_position))
@@ -1858,6 +1858,13 @@ func _integration_check() -> void:
 	if not _check(flight_origin.sector.x == 1 and pilot.flying, "restore rebased flight"): return
 	close_menu()
 	await _capture("rebase-flight")
+	var far_address := SectorPosition.new(Vector3i(SectorPosition.HALF_REGION_SECTORS - 1, 0, 0), Vector3(5000, 300, 0), Vector3i(5000, 0, 0))
+	state.location = {"system": state.system_index, "surface": -1, "address": far_address.to_save(), "rotation": [0, 0, 0], "flying": true, "velocity": [20, 0, 0]}
+	_restore_flight_location()
+	if not _check(flight_origin.region.x == 5001 and pilot.position.x == -3192, "astronomical region restore retains bounded coordinates"): return
+	if not _check(save_commander(false), "save astronomical region"): return
+	load_commander()
+	if not _check(flight_origin.region.x == 5001 and pilot.flight_velocity().x == 20.0, "astronomical save restores region and momentum"): return
 	_build_system()
 	_clear_actors()
 	close_menu()
@@ -2100,7 +2107,7 @@ func _return_home() -> void:
 	notify("Returned home with your ship and cargo. World finances stayed separate." if saved else "Returned home; previous save failed. Save again before quitting.")
 
 func cruise_to(point: Vector3) -> void:
-	var address := SectorPosition.new(flight_origin.sector, flight_origin.local)
+	var address := flight_origin.clone()
 	if address.move_delta(point): _start_address_cruise(address)
 
 func approach_planet(index: int) -> void:

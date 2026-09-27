@@ -142,8 +142,9 @@ func _run() -> void:
 
 func _poses(guest_flying: bool = true) -> void:
 	await create_timer(0.06).timeout
-	host.publish_pose(Vector3.ZERO, Vector3.ZERO, {}, true)
-	guest.publish_pose(Vector3(0, 0, -100), Vector3(0, PI, 0), {}, guest_flying)
+	var origin := SectorPosition.new(Vector3i.ZERO, Vector3.ZERO, Vector3i(5000, -3000, 0)).to_save()
+	host.publish_pose(Vector3.ZERO, Vector3.ZERO, origin, true)
+	guest.publish_pose(Vector3(0, 0, -100), Vector3(0, PI, 0), origin, guest_flying)
 	await create_timer(0.06).timeout
 
 func _check(condition: bool, label: String) -> void:
