@@ -1232,7 +1232,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 				var index: int = interior.decks.find(interior_deck)
 				index = clampi(index + (1 if event.keycode == KEY_PAGEUP else -1), 0, interior.decks.size() - 1)
 				interior_deck = interior.decks[index]
-				pilot.set_walk_up(Vector3.UP)
+				pilot.set_walk_up(interior.global_basis.y)
 				pilot.teleport(interior.spawn_on_deck(interior_deck))
 				notify("Lift arrived at deck %d." % interior_deck)
 		KEY_E:
@@ -1279,7 +1279,8 @@ func _process(delta: float) -> void:
 			var dock := _station_node(docked_station)
 			if dock != null: safe_spawn = _station_berth_point(dock, "stand")
 			if aboard: safe_spawn = interior.spawn_on_deck(interior_deck)
-			if pilot.position.y < safe_spawn.y - 150: pilot.teleport(safe_spawn)
+			var rescue_up: Vector3 = interior.global_basis.y if aboard else Vector3.UP
+			if (pilot.position - safe_spawn).dot(rescue_up) < -150: pilot.teleport(safe_spawn)
 
 	autosave_clock += delta
 	if autosave_clock > 60 and not automation:
@@ -1565,7 +1566,7 @@ func _integration_check() -> void:
 	enter_interior()
 	if not _check(aboard and interior != null, "walkable ship interior"): return
 	await get_tree().create_timer(0.3).timeout
-	if not _check(pilot.position.y > 5999, "interior floor collision"): return
+	if not _check(pilot.is_on_floor() and pilot.position.distance_to(_ship_pad()) < 30, "interior floor at parked ship"): return
 	var interior_start: Vector3 = pilot.position
 	Input.action_press("move_forward")
 	await get_tree().create_timer(0.45).timeout
@@ -1744,6 +1745,9 @@ func enter_interior() -> void:
 		if is_instance_valid(actor) and not bool(actor.get_meta("spatial_culled", false)) and actor.hostile and actor.position.distance_to(pilot.position) < 1000 and pilot.flying:
 			notify("Leave the combat zone before leaving the helm.")
 			return
+	if pilot.flying and (pilot.velocity.length() > 1.0 or pilot.autopilot_active):
+		notify("Disengage cruise and bring the ship to rest before leaving the helm.")
+		return
 	if not bool(state.ship_stats().get("walkable", false)):
 		notify("Install a habitat and at least eight connected modules to support walkable decks.")
 		return
@@ -1752,16 +1756,26 @@ func enter_interior() -> void:
 	return_view = Vector3(pilot.camera.rotation.x, pilot.rotation.y, pilot.camera.rotation.z)
 	return_basis = pilot.basis
 	return_up = pilot.up_direction
+	var hull_transform: Transform3D = Transform3D(pilot.camera.global_basis, pilot.global_position) if pilot.flying else ship_display.global_transform
+	var low := Vector3(16, 16, 16)
+	var high := Vector3(-16, -16, -16)
+	for module: Dictionary in state.ship_modules:
+		var cell := Vector3(module.x, module.y, module.z)
+		low = low.min(cell)
+		high = high.max(cell)
+	var module_center := (low + high) * 0.5 * ShipVisual.CELL_SIZE
 	interior = ShipInterior.new()
 	add_child(interior)
-	interior.position = Vector3(0, 6000, 0)
+	interior.global_transform = hull_transform * Transform3D(Basis.IDENTITY, -module_center - Vector3.UP * 1.23)
 	interior.build(state.ship_modules, state.ship_layout)
+	ship_display.hide()
 	aboard = true
 	interior_deck = 0 if 0 in interior.decks else interior.decks[0]
 	pilot.set_flight(false)
-	pilot.set_walk_up(Vector3.UP)
-	pilot.teleport(interior.spawn_on_deck(interior_deck))
 	pilot.reset_view()
+	pilot.global_basis = interior.global_basis
+	pilot.set_walk_up(interior.global_basis.y)
+	pilot.teleport(interior.spawn_on_deck(interior_deck))
 	close_menu()
 	notify("Aboard your ship. E returns to helm; PgUp/PgDn use the deck lift.")
 
@@ -1775,6 +1789,7 @@ func exit_interior() -> void:
 	pilot.restore_view(return_view)
 	pilot.set_walk_up(return_up)
 	pilot.basis = return_basis
+	ship_display.visible = not return_flying
 	close_menu()
 
 func _copy_carried_ship(source: GameState, destination: GameState) -> void:

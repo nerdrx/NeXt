@@ -104,3 +104,5 @@ Owned stations now provide a separate 120 m open berth for ships exceeding the c
 Public orbital stations also assign oversized ships to an exterior 120 m berth, connected on foot to the hangar. Navigation cruise, docking, boarding, commander reload and hyperdrive arrival select its approach automatically. Public docking requires speed below 35 m/s.
 
 Station Works supports editable service concourses: add up to 16 rooms, refit their service purpose, or salvage the last room. Changes persist in local saves and generate connected, numbered walkable rooms. Leave the station and multiplayer visits before editing its construction.
+
+Walkable ship interiors now occupy the ship’s actual position and orientation, with matching 2.8 m module spacing and gravity aligned to its deck. Disengage cruise and stop before leaving the helm; moving interior frames remain in development.

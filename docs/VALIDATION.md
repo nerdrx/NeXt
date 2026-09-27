@@ -440,3 +440,36 @@ The focused domain suite passed under a bounded headless process, including real
 save roundtrip, corrupt-room rejection without state mutation, and legacy saves.
 The Windows executable/pack were exported and the ZIP rebuilt; this increment
 was not separately run under Proton.
+
+## Ship interiors at the hull position
+
+Ship interiors now use the parked ship display transform or the stationary flight
+hull transform, including pitch and roll, instead of the unrelated (0,6000,0)
+location. Interior module spacing matches the exterior at 2.8 m on all axes.
+Floors anchor 1.23 m below each module center; room height is 2.45 m with thin
+floor/ceiling slabs. Door headers, window frames and lights were adjusted for the
+lower ceiling. Interior spawns and lifts transform through the hull basis, and
+walking gravity follows the deck. Falling below the interior uses deck-local up
+for recovery. The parked exterior display is hidden while aboard and restored
+on exit; the interior supplies the visible room shell.
+
+Leaving the helm during cruise or above 1 m/s is rejected. This prevents boarding
+from silently stopping a moving ship, but is not a moving reference-frame system.
+Ship motion while walking, freely crossing a physical airlock, and multiplayer
+boarding remain unfinished. Room windows now share the real-world anchor;
+floor/ceiling window materials still do not constitute transparent apertures.
+
+The focused test verifies parked-hull proximity, exact rotated module-floor
+alignment, gravity, walking through a connected doorway, deck lift support,
+cruise/speed guards, saving the helm address and restoring position/orientation
+on exit. It passed headless and in hidden Gamescope/Vulkan at 1440x900; its image
+was inspected. ShipLayout tests and the main integration smoke passed. The main
+smoke now checks floor support near the parked ship instead of the old 6 km test
+location. Seven texture RID leaks remain on graphical teardown.
+
+The Windows export completed and the packaged build reached
+`NEXT_INTEGRATION_OK` under Proton Experimental in hidden Gamescope/Vulkan,
+including the revised parked-ship interior check. The SDR white-level warning
+persists; the ZIP contains the rebuilt executable and pack.
+The Proton/Gamescope wrapper remained alive after game completion and was
+terminated by the 55-second timeout (exit 137), not a clean wrapper exit.

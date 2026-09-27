@@ -75,3 +75,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Replace public large-berth deck, connector, markings, boarding kiosk and directional signs with authored station assets; preserve the maximum hull clearance and continuous walkway around approach spars.
 
 - [ ] Author station service-room kits and numbered wayfinding for market, company, shipyard, contracts, faction and construction rooms; retain shared doorway dimensions, corridor connectivity and service interaction points.
+
+- [ ] Replace ship interior kits within the exterior-compatible 2.8 m cell spacing and 2.45 m room height; preserve capsule clearance, deck-up orientation, window apertures and floor anchors 1.23 m below each module center.

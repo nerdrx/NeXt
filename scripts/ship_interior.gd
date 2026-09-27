@@ -1,7 +1,8 @@
 class_name ShipInterior
 extends Node3D
 
-const CELL := Vector3(2.8, 3.1, 2.8)
+const CELL := Vector3.ONE * 2.8
+const WALL_HEIGHT := 2.45
 var modules: Array[Dictionary] = []
 var decks: Array[int] = []
 var cockpit_position := Vector3.ZERO
@@ -28,19 +29,19 @@ func build(blueprint: Array[Dictionary], layout: Dictionary = {}) -> void:
 			var neighbor := Vector3i(int(module.x), int(module.y), int(module.z)) + axis
 			var adjacent: bool = _has_cell(neighbor)
 			var offset := Vector3(axis) * Vector3(1.4, 0, 1.4)
-			var size := Vector3(0.1, 2.7, 2.8) if axis.x != 0 else Vector3(2.8, 2.7, 0.1)
+			var size := Vector3(0.1, WALL_HEIGHT, 2.8) if axis.x != 0 else Vector3(2.8, WALL_HEIGHT, 0.1)
 			if not adjacent:
 				var face := _face_for_axis(axis)
 				_outer_wall(center, offset, size, face, str(panels.get(face, "standard")))
 			else:
 				var side := Vector3(0, 0, 1) if axis.x != 0 else Vector3(1, 0, 0)
 				for direction in [-1, 1]:
-					_box(center + offset + side * direction * 1.12 + Vector3(0, 1.35, 0), Vector3(0.18, 2.7, 0.38) if axis.x != 0 else Vector3(0.38, 2.7, 0.18), Color("4a606d"), true)
-				_box(center + offset + Vector3(0, 2.55, 0), Vector3(0.2, 0.3, 2.8) if axis.x != 0 else Vector3(2.8, 0.3, 0.2), Color("4a606d"), true)
+					_box(center + offset + side * direction * 1.12 + Vector3(0, WALL_HEIGHT * 0.5, 0), Vector3(0.18, WALL_HEIGHT, 0.38) if axis.x != 0 else Vector3(0.38, WALL_HEIGHT, 0.18), Color("4a606d"), true)
+				_box(center + offset + Vector3(0, 2.3, 0), Vector3(0.2, 0.3, 2.8) if axis.x != 0 else Vector3(2.8, 0.3, 0.2), Color("4a606d"), true)
 		_equipment(center, kind, room_type)
 		_room_furnishing(center, room_type)
 		var lamp := OmniLight3D.new()
-		lamp.position = center + Vector3(0, 2.4, 0)
+		lamp.position = center + Vector3(0, 2.3, 0)
 		lamp.light_color = Color("b9d9eb")
 		lamp.light_energy = 0.65
 		lamp.omni_range = 4.3
@@ -51,20 +52,20 @@ func _floor(center: Vector3, room_type: String, panels: Dictionary) -> void:
 	var ceiling_type: String = str(panels.get("+y", "standard"))
 	var floor_color := Color("23313c") if floor_type == "standard" else (Color("39464d") if floor_type == "armored" else Color("174c60"))
 	var ceiling_color := Color("314451") if ceiling_type == "standard" else (Color("465158") if ceiling_type == "armored" else Color("174c60"))
-	_box(center + Vector3(0, -0.12, 0), Vector3(2.8, 0.24, 2.8), floor_color, true)
-	_box(center + Vector3(0, 2.8, 0), Vector3(2.8, 0.18, 2.8), ceiling_color, true)
+	_box(center + Vector3(0, -0.01, 0), Vector3(2.8, 0.02, 2.8), floor_color, true)
+	_box(center + Vector3(0, WALL_HEIGHT, 0), Vector3(2.8, 0.02, 2.8), ceiling_color, true)
 	if floor_type == "window":
 		_box(center + Vector3(0, 0.014, 0), Vector3(1.85, 0.025, 1.85), Color(0.08, 0.27, 0.35, 0.7))
 	if ceiling_type == "window":
-		_box(center + Vector3(0, 2.69, 0), Vector3(1.85, 0.025, 1.85), Color(0.08, 0.27, 0.35, 0.7))
+		_box(center + Vector3(0, WALL_HEIGHT - 0.02, 0), Vector3(1.85, 0.025, 1.85), Color(0.08, 0.27, 0.35, 0.7))
 	for x in [-0.8, 0.8]:
 		_box(center + Vector3(x, 0.014, 0), Vector3(0.022, 0.018, 2.5), Color("587c83"))
-	_box(center + Vector3(0, 2.68, 0), Vector3(0.13, 0.04, 1.9), Color("bce7e5"), false, true)
+	_box(center + Vector3(0, 2.34, 0), Vector3(0.13, 0.04, 1.9), Color("bce7e5"), false, true)
 	var label := Label3D.new()
 	label.text = room_type.to_upper() + "  /  DECK " + str(int(round(center.y / CELL.y)))
 	label.font_size = 40
 	label.pixel_size = 0.003
-	label.position = center + Vector3(0, 2.3, -1.22)
+	label.position = center + Vector3(0, 2.2, -1.22)
 	label.modulate = Color("89d5dc")
 	add_child(label)
 	if floor_type == "armored" or ceiling_type == "armored":
@@ -74,34 +75,34 @@ func _floor(center: Vector3, room_type: String, panels: Dictionary) -> void:
 
 func _outer_wall(center: Vector3, offset: Vector3, size: Vector3, face: String, panel_type: String) -> void:
 	var wall_color := Color("253745") if panel_type == "standard" else (Color("4b5559") if panel_type == "armored" else Color("101d24"))
-	var wall := _box(center + offset + Vector3(0, 1.35, 0), size, wall_color, true)
+	var wall := _box(center + offset + Vector3(0, WALL_HEIGHT * 0.5, 0), size, wall_color, true)
 	if panel_type == "window":
 		# Keep the solid collision wall behind the pane: windows never make pressure gaps.
 		wall.visible = false
-		var window_center := center + offset * 0.985 + Vector3(0, 1.35, 0)
+		var window_center := center + offset * 0.985 + Vector3(0, WALL_HEIGHT * 0.5, 0)
 		var pane_size := Vector3(0.035, 1.28, 1.78) if face in ["+x", "-x"] else Vector3(1.78, 1.28, 0.035)
 		_box(window_center, pane_size, Color(0.08, 0.27, 0.35, 0.58))
 		var frame := Color("78898b")
 		if face in ["+x", "-x"]:
 			# Opaque side panels and sill/lintel close all wall area outside the window frame.
 			for side in [-1.0, 1.0]:
-				_box(window_center + Vector3(0, 0, side * 1.19), Vector3(0.1, 2.7, 0.42), wall_color)
-				_box(window_center + Vector3(0, side * 1.03, 0), Vector3(0.1, 0.64, 1.98), wall_color)
+				_box(window_center + Vector3(0, 0, side * 1.19), Vector3(0.1, WALL_HEIGHT, 0.42), wall_color)
+				_box(window_center + Vector3(0, side * 0.95, 0), Vector3(0.1, 0.55, 1.98), wall_color)
 				_box(window_center + Vector3(0, 0, side * 0.935), Vector3(0.12, 1.5, 0.11), frame)
 				_box(window_center + Vector3(0, side * 0.655, 0), Vector3(0.12, 0.11, 1.9), frame)
 		else:
 			for side in [-1.0, 1.0]:
-				_box(window_center + Vector3(side * 1.19, 0, 0), Vector3(0.42, 2.7, 0.1), wall_color)
-				_box(window_center + Vector3(side * 1.03, 0, 0), Vector3(1.98, 0.64, 0.1), wall_color)
+				_box(window_center + Vector3(side * 1.19, 0, 0), Vector3(0.42, WALL_HEIGHT, 0.1), wall_color)
+				_box(window_center + Vector3(side * 0.95, 0, 0), Vector3(1.98, 0.55, 0.1), wall_color)
 				_box(window_center + Vector3(side * 0.935, 0, 0), Vector3(0.11, 1.5, 0.12), frame)
 				_box(window_center + Vector3(side * 0.655, 0, 0), Vector3(1.9, 0.11, 0.12), frame)
 	elif panel_type == "armored":
 		if face in ["+x", "-x"]:
 			for z in [-0.82, 0.82]:
-				_box(center + offset * 0.96 + Vector3(0, 1.35, z), Vector3(0.1, 2.5, 0.09), Color("718087"))
+				_box(center + offset * 0.96 + Vector3(0, WALL_HEIGHT * 0.5, z), Vector3(0.1, WALL_HEIGHT - 0.2, 0.09), Color("718087"))
 		else:
 			for x in [-0.82, 0.82]:
-				_box(center + offset * 0.96 + Vector3(x, 1.35, 0), Vector3(0.09, 2.5, 0.1), Color("718087"))
+				_box(center + offset * 0.96 + Vector3(x, WALL_HEIGHT * 0.5, 0), Vector3(0.09, WALL_HEIGHT - 0.2, 0.1), Color("718087"))
 	else:
 		_box(center + offset * 0.96 + Vector3(0, 1.9, 0), Vector3(0.025, 0.025, 2.4) if face in ["+x", "-x"] else Vector3(2.4, 0.025, 0.025), Color("55c6d0"), false, true)
 
@@ -168,7 +169,7 @@ func _room_furnishing(center: Vector3, room_type: String) -> void:
 
 func spawn_on_deck(deck: int) -> Vector3:
 	var pos: Vector3 = lift_positions.get(deck, cockpit_position)
-	return global_position + pos + Vector3(0, 0.15, 0)
+	return to_global(pos + Vector3(0, 0.15, 0))
 
 func _has_cell(cell: Vector3i) -> bool:
 	for item: Dictionary in modules:
