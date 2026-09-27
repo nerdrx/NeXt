@@ -6,6 +6,12 @@ const MAX_SHIPS: int = 50
 const TRIP_SECONDS: float = 300.0
 const STATION_SECONDS: float = 900.0
 const MAX_STOCK: int = 10000
+# Raw outputs draw on abstract extraction/farming; manufactured outputs consume stock.
+const PRODUCTION_INPUTS: Dictionary = {
+	"ore": {}, "alloys": {"ore": 2, "fuel": 1}, "food": {}, "fuel": {},
+	"medicine": {"food": 1, "fuel": 1}, "electronics": {"alloys": 1, "fuel": 1},
+	"luxuries": {"electronics": 1, "alloys": 1},
+}
 const BASE: Dictionary = {"ore": 35, "alloys": 115, "food": 18, "fuel": 52, "medicine": 95, "electronics": 140, "luxuries": 210}
 var state: GameState
 
@@ -125,6 +131,26 @@ func unload_fleet_cargo(ship_id: String, good: String, quantity: int) -> String:
 	ship.cargo[key] = int(ship.cargo[key]) - quantity
 	state.credits += revenue
 	return ""
+
+# The scene must enforce docking at this station before cargo transfer.
+func deposit_station_stock(station_index: int, good: String, quantity: int) -> String:
+	if station_index < 0 or station_index >= state.stations.size(): return "Owned station does not exist."
+	var station: Dictionary = state.stations[station_index]
+	var key: String = good.to_lower()
+	if int(station.system) != state.system_index: return "Station is in a different system."
+	if not GameState.GOODS.has(key) or quantity <= 0 or quantity > int(state.cargo.get(key, 0)): return "Invalid station supply quantity."
+	var stock: Dictionary = station.get("stock", {})
+	if quantity > MAX_STOCK - int(stock.get(key, 0)): return "Station storage is full."
+	stock[key] = int(stock.get(key, 0)) + quantity
+	station.stock = stock
+	state.cargo[key] = int(state.cargo[key]) - quantity
+	return ""
+
+func station_recipe(station_index: int) -> Dictionary:
+	if station_index < 0 or station_index >= state.stations.size(): return {}
+	var station: Dictionary = state.stations[station_index]
+	var good: String = str(PRODUCTION_INPUTS.keys()[int(station.system) % PRODUCTION_INPUTS.size()])
+	return {"good": good, "inputs": PRODUCTION_INPUTS[good].duplicate(), "batch_limit": int(station.level)}
 
 # Station UI must gate this action on being docked at the owned station.
 func withdraw_station_stock(station_index: int, good: String, quantity: int) -> String:
@@ -255,12 +281,18 @@ func _station_leg(order: Dictionary) -> Dictionary:
 	if index < 0 or index >= state.stations.size(): return {"kind": "station", "status": "station missing", "crew_id": order.crew_id}
 	var station: Dictionary = state.stations[index]
 	var stock: Dictionary = station.get("stock", {})
-	var good: String = str(["ore", "alloys", "food", "fuel", "medicine", "electronics", "luxuries"][int(station.system) % 7])
-	var amount: int = mini(int(station.level), MAX_STOCK - int(stock.get(good, 0)))
+	var recipe := station_recipe(index)
+	var good: String = recipe.good
+	var amount: int = mini(int(recipe.batch_limit), MAX_STOCK - int(stock.get(good, 0)))
 	if amount <= 0: return {"kind": "station", "status": "storage full", "crew_id": order.crew_id, "station": station.name}
+	for input: String in recipe.inputs:
+		amount = mini(amount, int(stock.get(input, 0)) / int(recipe.inputs[input]))
+	if amount <= 0: return {"kind": "station", "status": "waiting: production inputs missing", "crew_id": order.crew_id, "station": station.name}
+	for input: String in recipe.inputs:
+		stock[input] = int(stock[input]) - int(recipe.inputs[input]) * amount
 	stock[good] = int(stock.get(good, 0)) + amount
 	station.stock = stock
-	order.produced = int(order.produced) + amount
+	order.produced = mini(int(order.produced), 9223372036854775807 - amount) + amount
 	return {"kind": "station", "status": "production complete", "crew_id": order.crew_id, "station": station.name, "good": good, "quantity": amount, "stock": int(stock[good])}
 
 func _member(id: String) -> Dictionary:

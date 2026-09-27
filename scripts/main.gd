@@ -1769,6 +1769,19 @@ func _integration_check() -> void:
 	var market_wallet := market_probe.credits
 	if not _check(market_probe.trade("ore", 10, true).is_empty() and market_probe.market_stock("ore") == market_supply - 10, "player buying reduces finite supply"): return
 	if not _check(market_probe.trade("ore", 10, false).is_empty() and market_probe.market_stock("ore") == market_supply and market_probe.credits <= market_wallet, "marginal stock quotes prevent roundtrip money creation"): return
+	var industry_probe := GameState.new()
+	industry_probe.system_index = 1
+	industry_probe.cargo.alloys = 20
+	if not _check(industry_probe.build_station("Integration Foundry").is_empty() and industry_probe.hire("engineer").is_empty(), "foundry and engineer commissioned"): return
+	var industry_orders := CrewOrders.new(industry_probe)
+	if not _check(industry_orders.assign_station_manager(str(industry_probe.crew[0].id), 0).is_empty(), "assign foundry engineer"): return
+	industry_orders.tick(900)
+	if not _check(int(industry_probe.stations[0].stock.get("alloys", 0)) == 0, "manufacturing cannot create output without inputs"): return
+	industry_probe.cargo.ore = 2
+	industry_probe.cargo.fuel = 1
+	if not _check(industry_orders.deposit_station_stock(0, "ore", 2).is_empty() and industry_orders.deposit_station_stock(0, "fuel", 1).is_empty(), "supply foundry from actual cargo"): return
+	industry_orders.tick(900)
+	if not _check(industry_probe.stations[0].stock.alloys == 1 and industry_probe.stations[0].stock.ore == 0 and industry_probe.stations[0].stock.fuel == 0, "foundry consumes inputs exactly once"): return
 	var heat_probe := GameState.new()
 	heat_probe.drive_temperature_k = 699.0
 	var heat_limited_velocity := heat_probe.consume_propulsion(Vector3(100, 0, 0), Vector3.ZERO)
@@ -2410,8 +2423,12 @@ func sell_fleet_cargo(ship_id: String, good: String, amount: int) -> String:
 	if pilot.flying or aboard: return "Dock to arrange fleet cargo clearance."
 	return crew_operations().unload_fleet_cargo(ship_id, good, amount)
 
+func supply_station_stock(station_index: int, good: String, amount: int) -> String:
+	if pilot.flying or aboard or docked_station != station_index: return "Dock at this station to deliver supplies."
+	return crew_operations().deposit_station_stock(station_index, good, amount)
+
 func collect_station_stock(station_index: int, good: String, amount: int) -> String:
-	if pilot.flying or aboard: return "Dock to request a station cargo delivery."
+	if pilot.flying or aboard or docked_station != station_index: return "Dock at this station to collect cargo."
 	return crew_operations().withdraw_station_stock(station_index, good, amount)
 
 func steam_app_id() -> int:

@@ -456,10 +456,23 @@ func _stations() -> void:
 			_act(s.upgrade_station.bind(index), "Station expanded.")
 			game.rebuild_owned_stations())
 		_station_rooms(index, station)
+		var recipe: Dictionary = game.crew_operations().station_recipe(index)
+		var inputs: PackedStringArray = []
+		for good: String in recipe.inputs: inputs.append("%d %s" % [recipe.inputs[good], good])
+		_text("INDUSTRY / %s / up to %d units per 15 minutes with an assigned engineer" % [str(recipe.good).capitalize(), recipe.batch_limit], 15, InterfaceTheme.CYAN)
+		_text("Per unit: " + (", ".join(inputs) if not inputs.is_empty() else "local extraction / farming") + ". Wages apply while waiting for supplies.", 14, InterfaceTheme.MUTED)
+		for good: String in recipe.inputs:
+			var supply := _row()
+			supply.add_child(InterfaceTheme.label("%s / %d in storage" % [good.capitalize(), int(station.get("stock", {}).get(good, 0))], 16))
+			for amount: int in [1, 10]:
+				var button := InterfaceTheme.button("SUPPLY %d" % amount, _act.bind(game.supply_station_stock.bind(index, good, amount), "Supplies delivered to station storage."))
+				button.disabled = game.pilot.flying or game.aboard or game.docked_station != index or int(station.system) != s.system_index or int(s.cargo.get(good, 0)) < amount or int(station.get("stock", {}).get(good, 0)) > CrewOrders.MAX_STOCK - amount
+				supply.add_child(button)
 		for good: String in station.get("stock", {}):
 			var amount: int = int(station.stock[good])
 			if amount <= 0: continue
-			_button("COLLECT %d %s" % [amount, good.to_upper()], _act.bind(game.collect_station_stock.bind(index, good, amount), "Station stock delivered to your hold."), game.pilot.flying or game.aboard or int(station.system) != s.system_index)
+			var load_amount: int = mini(amount, int(s.ship_stats().cargo_capacity) - s.cargo_total())
+			_button("LOAD %d / %d %s STORED" % [load_amount, amount, good.to_upper()], _act.bind(game.collect_station_stock.bind(index, good, load_amount), "Station stock delivered to your hold."), load_amount <= 0 or game.pilot.flying or game.aboard or game.docked_station != index or int(station.system) != s.system_index)
 
 func _station_rooms(index: int, station: Dictionary) -> void:
 	var rooms := StationLayout.rooms_for(station)

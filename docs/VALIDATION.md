@@ -877,3 +877,14 @@ State, crew, faction pricing, local traders and visit regressions passed. Native
 Windows export completed and the main-entrypoint integration passed under Proton in hidden Gamescope. The new market-supply capture was inspected: available stock and whole-order prices fit the exchange layout. No script/shader errors appeared; the usual SDR white-level warning remains. This is not a performance benchmark or proof of shared multiplayer exchange authority. No art assets changed.
 
 The Proton wrapper required timeout cleanup after NEXT_INTEGRATION_OK (exit 137), and the Windows ZIP was rebuilt.
+
+
+## Supplied station industry
+
+STATION_INDUSTRY_OK covers missing-input stalls, input-limited partial batches, every manufactured recipe, exact input depletion, full-output rejection without consumption, saved work resumed at its remaining second, output entering finite exchange supply, invalid/remote/full-storage delivery rejection, and a saturating production counter. The save fixture initially changed the system without recording a visit; using normal jump travel corrected the fixture. Existing raw-material station production and station docking regressions pass.
+
+Review identified destination access and counter-overflow gaps. Supply and collection now require the exact owned-station dock, including the UI disabled state. The actual-scene check rejects a public concourse and flight/interior access, docks through the normal interaction, supplies inventory and presses the collection button. Collection fills remaining hold capacity even when the station stockpile is larger. The focused check passes headlessly and under hidden Gamescope; its station-industry capture is inspected. An earlier graphical teardown reported seven Texture RIDs; the final focused graphical run exited without that warning, with no script/shader failure; this is not a leak-free soak claim.
+
+Native main-entrypoint integration passes with release-safe foundry shortage, input delivery and one-time consumption checks. No new save schema or art assets were introduced. Raw extraction/farming reserves, industry energy/heat and automated factory freight remain approximations or unfinished.
+
+The final Windows export passed its Proton main-entrypoint integration in hidden Gamescope without script/shader errors. The usual SDR warning remained and the wrapper required timeout cleanup after NEXT_INTEGRATION_OK (exit 137). The Windows ZIP was rebuilt. The preceding finite-market commit completed both public CI runs successfully.
