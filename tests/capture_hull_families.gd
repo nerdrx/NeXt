@@ -61,6 +61,9 @@ func _capture() -> void:
 		_frame_camera(camera, Vector3.ZERO, extent, Vector3(1.25, 0.9, -1.6))
 		camera.make_current()
 		await _save_capture("family-%s-exterior.png" % family_id)
+		_frame_camera(camera, Vector3.ZERO, extent, Vector3(1.25, 0.9, 1.6))
+		camera.make_current()
+		await _save_capture("family-%s-rear.png" % family_id)
 
 		visual.hide()
 		interior.show()

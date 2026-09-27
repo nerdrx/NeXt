@@ -53,3 +53,6 @@ Do not create a separate cosmetic fleet catalogue that claims boarding support. 
 
 
 Fleet commissioning can now choose the Pathfinder or Merchant blueprint. These purchased ships keep their selected family when orders change and render through `ShipVisual`; legacy utility vessels retain their existing exterior placeholders. This establishes shared family geometry for owned traffic, not fleet boarding or editable fleet rooms. Family definitions must retain stable capacity until a deliberate save migration exists.
+
+
+The modular exterior roof now uses paired sealed cargo hatches, louvers, ventilation covers and a capped shield housing instead of glowing module symbols. Painted fittings use low metallic response, canopy trim is non-emissive, and armor faces use flat normals to avoid triangular highlight warping. Rear capture exposed an engine brace crossing each exhaust aperture; mounts now sit above the opening. These detail corrections do not resolve the larger hulls' rectangular blockout silhouettes.

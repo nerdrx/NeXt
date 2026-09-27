@@ -56,6 +56,15 @@ func _run() -> void:
 		await process_frame
 	# Surface fittings must remain visible after pressure-envelope dimensions change.
 	var material := StandardMaterial3D.new()
+	var armor_probe := ShipVisual.new()
+	root.add_child(armor_probe)
+	armor_probe._add_bevelled_plate(Vector3.ZERO, Vector3(0.92, 0.065, 1.82), material, 0.025)
+	var armor_mesh := armor_probe.get_child(0) as MeshInstance3D
+	var arrays := armor_mesh.mesh.surface_get_arrays(0)
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	for triangle in range(0, normals.size(), 3):
+		assert(normals[triangle].is_equal_approx(normals[triangle+1]) and normals[triangle].is_equal_approx(normals[triangle+2]), "armor triangles retain flat normals without warped specular shading")
+	armor_probe.free()
 	for face: String in ShipLayout.FACES:
 		for fitting in ["armored", "window", "radiator"]:
 			var visual := ShipVisual.new()

@@ -980,3 +980,10 @@ The fleet-family regression passed blueprint drive values, actual one-step motio
 ## Braking-aware fleet obstacle sweeps — 2026-09-28
 
 AI steering now uses available acceleration for its obstacle horizon and separately checks the ship's current inertial stopping path. Regression tests place a real wall 400 m ahead: weak braking detects it both while coasting toward it with a sideways command and while planning from rest; stronger braking preserves clear commands when the wall remains outside its stopping horizon. Existing finite-wall progress, direct-path recovery and enclosed-stop cases still pass. Native headless and hidden Gamescope avoidance checks passed, alongside fleet family, thermal and fleet combat regressions. Windows export succeeded. Local heuristic avoidance is not global pathfinding or a general collision-free guarantee.
+
+
+## Modular roof equipment and armor shading — 2026-09-28
+
+Replaced emissive roof symbols with mechanical service covers, vents and paired cargo hatches; lowered painted fitting metalness and removed canopy/trim emission. Flat armor normals fix warped triangular highlights, and engine braces no longer obscure the exhaust disks. The family capture now includes rear views as well as exterior/cutaway views.
+
+Blueprint containment and new flat-normal regression passed; fleet-family integration passed. Six actual renderer captures completed under hidden Gamescope, and Pathfinder front/rear views were inspected during correction. The silhouettes remain rectangular pressure blockouts, not accepted ship art. Windows export succeeded; Proton runtime remains unverified.

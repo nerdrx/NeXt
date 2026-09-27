@@ -18,10 +18,10 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 	var plate_mat := _material(Color("64788a"), 0.42, 0.0)
 	var inset_mat := _material(Color("34495c"), 0.62, 0.0)
 	var dark_mat := _material(Color("111e2b"), 0.8, 0.0)
-	var accent_mat := _material(accent, 0.28, 0.85)
+	var accent_mat := _material(accent.darkened(0.3), 0.52, 0.0)
 	var warm_mat := _material(Color("ffbd74"), 0.25, 2.5)
-	var canopy_mat := _material(Color("168195"), 0.12, 0.15)
-	var glass_trim := _material(Color("9ceeff"), 0.18, 0.7)
+	var canopy_mat := _material(Color("12252c"), 0.16, 0.0)
+	var glass_trim := _material(Color("758189"), 0.36, 0.0)
 	var armor_panel := _material(Color("86949c"), 0.38, 0.0)
 	var panel_glass := _material(Color(0.06, 0.23, 0.3, 0.8), 0.14, 0.0)
 	var radiator_body := _material(Color("202b34"), 0.72, 0.0)
@@ -63,7 +63,7 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 		shell.mesh = HullGeometry.prism(Array(outline),-ShipBlueprint.PRESSURE_SIZE.y*0.5,ShipBlueprint.PRESSURE_SIZE.y*0.5)
 		var paint := ShaderMaterial.new()
 		paint.shader = preload("res://shaders/fleet_surface.gdshader")
-		paint.set_shader_parameter("paint",Color("858e95") if ShipBlueprint.family_for_cells(cells) == "pathfinder" else Color("928d7f"))
+		paint.set_shader_parameter("paint",Color("4d5960") if ShipBlueprint.family_for_cells(cells) == "pathfinder" else Color("645e51"))
 		paint.set_shader_parameter("base_roughness",0.5)
 		paint.set_shader_parameter("metalness",0.04)
 		paint.set_shader_parameter("coating",0.1)
@@ -113,7 +113,7 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 				_add_box(p + Vector3(0, 0.44, -1.56), Vector3(0.035, 0.46, 0.04), glass_trim, Vector3(-0.16, 0, 0))
 			"engine":
 				for side in [-1, 1]:
-					_add_box(p + Vector3(float(side) * 0.72, 0.45, 1.20), Vector3(0.62, 0.26, 1.7), hull_mat, Vector3(-0.05, 0, 0))
+					_add_box(p + Vector3(float(side) * 0.72, 0.96, 1.20), Vector3(0.62, 0.26, 1.7), hull_mat, Vector3(-0.05, 0, 0))
 					var mount := _add_cylinder(p + Vector3(float(side) * 0.72, 0.45, 1.56), 0.43, 0.76, dark_mat)
 					mount.rotation.x = PI * 0.5
 					var nozzle := _add_cylinder(p + Vector3(float(side) * 0.72, 0.45, 1.96), 0.3, 0.1, plate_mat)
@@ -125,34 +125,41 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 					_engines.append(core)
 					_engine_glow.append(warm_mat)
 			"reactor":
-				_add_cylinder(deck + Vector3(0, 0.08, 0), 0.56, 0.12, dark_mat)
-				_add_torus(deck + Vector3(0, 0.15, 0), 0.43, 0.5, plate_mat)
-				_add_torus(deck + Vector3(0, 0.18, 0), 0.25, 0.29, accent_mat)
-				_add_sphere(deck + Vector3(0, 0.15, 0), 0.12, warm_mat)
+				# Shielded service cover and heat-exchanger louvers, not an exposed glowing core.
+				_add_bevelled_plate(deck + Vector3(0, 0.12, 0), Vector3(1.55, 0.22, 1.9), plate_mat, 0.055)
+				_add_box(deck + Vector3(0, 0.236, 0), Vector3(1.2, 0.025, 1.45), dark_mat)
+				for z in range(8):
+					_add_box(deck + Vector3(0, 0.258, -0.59 + z * 0.17), Vector3(1.08, 0.04, 0.07), hull_mat)
 			"cargo":
-				_add_box(deck + Vector3(0, 0.06, 0), Vector3(1.8, 0.08, 1.8), dark_mat)
+				# Paired access leaves with visible seals, hinges and painted latch tabs.
+				_add_box(deck + Vector3(0, 0.035, 0), Vector3(1.98, 0.055, 1.96), dark_mat)
 				for side in [-1, 1]:
-					_add_box(deck + Vector3(float(side) * 0.91, 0.08, 0), Vector3(0.075, 0.12, 1.7), plate_mat)
-					_add_box(deck + Vector3(float(side) * 0.91, 0.09, 0), Vector3(0.035, 0.025, 1.2), accent_mat)
+					_add_bevelled_plate(deck + Vector3(float(side) * 0.475, 0.076, 0), Vector3(0.92, 0.065, 1.82), plate_mat, 0.025)
+					for z in [-0.58, 0.58]:
+						_add_box(deck + Vector3(float(side) * 0.95, 0.098, z), Vector3(0.14, 0.065, 0.22), hull_mat)
+					_add_box(deck + Vector3(float(side) * 0.12, 0.12, 0), Vector3(0.08, 0.02, 0.21), accent_mat)
 			"weapon":
 				_add_box(deck + Vector3(0, 0.09, -0.2), Vector3(0.52, 0.16, 1.9), hull_mat, Vector3(-0.06, 0, 0))
 				for side in [-1, 1]:
 					_add_cylinder(deck + Vector3(float(side) * 0.4, 0.17, -0.7), 0.09, 1.4, plate_mat)
 					_add_cylinder(deck + Vector3(float(side) * 0.4, 0.17, -1.39), 0.05, 0.04, warm_mat)
 			"shield":
-				_add_cylinder(deck + Vector3(0, 0.08, 0), 0.58, 0.12, dark_mat)
-				_add_torus(deck + Vector3(0, 0.15, 0), 0.26, 0.34, accent_mat)
+				_add_bevelled_plate(deck + Vector3(0, 0.13, 0), Vector3(1.25, 0.25, 1.35), plate_mat, 0.09)
+				_add_bevelled_plate(deck + Vector3(0, 0.28, 0), Vector3(0.92, 0.08, 1.02), dark_mat, 0.025)
 				for side in [-1, 1]:
-					_add_box(deck + Vector3(float(side) * 0.7, 0.12, 0), Vector3(0.09, 0.2, 0.32), plate_mat)
+					_add_box(deck + Vector3(float(side) * 0.51, 0.32, 0.15), Vector3(0.07, 0.26, 0.15), hull_mat)
 			"habitat":
-				_add_cylinder(deck + Vector3(0, 0.04, 0), 0.7, 0.12, dark_mat)
-				_add_torus(deck + Vector3(0, 0.14, 0), 0.25, 0.32, accent_mat)
-				_add_box(deck + Vector3(0, 0.12, 0), Vector3(1.05, 0.1, 0.045), canopy_mat)
+				for side in [-1, 1]:
+					var vent := deck + Vector3(float(side) * 0.48, 0.07, 0)
+					_add_bevelled_plate(vent, Vector3(0.72, 0.12, 1.42), plate_mat, 0.04)
+					_add_box(vent + Vector3(0, 0.072, 0), Vector3(0.53, 0.02, 1.17), dark_mat)
+					for z in range(6):
+						_add_box(vent + Vector3(0, 0.09, -0.47 + z * 0.19), Vector3(0.51, 0.03, 0.04), hull_mat)
 			"radiator":
 				pass
 			_:
 				for side in [-1, 1]:
-					_add_box(deck + Vector3(float(side) * 0.82, 0.0, -0.1), Vector3(0.035, 0.025, 1.55), accent_mat)
+					_add_box(deck + Vector3(float(side) * 0.82, 0.0, -0.1), Vector3(0.055, 0.03, 1.55), hull_mat)
 	# Mark the bow and stern independently of module layout.
 	_add_box(Vector3(-0.52, 0.05, -bounds.z * 0.49), Vector3(0.065, 0.04, 0.13), warm_mat)
 	_add_box(Vector3(0.52, 0.05, -bounds.z * 0.49), Vector3(0.065, 0.04, 0.13), warm_mat)
@@ -269,6 +276,7 @@ func _add_bevelled_plate(pos: Vector3, size: Vector3, material: Material, bevel_
 	]
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_smooth_group(-1)
 	for layer in range(rings.size() - 1):
 		for edge in range(8):
 			var next := (edge + 1) % 8
@@ -357,7 +365,7 @@ func _material(color: Color, roughness: float, glow: float) -> StandardMaterial3
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
 	material.roughness = roughness
-	material.metallic = 0.62
+	material.metallic = 0.08
 	if color.a < 1.0:
 		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	if glow > 0.0:

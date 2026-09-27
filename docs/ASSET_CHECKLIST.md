@@ -107,3 +107,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Inspect replacement families in exterior, rear, cutaway and aboard views using `tests/capture_hull_families.gd` plus gameplay captures.
 
 - [ ] Inspect commissioned Pathfinder/Merchant traffic at gameplay distance and under thrust; they now reuse the same family pressure geometry as the shipyard. Add final family identification markings while retaining persistent registry identity.
+
+- [ ] Replace the new mechanical roof placeholders (sealed cargo leaves, heat-exchanger louvers, ventilation and shield cover) with authored serviceable assemblies. Preserve exposed exhaust openings and flat armor normals; family silhouettes still need a complete design pass.
