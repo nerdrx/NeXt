@@ -397,7 +397,7 @@ func _try_colony_landing() -> bool:
 			var cell := Vector3(module.x, module.y, module.z)
 			low = low.min(cell)
 			high = high.max(cell)
-		var size := (high - low + Vector3.ONE) * ShipVisual.CELL_SIZE
+		var size := (high - low) * ShipVisual.CELL_SIZE + ShipBlueprint.COLLISION_SIZE
 		if size.x > 42.0 or size.z > 42.0:
 			notify("Ship exceeds this port's landing pad. Find a clear planetary site.")
 			return true
@@ -560,11 +560,11 @@ func _surface_site_issue(index: int, up: Vector3) -> String:
 		var cell := Vector3(module.x, module.y, module.z)
 		low = low.min(cell)
 		high = high.max(cell)
-	var size := (high - low + Vector3.ONE) * ShipVisual.CELL_SIZE
+	var size := (high - low) * ShipVisual.CELL_SIZE + ShipBlueprint.COLLISION_SIZE
 	var ship_clearance := maxf(3.0, Vector2(size.x, size.z).length() * 0.5 + 1.0)
 	var hull_inverse := Basis(Quaternion(Vector3.UP, up)).inverse()
 	var hull_center := (low + high) * 0.5 * ShipVisual.CELL_SIZE
-	var half_cell := ShipVisual.CELL_SIZE * 0.5
+	var half_cell := ShipBlueprint.COLLISION_SIZE.x * 0.5
 	for rock: Dictionary in PlanetGeology.placements(radius, up, maxf(ship_clearance + 20.0, pilot.hull_radius + 10.0), seed, ocean):
 		var rock_up := Vector3(rock.position).normalized()
 		var clearance := float(rock.clearance_radius)
@@ -1026,7 +1026,7 @@ func _uses_large_berth() -> bool:
 		var cell := Vector3(module.x, module.y, module.z)
 		low = low.min(cell)
 		high = high.max(cell)
-	var span := (high - low + Vector3.ONE) * ShipVisual.CELL_SIZE
+	var span := (high - low) * ShipVisual.CELL_SIZE + ShipBlueprint.COLLISION_SIZE
 	return span.x > 32 or span.z > 32 or span.y > 12
 
 func _station_berth_point(station: OwnedStation, point: String) -> Vector3:
@@ -1694,7 +1694,7 @@ func _build_peer_collision(visual: ShipVisual, modules: Array, peer_id: int) -> 
 	for module: Dictionary in modules:
 		var collision := CollisionShape3D.new()
 		var box := BoxShape3D.new()
-		box.size = Vector3.ONE * ShipVisual.CELL_SIZE
+		box.size = ShipBlueprint.COLLISION_SIZE
 		collision.shape = box
 		collision.position = Vector3(module.x, module.y, module.z) * ShipVisual.CELL_SIZE - center
 		body.add_child(collision)
@@ -2272,16 +2272,12 @@ func enter_interior() -> void:
 	return_basis = pilot.basis
 	return_up = pilot.up_direction
 	var hull_transform: Transform3D = Transform3D(pilot.camera.global_basis, pilot.global_position) if pilot.flying else ship_display.global_transform
-	var low := Vector3(16, 16, 16)
-	var high := Vector3(-16, -16, -16)
+	var interior_cells: Array[Vector3i] = []
 	for module: Dictionary in state.ship_modules:
-		var cell := Vector3(module.x, module.y, module.z)
-		low = low.min(cell)
-		high = high.max(cell)
-	var module_center := (low + high) * 0.5 * ShipVisual.CELL_SIZE
+		interior_cells.append(Vector3i(module.x, module.y, module.z))
 	interior = ShipInterior.new()
 	add_child(interior)
-	interior.global_transform = hull_transform * Transform3D(Basis.IDENTITY, -module_center - Vector3.UP * 1.23)
+	interior.global_transform = hull_transform * Transform3D(Basis.IDENTITY, ShipBlueprint.interior_offset(interior_cells))
 	interior.build(state.ship_modules, state.ship_layout)
 	if return_flying:
 		coasting_hull = CoastingHull.new()

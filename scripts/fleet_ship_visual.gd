@@ -151,9 +151,16 @@ func _build_fighter(armor: Material, dark_armor: Material, inset: Material, fram
 		_box(Vector3(side * 1.16, -0.06, 3.58), Vector3(0.58, 0.42, 1.40), inset, Vector3(0, side * -0.12, 0))
 		_box(Vector3(side * 1.14, 0.22, 3.60), Vector3(0.20, 0.18, 1.56), frame, Vector3(0, side * -0.12, 0))
 		_box(Vector3(side * 1.55, 0.10, 3.52), Vector3(0.17, 0.16, 1.48), dark_armor, Vector3(0, side * -0.1, 0))
-		# antenna and sensor blister on each outer shoulder
-		_box(Vector3(side * 3.55, 0.34, 1.0), Vector3(0.34, 0.26, 0.40), dark_armor, Vector3(0, side * -0.2, 0))
-		_sphere(Vector3(side * 3.54, 0.52, 1.0), 0.11, frame)
+		# Flush optical package sits behind a slanted protective brow.
+		_side_prism([Vector2(0.24,0.70), Vector2(0.39,0.83), Vector2(0.40,1.15), Vector2(0.24,1.28)], side*3.55-0.16, side*3.55+0.16, dark_armor)
+		var lens := _cylinder(Vector3(side*3.55,0.31,0.73), 0.065, 0.025, black)
+		lens.rotation.x = PI*0.5
+		# Recessed access fasteners and painted service stencils establish equipment scale.
+		for dz in [-0.22, 0.22]:
+			for dx in [-0.21, 0.21]:
+				_cylinder(Vector3(side*3.28+dx,0.237,0.30+dz),0.016,0.008,frame)
+		_stencil("RCS / KEEP CLEAR", Vector3(side*3.34,0.24,1.02),0.00125,Color("252a2b"))
+		_stencil("NX-07", Vector3(side*1.78,0.242,-1.66),0.0021,Color("303638"))
 
 
 func _build_freighter(armor: Material, dark_armor: Material, inset: Material, frame: Material, accent: Material) -> void:
@@ -256,25 +263,94 @@ func _loft(sections: Array[Vector3], material: Material, origin: Vector3 = Vecto
 
 func _poly_prism(points: Array, y0: float, y1: float, material: Material) -> void:
 	var vertices := PackedVector2Array(points)
+	if Geometry2D.is_polygon_clockwise(vertices): vertices.reverse()
+	var bevel := minf(0.015, maxf(0.0, y1 - y0) * 0.25)
+	var inset_parts := Geometry2D.offset_polygon(vertices, -bevel, Geometry2D.JOIN_MITER) if bevel > 0.0 else []
+	var inset := PackedVector2Array()
+	var inset_triangles := PackedInt32Array()
+	if inset_parts.size() == 1:
+		inset = inset_parts[0]
+		if Geometry2D.is_polygon_clockwise(inset): inset.reverse()
+		inset = _align_offset_vertices(vertices, inset, bevel)
+		if inset.size() == vertices.size():
+			inset_triangles = Geometry2D.triangulate_polygon(inset)
+			if inset_triangles.size() != (inset.size() - 2) * 3:
+				inset = PackedVector2Array()
+		else:
+			inset = PackedVector2Array()
+	var bevelled := not inset.is_empty()
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st.set_smooth_group(-1)
-	if Geometry2D.is_polygon_clockwise(vertices): vertices.reverse()
-	var triangles := Geometry2D.triangulate_polygon(vertices)
-	for i in range(0, triangles.size(), 3):
-		var a := vertices[triangles[i]]
-		var b := vertices[triangles[i+1]]
-		var c := vertices[triangles[i+2]]
+	var top_vertices: PackedVector2Array = inset if bevelled else vertices
+	var top_triangles: PackedInt32Array = inset_triangles if bevelled else Geometry2D.triangulate_polygon(vertices)
+	var bottom_triangles := Geometry2D.triangulate_polygon(vertices)
+	for i in range(0, top_triangles.size(), 3):
+		var a := top_vertices[top_triangles[i]]
+		var b := top_vertices[top_triangles[i + 1]]
+		var c := top_vertices[top_triangles[i + 2]]
 		_add_oriented_triangle(st, Vector3(a.x, y1, a.y), Vector3(b.x, y1, b.y), Vector3(c.x, y1, c.y), Vector3.UP)
+	if bevelled:
+		var bevel_y := y1 - bevel
+		for i in vertices.size():
+			var j := (i + 1) % vertices.size()
+			var edge := vertices[j] - vertices[i]
+			var outward := Vector3(edge.y, 0, -edge.x).normalized()
+			var a := Vector3(vertices[i].x, y0, vertices[i].y)
+			var b := Vector3(vertices[j].x, y0, vertices[j].y)
+			var c := Vector3(vertices[j].x, bevel_y, vertices[j].y)
+			var d := Vector3(vertices[i].x, bevel_y, vertices[i].y)
+			_add_oriented_triangle(st, a, b, c, outward)
+			_add_oriented_triangle(st, a, c, d, outward)
+			var top_a := Vector3(inset[i].x, y1, inset[i].y)
+			var top_b := Vector3(inset[j].x, y1, inset[j].y)
+			var bevel_normal := (outward + Vector3.UP).normalized()
+			_add_oriented_triangle(st, d, c, top_b, bevel_normal)
+			_add_oriented_triangle(st, d, top_b, top_a, bevel_normal)
+	else:
+		for i in vertices.size():
+			var j := (i + 1) % vertices.size()
+			var edge := vertices[j] - vertices[i]
+			var outward := Vector3(edge.y, 0, -edge.x)
+			_add_oriented_triangle(st, Vector3(vertices[i].x, y0, vertices[i].y), Vector3(vertices[j].x, y0, vertices[j].y), Vector3(vertices[j].x, y1, vertices[j].y), outward)
+			_add_oriented_triangle(st, Vector3(vertices[i].x, y0, vertices[i].y), Vector3(vertices[j].x, y1, vertices[j].y), Vector3(vertices[i].x, y1, vertices[i].y), outward)
+	# Original triangulation preserves concave bottom footprints for both paths.
+	for i in range(0, bottom_triangles.size(), 3):
+		var a := vertices[bottom_triangles[i]]
+		var b := vertices[bottom_triangles[i + 1]]
+		var c := vertices[bottom_triangles[i + 2]]
 		_add_oriented_triangle(st, Vector3(a.x, y0, a.y), Vector3(b.x, y0, b.y), Vector3(c.x, y0, c.y), Vector3.DOWN)
-	for i in vertices.size():
-		var j := (i + 1) % vertices.size()
-		var edge := vertices[j] - vertices[i]
-		var outward := Vector3(edge.y, 0, -edge.x)
-		_add_oriented_triangle(st, Vector3(vertices[i].x, y0, vertices[i].y), Vector3(vertices[j].x, y0, vertices[j].y), Vector3(vertices[j].x, y1, vertices[j].y), outward)
-		_add_oriented_triangle(st, Vector3(vertices[i].x, y0, vertices[i].y), Vector3(vertices[j].x, y1, vertices[j].y), Vector3(vertices[i].x, y1, vertices[i].y), outward)
 	st.generate_normals()
 	_mesh(st.commit(), material)
+
+
+func _align_offset_vertices(original: PackedVector2Array, offset: PackedVector2Array, bevel: float) -> PackedVector2Array:
+	if offset.size() != original.size(): return PackedVector2Array()
+	var best_shift := 0
+	var best_cost := INF
+	for shift in offset.size():
+		var cost := 0.0
+		for i in original.size():
+			cost += original[i].distance_squared_to(offset[(i + shift) % offset.size()])
+		if cost < best_cost:
+			best_cost = cost
+			best_shift = shift
+	var aligned := PackedVector2Array()
+	var min_x := INF
+	var min_y := INF
+	var max_x := -INF
+	var max_y := -INF
+	for point in original:
+		min_x = minf(min_x, point.x); min_y = minf(min_y, point.y)
+		max_x = maxf(max_x, point.x); max_y = maxf(max_y, point.y)
+	for i in original.size():
+		var point := offset[(i + best_shift) % offset.size()]
+		if not point.is_finite() or original[i].distance_to(point) > bevel * 4.0:
+			return PackedVector2Array()
+		if point.x < min_x - 0.0001 or point.x > max_x + 0.0001 or point.y < min_y - 0.0001 or point.y > max_y + 0.0001:
+			return PackedVector2Array()
+		aligned.append(point)
+	return aligned
 
 
 func _mirrored_plate(points: Array, side: float, y0: float, y1: float, material: Material) -> void:
@@ -472,6 +548,20 @@ func _torus(pos: Vector3, inner_radius: float, outer_radius: float, material: Ma
 	add_child(mesh)
 	mesh.position = pos
 	return mesh
+
+
+func _stencil(text: String, pos: Vector3, pixel_scale: float, color: Color) -> void:
+	var label := Label3D.new()
+	label.text = text
+	label.font_size = 48
+	label.pixel_size = pixel_scale
+	label.outline_size = 0
+	label.modulate = color
+	label.shaded = true
+	label.no_depth_test = false
+	label.rotation.x = -PI*0.5
+	label.position = pos
+	add_child(label)
 
 
 func _sphere(pos: Vector3, radius: float, material: Material) -> void:

@@ -48,9 +48,10 @@ func _capture() -> void:
 	root.size = Vector2i(1440, 900)
 	for kind in ["trade", "patrol"]:
 		visual.build(kind, "pirate" if kind == "patrol" else "player_fleet")
-		for angle in ["front", "rear"]:
+		for angle in (["front", "rear", "detail"] if kind == "patrol" else ["front", "rear"]):
 			camera.position = Vector3(8, 6, -12) if angle == "front" else Vector3(-8, 6, 12)
-			camera.look_at(Vector3(0, 0, 0))
+			if angle == "detail": camera.position = Vector3(5, 3, -7)
+			camera.look_at(Vector3(1, 0.2, -1) if angle == "detail" else Vector3.ZERO)
 			camera.current = true
 			for _frame in 32: await process_frame
 			var path := "user://fleet-%s-%s.png" % [kind, angle]

@@ -14,7 +14,7 @@ func _run() -> void:
 	await physics_frame
 	assert(hull.collision_layer == 0 and hull.collision_mask == 1, "hull only queries world collision layer")
 	assert(hull._module_shapes.size() == 2, "duplicate module cells produce one collider each")
-	assert(hull._module_shapes[0].position == Vector3(-2.8, 0, 0) and hull._module_shapes[0].shape.size == Vector3.ONE * 2.8, "module boxes match centered ShipVisual bounds")
+	assert(hull._module_shapes[0].position == Vector3(-2.8, 0, 0) and hull._module_shapes[0].shape.size == Vector3(3.0, 2.8, 3.0), "module boxes match centered ShipVisual bounds")
 	var wall := _wall(Vector3(4.05, 0, -5), Vector3(0.5, 8, 0.5))
 	await physics_frame
 	hull.velocity = Vector3(0, 0, -100)

@@ -289,18 +289,13 @@ func configure_ship_collision(modules: Array) -> void:
 	_module_collision_hash = signature
 	hull_radius = 0.9
 	if not cells.is_empty():
-		var low := cells[0]
-		var high := cells[0]
-		for cell: Vector3i in cells:
-			low = Vector3i(mini(low.x, cell.x), mini(low.y, cell.y), mini(low.z, cell.z))
-			high = Vector3i(maxi(high.x, cell.x), maxi(high.y, cell.y), maxi(high.z, cell.z))
-		var center := (Vector3(low) + Vector3(high)) * 0.5 * ShipVisual.CELL_SIZE
+		var center := ShipBlueprint.center(cells)
 		for cell: Vector3i in cells:
 			var p := Vector3(cell) * ShipVisual.CELL_SIZE - center
-			var half_cell := ShipVisual.CELL_SIZE * 0.5
-			for x in [-half_cell, half_cell]:
-				for y in [-half_cell, half_cell]:
-					for z in [-half_cell, half_cell]:
+			var half_cell := ShipBlueprint.COLLISION_SIZE * 0.5
+			for x in [-half_cell.x, half_cell.x]:
+				for y in [-half_cell.y, half_cell.y]:
+					for z in [-half_cell.z, half_cell.z]:
 						hull_radius = maxf(hull_radius, (p + Vector3(x, y, z)).length())
 	_collision_update_pending = true
 	_queue_collision_update(cells, cells.is_empty())
@@ -321,16 +316,11 @@ func _apply_ship_collision(cells: Array[Vector3i], clear: bool) -> void:
 	_module_shapes.clear()
 	_module_centers.clear()
 	if not clear:
-		var low := cells[0]
-		var high := cells[0]
-		for cell: Vector3i in cells:
-			low = Vector3i(mini(low.x, cell.x), mini(low.y, cell.y), mini(low.z, cell.z))
-			high = Vector3i(maxi(high.x, cell.x), maxi(high.y, cell.y), maxi(high.z, cell.z))
-		var center := (Vector3(low) + Vector3(high)) * 0.5 * ShipVisual.CELL_SIZE
+		var center := ShipBlueprint.center(cells)
 		for cell: Vector3i in cells:
 			var shape := CollisionShape3D.new()
 			var box := BoxShape3D.new()
-			box.size = Vector3.ONE * ShipVisual.CELL_SIZE
+			box.size = ShipBlueprint.COLLISION_SIZE
 			shape.shape = box
 			_module_centers.append(Vector3(cell) * ShipVisual.CELL_SIZE - center)
 			shape.position = _module_centers[-1]

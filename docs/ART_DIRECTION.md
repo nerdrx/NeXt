@@ -42,3 +42,11 @@ These images specify ship quality and form language. Station architecture and ch
 The fleet material draft separates dielectric paint, exposed metal and non-emissive livery, with subtle filtered roughness variation. Hard armor faces use flat normals; curved engine segments retain smoothing within each profile section. Navigation lamps and exhaust are the intentional emissive surfaces. The standalone capture uses a neutral studio reflection sky, so its glass response is not proof of the in-game space or hangar appearance.
 
 The current fleet remains below the reference quality. The main gaps are integrated canopy/interior detail, believable panel construction, authored surface wear and material variation at appropriate scales. Small noise and post-processing cannot substitute for these. Verify front/rear studio captures and gameplay lighting before accepting the assets.
+
+## Hull families and internal space
+
+The user selected a hybrid foundation: a small library of designed hull families with configurable rooms and equipment. The current compact patrol/fighter is accepted as a starter placeholder with a seated cockpit, not a walkable cabin. It must not be scaled up and presented as a habitable vessel without an interior design.
+
+Larger ships derive occupied cells, internal rooms and collision from a common metre-scale blueprint. The first Pathfinder and Merchant definitions are layout templates; their final exterior family styling and shipyard selection flow are not implemented yet. Existing custom modular construction remains supported. A 2.8 m cell pitch is distinct from the overlapping pressure envelope and collision bounds; the shell must contain real interior walls and headroom. Rooms remain limited to compatible module bays.
+
+Do not create a separate cosmetic fleet catalogue that claims boarding support. Fleet ownership, purchased family identity and boarding must eventually use the same blueprint as the player vessel. Current FleetShipVisual silhouettes remain exterior-only placeholders.

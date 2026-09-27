@@ -67,9 +67,9 @@ func _build_environment() -> void:
 	environment.ssao_radius = 2.0
 	environment.ssao_intensity = 2.0
 	environment.ssr_enabled = true
-	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	environment.tonemap_mode = Environment.TONE_MAPPER_ACES
 	environment.glow_enabled = true
-	environment.glow_intensity = 0.65
+	environment.glow_intensity = 0.25
 	_world_environment.environment = environment
 	add_child(_world_environment)
 	var fill := OmniLight3D.new()
@@ -133,6 +133,10 @@ func _build_hangar() -> void:
 	probe.position = Vector3(0, 9, 0)
 	probe.size = Vector3(100, 24, 120)
 	probe.interior = true
+	# Approximate reflected work-light fill without flooding the space outside the bay.
+	probe.ambient_mode = ReflectionProbe.AMBIENT_COLOR
+	probe.ambient_color = Color("b8c3c9")
+	probe.ambient_color_energy = 0.18
 	probe.box_projection = true
 	probe.max_distance = 150
 	add_child(probe)

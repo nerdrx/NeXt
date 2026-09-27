@@ -1,7 +1,7 @@
 class_name ShipVisual
 extends Node3D
 
-const CELL_SIZE: float = 2.8
+const CELL_SIZE: float = ShipBlueprint.CELL_SIZE
 
 var _engines: Array[MeshInstance3D] = []
 var _engine_glow: Array[StandardMaterial3D] = []
@@ -53,14 +53,14 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 	for cell in cells:
 		low = Vector3i(mini(low.x, cell.x), mini(low.y, cell.y), mini(low.z, cell.z))
 		high = Vector3i(maxi(high.x, cell.x), maxi(high.y, cell.y), maxi(high.z, cell.z))
-	var center := (Vector3(low) + Vector3(high)) * 0.5 * CELL_SIZE
+	var center := ShipBlueprint.center(cells)
 	var bounds := (Vector3(high - low) + Vector3.ONE) * CELL_SIZE
 	# Connected pressure modules form the hull; avoid a broad hidden keel that reads as a wing.
 	for cell in cells:
 		var kind: String = kinds.get(cell, "hull")
 		var p: Vector3 = Vector3(cell) * CELL_SIZE - center
 		var deck := p + Vector3(0, 1.23, 0)
-		_add_bevelled_plate(p, Vector3(2.66, 2.4, 2.66), plate_mat)
+		_add_bevelled_plate(p, ShipBlueprint.PRESSURE_SIZE, plate_mat, 0.03)
 		_add_box(p + Vector3(0, -1.24, 0), Vector3(2.48, 0.08, 2.48), dark_mat)
 		_add_box(p + Vector3(0, 0, -1.34), Vector3(1.82, 1.42, 0.035), inset_mat)
 		_add_box(p + Vector3(0, 0, 1.34), Vector3(1.82, 1.42, 0.035), inset_mat)
@@ -235,10 +235,10 @@ func set_thrust(amount: float) -> void:
 		_engines[index].scale = Vector3(1.0, 1.0 + level * 0.35, 1.0)
 
 
-func _add_bevelled_plate(pos: Vector3, size: Vector3, material: Material) -> void:
+func _add_bevelled_plate(pos: Vector3, size: Vector3, material: Material, bevel_limit: float = INF) -> void:
 	var half_x := size.x * 0.5
 	var half_z := size.z * 0.5
-	var bevel := minf(minf(size.x, size.z) * 0.1, size.y * 0.32)
+	var bevel := minf(bevel_limit, minf(minf(size.x, size.z) * 0.1, size.y * 0.32))
 	var half_y := size.y * 0.5
 	var rings: Array[PackedVector3Array] = [
 		_octagon(half_x - bevel, half_z - bevel, bevel * 0.4, -half_y),

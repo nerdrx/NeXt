@@ -27,9 +27,9 @@ func _run() -> void:
 	var plate_normals: PackedVector3Array = plate_arrays[Mesh.ARRAY_NORMAL]
 	var area := 0.0
 	for i in range(0, plate_vertices.size(), 3):
-		if is_equal_approx(plate_vertices[i].y, 0.1) and is_equal_approx(plate_vertices[i+1].y, 0.1) and is_equal_approx(plate_vertices[i+2].y, 0.1):
-			assert(plate_normals[i].y > 0.99, "armor top normals face the light")
-			area += (plate_vertices[i+1]-plate_vertices[i]).cross(plate_vertices[i+2]-plate_vertices[i]).length() * 0.5
+		if plate_normals[i].y > 0.01:
+			assert(plate_vertices[i].y > 0.0, "upward armor faces remain on the top surface")
+			area += absf((plate_vertices[i+1]-plate_vertices[i]).cross(plate_vertices[i+2]-plate_vertices[i]).y) * 0.5
 	assert(is_equal_approx(area, 3.0), "concave armor is triangulated without covering its cutout")
 	var tube := visual._lathe_z(Vector3.ZERO, PackedVector2Array([Vector2(1, -1), Vector2(1, 1)]), StandardMaterial3D.new(), 16)
 	var tube_arrays := tube.mesh.surface_get_arrays(0)

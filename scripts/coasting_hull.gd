@@ -37,16 +37,11 @@ func configure(modules: Array) -> void:
 			cells.append(cell)
 	if cells.is_empty():
 		return
-	var low := cells[0]
-	var high := cells[0]
-	for cell in cells:
-		low = Vector3i(mini(low.x, cell.x), mini(low.y, cell.y), mini(low.z, cell.z))
-		high = Vector3i(maxi(high.x, cell.x), maxi(high.y, cell.y), maxi(high.z, cell.z))
-	var center := (Vector3(low) + Vector3(high)) * 0.5 * ShipVisual.CELL_SIZE
+	var center := ShipBlueprint.center(cells)
 	for cell in cells:
 		var shape := CollisionShape3D.new()
 		var box := BoxShape3D.new()
-		box.size = Vector3.ONE * ShipVisual.CELL_SIZE
+		box.size = ShipBlueprint.COLLISION_SIZE
 		shape.shape = box
 		shape.position = Vector3(cell) * ShipVisual.CELL_SIZE - center
 		add_child(shape)

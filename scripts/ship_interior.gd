@@ -1,8 +1,8 @@
 class_name ShipInterior
 extends Node3D
 
-const CELL := Vector3.ONE * 2.8
-const WALL_HEIGHT := 2.45
+const CELL := Vector3.ONE * ShipBlueprint.CELL_SIZE
+const WALL_HEIGHT := ShipBlueprint.CLEAR_HEIGHT
 var modules: Array[Dictionary] = []
 var decks: Array[int] = []
 var cockpit_position := Vector3.ZERO
