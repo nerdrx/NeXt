@@ -367,6 +367,12 @@ func set_walk_up(up: Vector3) -> void:
 func flight_velocity() -> Vector3:
 	return _flight_velocity
 
+func carry_with_frame(change: Transform3D) -> void:
+	global_transform = change * global_transform
+	_walk_velocity = change.basis * _walk_velocity
+	velocity = change.basis * velocity
+	up_direction = (change.basis * up_direction).normalized()
+
 func restore_flight_velocity(value: Vector3) -> void:
 	if not flying or not value.is_finite(): return
 	_flight_velocity = value

@@ -105,7 +105,7 @@ Public orbital stations also assign oversized ships to an exterior 120 m berth, 
 
 Station Works supports editable service concourses: add up to 16 rooms, refit their service purpose, or salvage the last room. Changes persist in local saves and generate connected, numbered walkable rooms. Leave the station and multiplayer visits before editing its construction.
 
-Walkable ship interiors now occupy the ship’s actual position and orientation, with matching 2.8 m module spacing and gravity aligned to its deck. Disengage cruise before leaving the helm; the ship coasts at its current velocity while you walk, and returning restores that momentum. Hull contact stops the coast and returns you to the helm, with collision damage and rescue where applicable.
+Walkable ship interiors occupy the ship’s actual position and orientation, with matching 2.8 m module spacing and gravity aligned to its deck. An engaged cruise route continues while you walk, carrying you through ship turns and stopping on arrival or when an obstacle blocks the route. Return to the helm to take control, or use Stop Cruise in the command deck. Without cruise, the ship coasts at its current velocity. Hull contact stops the coast and returns you to the helm, with collision damage and rescue where applicable.
 
 Flight saves preserve ship velocity, including saves made from menus or while aboard. Loading resumes at the helm with that momentum; older saves without velocity start at rest. Closed worlds remain paused.
 

@@ -56,6 +56,8 @@ jobs:
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_ship_designer.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_anchored_interior.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_coasting_hull.gd -- --capture-only
+          timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_coasting_navigation.gd -- --capture-only
+          timeout 45s "$GODOT_BIN" --headless --path . -s tests/test_aboard_cruise.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_coasting_interior.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_interior_glass.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_height_texture_lifetime.gd -- --capture-only

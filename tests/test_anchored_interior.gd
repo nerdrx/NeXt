@@ -33,10 +33,6 @@ func _run() -> void:
 	game.pilot.teleport(anchor)
 	game.pilot.restore_view(view)
 	game.pilot.velocity = Vector3.ZERO
-	game.pilot.autopilot_active = true
-	game.enter_interior()
-	assert(not game.aboard and game.pilot.autopilot_active)
-	game.pilot.cancel_autopilot()
 	var hull_basis: Basis = game.pilot.camera.global_basis
 	game.enter_interior()
 	assert(game.aboard and game.interior.global_basis.is_equal_approx(hull_basis))

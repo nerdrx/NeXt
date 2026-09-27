@@ -527,10 +527,10 @@ passed in hidden Gamescope/Vulkan; the final menu-path check passed headless.
 Anchored interior and general gameplay regressions passed. The packaged smoke now
 also enters a coasting interior, checks floor support and returns with momentum.
 
-This supersedes the stationary-only interior restriction, but only covers straight
-coasting with fixed attitude. Autopilot/crew steering while aboard, angular frame
-motion, shared multiplayer boarding and movement through physical airlocks remain
-unfinished. At this increment, flight saves did not serialize momentum; the next
+This superseded the stationary-only interior restriction with straight coasting.
+The later aboard-cruise increment below adds autopilot and angular frame motion.
+Crew steering, shared multiplayer boarding and movement through physical airlocks
+remain unfinished. At this increment, flight saves did not serialize momentum; the next
 increment below adds it. Nearby NPC combat remains paused while aboard. No target
 frame-rate claim is made for large interiors. Texture teardown warnings remain.
 
@@ -563,3 +563,36 @@ regressions passed. Windows export and ZIP packaging completed; the release
 reported `NEXT_INTEGRATION_OK` under Proton in hidden Gamescope, including momentum
 roundtrip. Wrapper cleanup again reached its timeout (exit 137). The Windows SDR
 white-level warning remains. This is functional validation, not a 60 FPS benchmark.
+
+## Cruise while walking aboard
+
+An active route transfers from the pilot to the occupied modular hull on entering
+the interior, and back on returning to the helm. Route waypoints and long-distance
+leg planning use the hull's position while aboard. Walking and looking around do
+not cancel the ship's route. Arrival stops the hull; the command deck provides a
+Stop Cruise button. Plot new routes from the helm. Routes themselves are not
+serialized: loading restores position and momentum at the helm with cruise off.
+
+The hull turns toward its target. Each physics step applies its full transform
+change to the interior, passenger, walking velocity and gravity, then flushes deck
+collider transforms before passenger physics. Returning restores the actual hull
+attitude and momentum. Rebasing shifts the hull, cabin, passenger and active target
+together. Turning clearance uses a conservative hull-enclosing sphere; translation
+uses the existing occupied module shapes and lookahead. This can stop cruise in
+tight spaces where manual flight fits. Internal deck colliders are excluded from
+both queries. Blocked routes stop safely with the passenger aboard.
+
+Focused navigation tests cover movement, attitude, arrival, invalid inputs, forward
+obstacles, blocked turns and internal collision exceptions. The full-scene test
+passed in hidden Gamescope: an idle passenger stays on a turning deck, walks without
+cancelling cruise, crosses a sector boundary, returns to the turned helm, traverses
+two waypoints to arrival, stops via the real menu button and handles a blocked route.
+Existing anchored/coasting interiors and planetary cruise regression tests passed.
+The main release-safe integration smoke now also checks cruise and helm handoff.
+NPC combat is still paused while aboard, and crew piloting/shared boarding remain
+separate unfinished work. No large-interior frame-rate target is established.
+
+Windows export and ZIP packaging completed. The Windows release emitted
+`NEXT_INTEGRATION_OK` under Proton/hidden Gamescope with the new cruise-passenger
+and helm-handoff smoke checks. The existing SDR warning remains; native graphical
+teardown still reports seven texture RIDs. These warnings are not claimed fixed.

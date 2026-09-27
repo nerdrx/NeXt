@@ -15,6 +15,8 @@ var home_state: GameState
 var home_save_path: String = ""
 var interior: ShipInterior
 var coasting_hull: CoastingHull
+var aboard_cruise: bool = false
+var aboard_cruise_target := Vector3.ZERO
 var _coasting_deck_bodies: Array[StaticBody3D] = []
 var aboard: bool = false
 var interior_deck: int = 0
@@ -167,6 +169,7 @@ func _rebase_flight() -> void:
 		coasting_hull.position -= shift
 		interior.position -= shift
 		return_position -= shift
+		aboard_cruise_target -= shift
 		interior.reset_physics_interpolation()
 	pilot.autopilot_target -= shift
 	pilot.reset_physics_interpolation()
@@ -264,7 +267,17 @@ func _cruise_point(address: SectorPosition) -> Vector3:
 	var point: Variant = address.relative_to(flight_origin, 60000)
 	if point != null: return point
 	var direction := Vector3(float(address.sector.x) - flight_origin.sector.x, float(address.sector.y) - flight_origin.sector.y, float(address.sector.z) - flight_origin.sector.z).normalized()
-	return pilot.position + direction * 20000
+	return _helm_position() + direction * 20000
+
+func _helm_position() -> Vector3:
+	return coasting_hull.position if aboard and is_instance_valid(coasting_hull) else pilot.position
+
+func _set_cruise_target(point: Vector3) -> void:
+	if aboard and is_instance_valid(coasting_hull):
+		aboard_cruise_target = point
+		aboard_cruise = true
+	else:
+		pilot.autopilot_to(point)
 
 func cruise_system_to(point: Vector3) -> void:
 	_start_address_cruise(SectorPosition.new(Vector3i.ZERO, point))
@@ -285,9 +298,10 @@ func _plan_cruise_leg() -> bool:
 	for index in world.planets.size():
 		var center: Variant = _planet_center(index)
 		if center != null: obstacles.append({"center": center, "radius": float(world.planets[index].visual_radius) + pilot.hull_radius})
-	var route: Dictionary = CruiseRoute.plan(pilot.position, _cruise_point(cruise_address), obstacles)
+	var route: Dictionary = CruiseRoute.plan(_helm_position(), _cruise_point(cruise_address), obstacles)
 	if not bool(route.ok):
 		pilot.cancel_autopilot()
+		aboard_cruise = false
 		cruise_address = null
 		notify("Cruise cannot find a clear planetary route. Reposition manually and retry.")
 		return false
@@ -297,18 +311,29 @@ func _plan_cruise_leg() -> bool:
 			cruise_address = null
 			cruise_waypoints.clear()
 			pilot.cancel_autopilot()
+			aboard_cruise = false
 			return false
 		cruise_waypoints.append(waypoint)
 	if cruise_waypoints.is_empty():
 		cruise_address = null
 		return false
-	pilot.autopilot_to(cruise_waypoints[0].relative_to(flight_origin, SectorPosition.MAX_RELATIVE_DISTANCE))
+	_set_cruise_target(cruise_waypoints[0].relative_to(flight_origin, SectorPosition.MAX_RELATIVE_DISTANCE))
 	return true
 
 func _cruise_blocked() -> void:
+	aboard_cruise = false
 	cruise_address = null
 	cruise_waypoints.clear()
 	notify("Cruise stopped: obstacle ahead. Reposition manually and retry.")
+
+func stop_cruise() -> void:
+	cruise_address = null
+	cruise_waypoints.clear()
+	if aboard and is_instance_valid(coasting_hull): coasting_hull.velocity = Vector3.ZERO
+	aboard_cruise = false
+	pilot.cancel_autopilot()
+	if pilot.flying: pilot.restore_flight_velocity(Vector3.ZERO)
+	notify("Cruise stopped. Ship holding position.")
 
 func _flight_impact(closing_speed: float) -> void:
 	if not pilot.flying or aboard or not is_finite(closing_speed) or closing_speed <= 25.0: return
@@ -319,10 +344,10 @@ func _cruise_arrived() -> void:
 	if cruise_address != null:
 		if not cruise_waypoints.is_empty(): cruise_waypoints.pop_front()
 		if not cruise_waypoints.is_empty():
-			pilot.autopilot_to(cruise_waypoints[0].relative_to(flight_origin, SectorPosition.MAX_RELATIVE_DISTANCE))
+			_set_cruise_target(cruise_waypoints[0].relative_to(flight_origin, SectorPosition.MAX_RELATIVE_DISTANCE))
 			return
 		var destination: Variant = cruise_address.relative_to(flight_origin, 60000)
-		if destination == null or pilot.position.distance_to(destination) > 2.1:
+		if destination == null or _helm_position().distance_to(destination) > 2.1:
 			_plan_cruise_leg()
 			return
 		cruise_address = null
@@ -1062,7 +1087,7 @@ func _rescue() -> void:
 func interaction_hint() -> String:
 	var service := _station_service() if docked_station >= 0 else _colony_service()
 	if not service.is_empty(): return str(service.label)
-	if aboard: return "Return to helm  /  PgUp/PgDn change deck" + ("  /  Ship coasting %d m/s" % roundi(coasting_hull.velocity.length()) if is_instance_valid(coasting_hull) else "")
+	if aboard: return "Return to helm  /  PgUp/PgDn change deck" + (("  /  Cruise %d m/s" if aboard_cruise else "  /  Ship coasting %d m/s") % roundi(coasting_hull.velocity.length()) if is_instance_valid(coasting_hull) else "")
 	if surface_index >= 0: return "Board ship / return to orbit" if _near_person() == null else "Talk to " + _near_person().display_name
 	var person: Node3D = _near_person()
 	if person != null: return "Talk to " + person.display_name
@@ -1259,16 +1284,25 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 func _physics_process(delta: float) -> void:
 	if not aboard or not is_instance_valid(coasting_hull): return
-	var result: Dictionary = coasting_hull.advance(delta)
-	var movement: Vector3 = result.displacement
-	interior.position += movement
-	pilot.position += movement
+	var previous: Transform3D = coasting_hull.global_transform
+	var result: Dictionary = coasting_hull.navigate(delta, aboard_cruise_target, pilot.flight_speed) if aboard_cruise else coasting_hull.advance(delta)
+	var frame_change: Transform3D = coasting_hull.global_transform * previous.affine_inverse()
+	interior.global_transform = frame_change * interior.global_transform
+	pilot.carry_with_frame(frame_change)
 	return_position = coasting_hull.position
+	if not coasting_hull.global_basis.is_equal_approx(previous.basis):
+		return_view = coasting_hull.global_basis.get_euler()
+		return_basis = Basis(Vector3.UP, return_view.y)
 	_rebase_flight()
 	# Flush moving deck transforms before the passenger performs its physics step.
 	for body: StaticBody3D in _coasting_deck_bodies: body.force_update_transform()
+	if bool(result.get("blocked", false)): _cruise_blocked()
+	if bool(result.get("arrived", false)):
+		aboard_cruise = false
+		_cruise_arrived()
 	if float(result.impact_speed) > 0:
 		var impact_speed: float = result.impact_speed
+		_cruise_blocked()
 		exit_interior()
 		_flight_impact(impact_speed)
 		if impact_speed <= 25: notify("Coasting hull contacted an obstacle. Returned to helm.")
@@ -1280,8 +1314,10 @@ func _process(delta: float) -> void:
 	_rebase_flight()
 	_update_planet_terrain()
 	if cruise_address != null:
-		if pilot.autopilot_active and not cruise_waypoints.is_empty():
-			pilot.autopilot_target = cruise_waypoints[0].relative_to(flight_origin, SectorPosition.MAX_RELATIVE_DISTANCE)
+		if (aboard_cruise if aboard else pilot.autopilot_active) and not cruise_waypoints.is_empty():
+			var target: Vector3 = cruise_waypoints[0].relative_to(flight_origin, SectorPosition.MAX_RELATIVE_DISTANCE)
+			if aboard: aboard_cruise_target = target
+			else: pilot.autopilot_target = target
 		else:
 			cruise_address = null
 			cruise_waypoints.clear()
@@ -1633,6 +1669,14 @@ func _integration_check() -> void:
 	if not _check(pilot.flying and pilot.velocity.x == 60, "return to moving helm"): return
 	load_commander()
 	if not _check(pilot.flying and pilot.flight_velocity() == Vector3(60, 0, 0), "restore saved ship momentum"): return
+	cruise_to(pilot.position + Vector3(180, 60, -100))
+	enter_interior()
+	await get_tree().create_timer(0.6).timeout
+	if not _check(aboard and aboard_cruise and pilot.is_on_floor(), "cruise carries walking passenger"): return
+	var helm_basis: Basis = coasting_hull.global_basis
+	exit_interior()
+	if not _check(pilot.autopilot_active and pilot.camera.global_basis.is_equal_approx(helm_basis), "cruise helm handoff"): return
+	stop_cruise()
 	_build_system()
 	if not _check(purchase_insurance().is_empty(), "insurance service"): return
 	state.cargo.food = 5
@@ -1792,14 +1836,13 @@ func enter_interior() -> void:
 		if is_instance_valid(actor) and not bool(actor.get_meta("spatial_culled", false)) and actor.hostile and actor.position.distance_to(pilot.position) < 1000 and pilot.flying:
 			notify("Leave the combat zone before leaving the helm.")
 			return
-	if pilot.flying and pilot.autopilot_active:
-		notify("Disengage cruise before leaving the helm. Your ship will coast while you are aboard.")
-		return
 	if not bool(state.ship_stats().get("walkable", false)):
 		notify("Install a habitat and at least eight connected modules to support walkable decks.")
 		return
 	return_position = pilot.position
 	return_flying = pilot.flying
+	aboard_cruise = pilot.flying and pilot.autopilot_active
+	aboard_cruise_target = pilot.autopilot_target
 	return_view = Vector3(pilot.camera.rotation.x, pilot.rotation.y, pilot.camera.rotation.z)
 	return_basis = pilot.basis
 	return_up = pilot.up_direction
@@ -1834,7 +1877,7 @@ func enter_interior() -> void:
 	pilot.set_walk_up(interior.global_basis.y)
 	pilot.teleport(interior.spawn_on_deck(interior_deck))
 	close_menu()
-	notify("Aboard your ship. E returns to helm; PgUp/PgDn use the deck lift." + (" Ship coasting at %d m/s." % roundi(coasting_hull.velocity.length()) if return_flying else ""))
+	notify("Aboard your ship. E returns to helm; PgUp/PgDn use the deck lift." + ((" Cruise continues at %d m/s." if aboard_cruise else " Ship coasting at %d m/s.") % roundi(coasting_hull.velocity.length()) if return_flying else ""))
 
 func exit_interior() -> void:
 	if not aboard: return
@@ -1854,6 +1897,8 @@ func exit_interior() -> void:
 	pilot.set_walk_up(return_up)
 	pilot.basis = return_basis
 	if return_flying: pilot.restore_flight_velocity(ship_velocity)
+	if return_flying and aboard_cruise: pilot.autopilot_to(aboard_cruise_target)
+	aboard_cruise = false
 	ship_display.visible = not return_flying
 	close_menu()
 
