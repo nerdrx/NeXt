@@ -8,6 +8,7 @@ const COLLISION_SIZE := Vector3(3.0, 2.8, 3.0)
 const FLOOR_OFFSET := 1.23
 const CLEAR_HEIGHT := 2.45
 const FAMILIES := ["pathfinder", "merchant"]
+const FLEET_EQUIPMENT := ["cargo", "weapon", "shield", "habitat", "radiator", "reactor"]
 
 
 static func center(cells: Array[Vector3i]) -> Vector3:
@@ -40,6 +41,33 @@ static func family(id: String) -> Dictionary:
 	var layout := ShipLayout.empty_data()
 	if id == "merchant": layout.rooms["-1,0,-1"] = "lounge"
 	return {"family":id, "modules":modules, "layout":layout}
+
+
+static func for_vessel(vessel: Dictionary) -> Dictionary:
+	var blueprint := family(str(vessel.get("hull_family", "")))
+	if blueprint.is_empty(): return {}
+	blueprint.modules = vessel.get("modules", blueprint.modules).duplicate(true)
+	blueprint.layout = vessel.get("layout", blueprint.layout).duplicate(true)
+	return blueprint
+
+static func valid_equipment(family_id: String, modules: Variant) -> bool:
+	var blueprint := family(family_id)
+	if blueprint.is_empty() or not modules is Array or modules.size() != blueprint.modules.size(): return false
+	var model := GameState.new()
+	var original := {}
+	for item: Dictionary in blueprint.modules: original[Vector3i(item.x,item.y,item.z)] = item.kind
+	var seen := {}
+	var candidate: Array[Dictionary] = []
+	for item: Variant in modules:
+		if not item is Dictionary or not model._valid_module(item): return false
+		var cell := Vector3i(int(item.x),int(item.y),int(item.z))
+		if not original.has(cell) or seen.has(cell): return false
+		var locked: bool = original[cell] in ["core", "cockpit", "reactor", "engine"]
+		if (locked and item.kind != original[cell]) or (not locked and item.kind not in FLEET_EQUIPMENT): return false
+		seen[cell] = true
+		candidate.append({"kind":str(item.kind), "x":cell.x, "y":cell.y, "z":cell.z})
+	var stats := model._stats_for(candidate)
+	return model._has_required_modules(candidate) and stats.power_balance >= 0 and stats.walkable
 
 
 static func family_for_cells(cells: Array[Vector3i]) -> String:

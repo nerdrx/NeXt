@@ -1065,3 +1065,14 @@ ShipDesigner now disables its SubViewport rendering and stops model rotation whi
 The separate seven-texture shutdown warning remains unresolved. Adding a second teardown frame did not remove it, and a minimal main-scene probe still emitted it after eight cleanup frames without opening a ship editor. Disabling SSAO, SSR and glow in an isolated diagnostic run also did not remove it. Those diagnostic edits and unhelpful test delays were not retained; no visual-quality settings were reduced.
 
 Windows export passed for the preview change. The earlier Proton normal-entrypoint pass predates this change; no new Proton run is claimed here.
+
+
+## Configurable fleet equipment — 2026-09-28
+
+Family fleet vessels now support persisted equipment substitutions within their designed occupied cells. Core, cockpit, original reactor and original engine cells remain structural; other bays accept cargo, weapons, shields, habitats, radiators or additional reactors. Refits require a local idle operational vessel and preserve a powered, walkable assembly with cargo capacity for its current load. Price is new equipment cost minus half the old equipment value weighted by hull condition; the menu shows the net amount. Hull condition is retained, reduced shield capacity clamps charge, and incompatible room overrides are pruned.
+
+A shared vessel blueprint supplies the loadout to previews, flight actors, interiors, save validation and strategic combat/recharge. Custom combat-stat cache entries are bounded. Old family records still use their template; explicit equipment saves require a compatible layout, identical occupied cells, protected structural roles and matching capacity. This extends equipment within designed families, not arbitrary fleet hull reshaping or helm transfer.
+
+Domain tests passed pricing, stats, power/habitat/structure/cargo/cash/occupied guards, shield clamping, save reload and atomic rejection of malformed equipment records. The actual menu callback installs a weapon, updates capacity and damage, survives reload, and feeds boarding/actor geometry and weapon stats. Hidden Gamescope passed that integration and the revised compact menu was visually inspected. Existing family, shield and patrol timing regressions passed. The full-scene seven-texture shutdown warning remains.
+
+The integration also spawns the refitted vessel through the main fleet controller and confirms its weapon rating. Windows export passed. No fresh Proton runtime result is claimed for this equipment increment.

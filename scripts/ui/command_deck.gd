@@ -19,6 +19,8 @@ var fleet_layout_id: String = ""
 var fleet_layout_designer: ShipDesigner
 var fleet_room_refit: Button
 var fleet_panel_refit: Button
+var fleet_module_refit: Button
+var fleet_module_choice: OptionButton
 var fleet_layout_blocked: bool = false
 var fleet_layout_reason: String = ""
 
@@ -87,6 +89,8 @@ func show_page(value: String = "overview") -> void:
 	fleet_layout_designer = null
 	fleet_room_refit = null
 	fleet_panel_refit = null
+	fleet_module_refit = null
+	fleet_module_choice = null
 	survey_catalog = {}
 	survey_labels.clear()
 	show()
@@ -120,14 +124,19 @@ func show_page(value: String = "overview") -> void:
 func _process(_delta: float) -> void:
 	if visible:
 		_update_clock()
-		if page == "fleet_layout" and is_instance_valid(fleet_layout_designer) and is_instance_valid(fleet_room_refit) and is_instance_valid(fleet_panel_refit):
+		if page == "fleet_layout" and is_instance_valid(fleet_layout_designer) and is_instance_valid(fleet_room_refit) and is_instance_valid(fleet_panel_refit) and is_instance_valid(fleet_module_refit):
 			var occupied := false
 			for module: Dictionary in fleet_layout_designer.modules:
 				if Vector3i(module.x, module.y, module.z) == fleet_layout_designer.selected_cell:
 					occupied = true
+					var vessel: Dictionary = game.crew_operations()._ship(fleet_layout_id)
+					if not vessel.is_empty():
+						var price := CrewOrders.equipment_refit_price(vessel,str(module.kind),str(fleet_module_choice.get_selected_metadata()))
+						fleet_module_refit.text = "REFIT / %d CR" % price if price >= 0 else "REFIT / REFUND %d CR" % -price
 					break
 			fleet_room_refit.disabled = fleet_layout_blocked or not occupied
 			fleet_panel_refit.disabled = fleet_layout_blocked or not occupied
+			fleet_module_refit.disabled = fleet_layout_blocked or not occupied
 
 func _update_clock() -> void:
 	var state: GameState = game.state
@@ -795,12 +804,11 @@ func _fleet_layout() -> void:
 	if vessel.is_empty():
 		_text("Fleet vessel no longer exists.", 16, InterfaceTheme.GOLD)
 		return
-	var family_id := str(vessel.get("hull_family", ""))
-	if not ShipBlueprint.FAMILIES.has(family_id):
-		_text("This vessel has no family hull layout.", 16, InterfaceTheme.GOLD)
+	var blueprint: Dictionary = ShipBlueprint.for_vessel(vessel)
+	if blueprint.is_empty():
+		_text("This vessel has no saved module layout.", 16, InterfaceTheme.GOLD)
 		return
-	_text("%s / %s hull" % [str(vessel.get("name", "Unnamed vessel")), family_id.capitalize()], 18, InterfaceTheme.CYAN)
-	var blueprint: Dictionary = ShipBlueprint.family(family_id)
+	_text("%s / %s hull" % [str(vessel.get("name", "Unnamed vessel")), str(vessel.get("hull_family", "custom")).capitalize()], 18, InterfaceTheme.CYAN)
 	fleet_layout_designer = ShipDesigner.new()
 	fleet_layout_designer.read_only = true
 	fleet_layout_designer.modules = blueprint.modules.duplicate(true)
@@ -809,8 +817,8 @@ func _fleet_layout() -> void:
 	fleet_layout_blocked = not fleet_layout_reason.is_empty()
 	if fleet_layout_blocked:
 		_text(fleet_layout_reason, 16, InterfaceTheme.GOLD)
-	_text("ROOM TYPE", 13, InterfaceTheme.CYAN)
 	var room_row := _row()
+	room_row.add_child(InterfaceTheme.label("ROOM", 13, InterfaceTheme.CYAN))
 	var room_choice := OptionButton.new()
 	room_choice.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for room_type: String in ShipLayout.ROOM_TYPES:
@@ -825,11 +833,11 @@ func _fleet_layout() -> void:
 	fleet_room_refit.set_meta("room_choice", room_choice)
 	fleet_room_refit.disabled = fleet_layout_blocked
 	room_row.add_child(fleet_room_refit)
-	_text("HULL FACE  /  Front −Z · Rear +Z · Left −X · Right +X · Ceiling +Y · Floor −Y", 13, InterfaceTheme.CYAN)
 	var panel_row := _row()
+	panel_row.add_child(InterfaceTheme.label("HULL", 13, InterfaceTheme.CYAN))
 	var face_choice := OptionButton.new()
 	for face: String in ShipLayout.FACES:
-		face_choice.add_item(face)
+		face_choice.add_item({"+x":"Right", "-x":"Left", "+y":"Ceiling", "-y":"Floor", "+z":"Rear", "-z":"Front"}[face] + " (" + face + ")")
 		face_choice.set_item_metadata(face_choice.item_count - 1, face)
 	face_choice.set_meta("face_choice", true)
 	panel_row.add_child(face_choice)
@@ -849,6 +857,23 @@ func _fleet_layout() -> void:
 	fleet_panel_refit.set_meta("panel_choice", panel_choice)
 	fleet_panel_refit.disabled = fleet_layout_blocked
 	panel_row.add_child(fleet_panel_refit)
+	var module_row := _row()
+	module_row.add_child(InterfaceTheme.label("EQUIPMENT", 13, InterfaceTheme.CYAN))
+	fleet_module_choice = OptionButton.new()
+	fleet_module_choice.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for kind: String in ShipBlueprint.FLEET_EQUIPMENT:
+		var cost: int = int(GameState.MODULES[kind].cost)
+		fleet_module_choice.add_item("%s / %d CR" % [kind.capitalize(), cost])
+		fleet_module_choice.set_item_metadata(fleet_module_choice.item_count - 1, kind)
+	fleet_module_choice.set_meta("module_choice", true)
+	module_row.add_child(fleet_module_choice)
+	fleet_module_refit = InterfaceTheme.button("REFIT EQUIPMENT", func():
+		_act(game.refit_fleet_module.bind(fleet_layout_id, fleet_layout_designer.selected_cell, str(fleet_module_choice.get_selected_metadata())), "Fleet equipment refitted."))
+	fleet_module_refit.set_meta("fleet_module_refit", true)
+	fleet_module_refit.set_meta("module_choice", fleet_module_choice)
+	fleet_module_refit.disabled = fleet_layout_blocked
+	module_row.add_child(fleet_module_refit)
+	fleet_module_refit.tooltip_text = "New module cost minus 50% of current module value, adjusted for hull condition."
 	content.add_child(fleet_layout_designer)
 
 func _recovery() -> void:

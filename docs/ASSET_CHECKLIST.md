@@ -119,3 +119,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Replace bridge seats/consoles while keeping the center passage wide enough for the walking capsule. Add legible room signs viewed from both travel directions.
 
 - [ ] Replace fleet room-refit fixtures and hull-panel placeholders with authored variants. Preserve saved room/panel choices, usable walkways and exposed-face radiator behavior.
+
+- [ ] Replace fleet equipment variants (weapons, cargo, habitats, shields, radiators and extra reactors) with coherent authored fittings. Preserve module coordinates, clear interior passages and loadout-driven exterior/thermal behavior.

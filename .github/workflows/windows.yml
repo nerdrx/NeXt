@@ -68,6 +68,7 @@ jobs:
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_fleet_families.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_fleet_boarding.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_fleet_layout.gd -- --capture-only
+          timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_fleet_equipment.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_family_combat.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_fleet_shields.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_hosted_fleet_shields.gd -- --capture-only

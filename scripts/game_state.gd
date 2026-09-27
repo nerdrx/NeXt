@@ -810,9 +810,9 @@ func _load_v2(data: Dictionary) -> String:
 		if data.fleet_ships.size() > 50 or data.crew_orders.size() > 12: return "Fleet or crew order limit exceeded."
 		var ship_ids: Dictionary = {}
 		for value: Variant in data.fleet_ships:
-			if not value is Dictionary or value.size() not in [6, 7, 8, 9, 10, 11] or not value.has_all(["id", "name", "system", "hull", "cargo", "capacity"]): return "Invalid fleet ship record."
+			if not value is Dictionary or value.size() not in [6, 7, 8, 9, 10, 11, 12] or not value.has_all(["id", "name", "system", "hull", "cargo", "capacity"]): return "Invalid fleet ship record."
 			for field: Variant in value:
-				if not str(field) in ["id", "name", "system", "hull", "cargo", "capacity", "flight", "drive_temperature_k", "hull_family", "layout", "defense"]: return "Invalid fleet ship field."
+				if not str(field) in ["id", "name", "system", "hull", "cargo", "capacity", "flight", "drive_temperature_k", "hull_family", "layout", "defense", "modules"]: return "Invalid fleet ship field."
 			if not value.id is String or value.id.length() < 4 or value.id.length() > 64 or ship_ids.has(value.id) or not value.name is String or value.name.length() < 2 or value.name.length() > 32 or not _is_int(value.system) or int(value.system) < 0 or int(value.system) >= SYSTEM_LIMIT or not _is_number(value.hull) or not is_finite(float(value.hull)) or float(value.hull) < 0 or float(value.hull) > 100 or not _is_int(value.capacity) or int(value.capacity) < 1 or int(value.capacity) > 2000 or not value.cargo is Dictionary: return "Invalid fleet ship values."
 			var ship_cargo: Dictionary = {}
 			for good: Variant in value.cargo:
@@ -821,18 +821,22 @@ func _load_v2(data: Dictionary) -> String:
 			var loaded_ship: Dictionary = {"id": value.id, "name": value.name, "system": int(value.system), "hull": float(value.hull), "cargo": ship_cargo, "capacity": int(value.capacity)}
 			if value.has("hull_family"):
 				if not value.hull_family is String or value.hull_family not in ShipBlueprint.FAMILIES: return "Invalid fleet hull family."
-				var quote := CrewOrders.commission_quote(value.hull_family)
-				if int(value.capacity) != int(quote.capacity): return "Fleet capacity does not match hull family."
 				loaded_ship.hull_family = value.hull_family
-			elif int(value.capacity) > 100: return "Invalid legacy fleet capacity."
+				if value.has("modules"):
+					if not value.has("layout") or not ShipBlueprint.valid_equipment(value.hull_family,value.modules): return "Invalid fleet equipment."
+					var equipment: Array[Dictionary] = []
+					for item: Dictionary in value.modules: equipment.append(_module_record(str(item.kind),Vector3i(int(item.x),int(item.y),int(item.z))))
+					loaded_ship.modules = equipment
+				if int(value.capacity) != int(CrewOrders.vessel_combat_stats(loaded_ship).cargo_capacity): return "Fleet capacity does not match hull equipment."
+			elif int(value.capacity) > 100 or value.has("modules"): return "Invalid legacy fleet capacity or equipment."
 			if value.has("layout"):
-				if not loaded_ship.has("hull_family") or not ShipLayout.validate_data(value.layout, ShipBlueprint.family(loaded_ship.hull_family).modules): return "Invalid fleet layout."
+				if not loaded_ship.has("hull_family") or not ShipLayout.validate_data(value.layout, ShipBlueprint.for_vessel(loaded_ship).modules): return "Invalid fleet layout."
 				loaded_ship.layout = value.layout.duplicate(true)
 			if value.has("defense"):
 				var defense: Variant = value.defense
 				if not loaded_ship.has("hull_family") or not defense is Dictionary or defense.size() != 2 or not defense.has_all(["charge", "delay"]): return "Invalid fleet defense."
 				var model := GameState.new()
-				model.ship_modules.assign(ShipBlueprint.family(loaded_ship.hull_family).modules)
+				model.ship_modules.assign(ShipBlueprint.for_vessel(loaded_ship).modules)
 				if not _is_number(defense.charge) or not is_finite(float(defense.charge)) or float(defense.charge) < 0.0 or float(defense.charge) > float(model.ship_stats().max_shield): return "Invalid fleet shield charge."
 				if not _is_number(defense.delay) or not is_finite(float(defense.delay)) or float(defense.delay) < 0.0 or float(defense.delay) > 6.0: return "Invalid fleet shield delay."
 				loaded_ship.defense = {"charge": float(defense.charge), "delay": float(defense.delay)}

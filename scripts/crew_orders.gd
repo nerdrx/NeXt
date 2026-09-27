@@ -48,7 +48,7 @@ func purchase_ship(name: String, family_id: String = "") -> String:
 func refit_layout(ship_id: String, cell: Vector3i, value: String, face: String = "") -> String:
 	var vessel := _ship(ship_id)
 	if vessel.is_empty(): return "Fleet vessel does not exist."
-	var blueprint := ShipBlueprint.family(str(vessel.get("hull_family", "")))
+	var blueprint := ShipBlueprint.for_vessel(vessel)
 	if blueprint.is_empty(): return "This vessel has no configurable family layout."
 	if int(vessel.system) != state.system_index or float(vessel.hull) <= 0.0: return "Refit a local operational vessel."
 	if _ship_busy(ship_id) or vessel.has("flight"): return "Recall and leave the vessel before refitting."
@@ -60,6 +60,46 @@ func refit_layout(ship_id: String, cell: Vector3i, value: String, face: String =
 	if not error.is_empty(): return error
 	state.credits = candidate.credits
 	vessel.layout = candidate.ship_layout.duplicate(true)
+	return ""
+
+
+static func equipment_refit_price(vessel: Dictionary, old_kind: String, new_kind: String) -> int:
+	if old_kind == new_kind: return 0
+	var refund := int(float(GameState.MODULES[old_kind].cost) * 0.5 * float(vessel.hull) / 100.0)
+	return int(GameState.MODULES[new_kind].cost) - refund
+
+
+func refit_module(ship_id: String, cell: Vector3i, kind: String) -> String:
+	var vessel := _ship(ship_id)
+	if vessel.is_empty(): return "Fleet vessel does not exist."
+	if kind not in ShipBlueprint.FLEET_EQUIPMENT: return "Unknown fleet equipment."
+	if int(vessel.system) != state.system_index or float(vessel.hull) <= 0.0: return "Refit a local operational vessel."
+	if _ship_busy(ship_id) or vessel.has("flight"): return "Recall and leave the vessel before refitting."
+	var blueprint := ShipBlueprint.for_vessel(vessel)
+	if blueprint.is_empty(): return "This vessel has no configurable family equipment."
+	var candidate: Array[Dictionary] = []
+	candidate.assign(blueprint.modules.duplicate(true))
+	var index := -1
+	for i in candidate.size():
+		if Vector3i(candidate[i].x,candidate[i].y,candidate[i].z) == cell: index = i
+	if index < 0: return "No ship module at that cell."
+	var old_kind: String = candidate[index].kind
+	if old_kind == kind: return ""
+	candidate[index].kind = kind
+	if not ShipBlueprint.valid_equipment(str(vessel.hull_family), candidate): return "Keep structural modules, reactor power, cargo space and a walkable habitat."
+	var model := GameState.new()
+	model.ship_modules = candidate
+	model.ship_layout = blueprint.layout.duplicate(true)
+	ShipLayout.prune(model.ship_layout,candidate)
+	var stats := model.ship_stats()
+	if _cargo_total(vessel) > int(stats.cargo_capacity): return "Cargo exceeds the resulting hold capacity."
+	var price := equipment_refit_price(vessel,old_kind,kind)
+	if state.credits < price: return "Insufficient credits."
+	state.credits -= price
+	vessel.modules = candidate
+	vessel.layout = model.ship_layout
+	vessel.capacity = int(stats.cargo_capacity)
+	if vessel.has("defense"): vessel.defense.charge = minf(float(vessel.defense.charge), float(stats.max_shield))
 	return ""
 
 
@@ -276,9 +316,19 @@ static func family_combat_stats(family_id: String) -> Dictionary:
 		_family_combat_stats[family_id] = model.ship_stats()
 	return _family_combat_stats[family_id]
 
+static func vessel_combat_stats(vessel: Dictionary) -> Dictionary:
+	if not vessel.has("modules"): return family_combat_stats(str(vessel.get("hull_family", "")))
+	var key := JSON.stringify(vessel.modules)
+	if not _family_combat_stats.has(key):
+		if _family_combat_stats.size() >= 64: _family_combat_stats.clear()
+		var model := GameState.new()
+		model.ship_modules.assign(vessel.modules)
+		_family_combat_stats[key] = model.ship_stats()
+	return _family_combat_stats[key]
+
 func _recharge_shields(vessel: Dictionary, elapsed_seconds: float) -> void:
 	if float(vessel.hull) <= 0.0: return
-	var stats := family_combat_stats(str(vessel.get("hull_family", "")))
+	var stats := vessel_combat_stats(vessel)
 	if stats.is_empty(): return
 	var defense: Dictionary = vessel.get("defense", {"charge": 0.0, "delay": 0.0})
 	var recharge_time := maxf(0.0, elapsed_seconds - float(defense.delay))
@@ -379,7 +429,7 @@ func _patrol_leg(order: Dictionary) -> Dictionary:
 	if rng.randf() < 0.62:
 		var damage: float = rng.randf_range(3.0, 16.0)
 		var hull_damage := damage
-		var stats := family_combat_stats(str(ship.get("hull_family", "")))
+		var stats := vessel_combat_stats(ship)
 		if not stats.is_empty():
 			var defense: Dictionary = ship.get("defense", {"charge": 0.0, "delay": 0.0})
 			var absorbed := minf(float(defense.charge), damage)

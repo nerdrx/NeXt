@@ -32,6 +32,7 @@ var travel_target := Vector3.ZERO
 
 var hull_family: String = ""
 var hull_layout: Dictionary = {}
+var hull_modules: Array = []
 var _visual: Node3D
 var _attack_cooldown: float = 0.0
 var _patrol_phase: float = 0.0
@@ -55,6 +56,7 @@ func _ready() -> void:
 	var collision := CollisionShape3D.new()
 	add_child(collision)
 	var blueprint := ShipBlueprint.family(hull_family)
+	if not hull_modules.is_empty() and ShipBlueprint.valid_equipment(hull_family,hull_modules): blueprint.modules = hull_modules
 	if blueprint.is_empty():
 		var fleet_visual := FleetShipVisual.new()
 		_visual = fleet_visual

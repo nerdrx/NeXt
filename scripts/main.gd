@@ -802,6 +802,7 @@ func _sync_fleet_actors() -> Array[String]:
 				actor.hostile = false if is_trader else true
 				actor.hull_family = str(ship.get("hull_family", ""))
 				actor.hull_layout = ship.get("layout", {}).duplicate(true)
+				actor.hull_modules = ship.get("modules", []).duplicate(true)
 				actor.cargo_mass_kg = state._fleet_cargo_total(ship) * 1000.0
 				actor.set_meta("fleet_ship_id", id)
 				actor.set_meta("fleet_order_kind", desired_kind)
@@ -2287,6 +2288,12 @@ func _capture(name: String) -> void:
 	var folder: String = "res://build/" if OS.has_feature("editor") else "user://"
 	get_viewport().get_texture().get_image().save_png(folder + name + ".png")
 
+func refit_fleet_module(ship_id: String, cell: Vector3i, kind: String) -> String:
+	var issue := fleet_boarding_issue(ship_id)
+	if not issue.is_empty(): return issue
+	return crew_operations().refit_module(ship_id,cell,kind)
+
+
 func refit_fleet_layout(ship_id: String, cell: Vector3i, value: String, face: String = "") -> String:
 	var issue := fleet_boarding_issue(ship_id)
 	if not issue.is_empty(): return issue
@@ -2325,7 +2332,7 @@ func enter_interior(fleet_id: String = "") -> void:
 	var layout: Dictionary = state.ship_layout
 	if not fleet_id.is_empty():
 		var vessel: Dictionary = crew_operations()._ship(fleet_id)
-		var blueprint := ShipBlueprint.family(str(vessel.hull_family))
+		var blueprint := ShipBlueprint.for_vessel(vessel)
 		modules = blueprint.modules
 		layout = vessel.get("layout",blueprint.layout)
 		aboard_fleet_id = fleet_id

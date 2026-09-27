@@ -95,6 +95,13 @@ func _run() -> void:
 	game.deck.fleet_panel_refit.pressed.emit()
 	assert(ship.layout.panels[ShipLayoutScript.cell_key(cockpit)]["-z"] == "armored", "fleet panel button applies selected exposed-face panel")
 	assert(game.state.credits == credits_before - int(ShipLayoutScript.PANEL_COSTS.armored), "fleet panel button charges the panel cost")
+	game.deck.fleet_layout_designer.selected_cell = Vector3i(-1,0,0)
+	var module_choice: OptionButton = game.deck.fleet_module_refit.get_meta("module_choice")
+	_select_option(module_choice, "weapon")
+	credits_before = game.state.credits
+	game.deck.fleet_module_refit.pressed.emit()
+	assert(game.state.credits == credits_before - 675 and int(ship.capacity) == 145, "equipment UI replaces cargo with a weapon and charges net price")
+	assert(CrewOrders.vessel_combat_stats(ship).damage == 25)
 	expected_layout = ship.layout.duplicate(true)
 	assert(game.save_commander(false), "UI refits save fleet layout")
 	var ui_reload := GameStateScript.new()
@@ -103,6 +110,7 @@ func _run() -> void:
 	credits_before = game.state.credits
 	var occupied_ship_before: Dictionary = ship.duplicate(true)
 	game.enter_interior(ship_id)
+	assert(game.interior.modules == ship.modules, "boarded ship uses refitted equipment")
 	assert(game.aboard_fleet_id == ship_id and _layout_matches(game.interior._layout, expected_layout), "boarded merchant uses its saved layout")
 	_reject_main_refit(ship, ship_id, habitat, "medical", "", "occupied vessel")
 	assert(orders.refit_layout(ship_id, habitat, "medical").length() > 0, "crew operations also rejects its occupied vessel")
@@ -118,21 +126,30 @@ func _run() -> void:
 	var fleet_actor := ShipActor.new()
 	fleet_actor.hull_family = "merchant"
 	fleet_actor.hull_layout = ship.layout.duplicate(true)
+	fleet_actor.hull_modules = ship.modules.duplicate(true)
 	fleet_actor.actor_id = "fleet-layout-actor"
 	fleet_actor.set_physics_process(false)
 	game.add_child(fleet_actor)
 	await process_frame
+	assert(fleet_actor.weapon_damage == 25.0, "actor uses refitted weapon equipment")
 	assert(_layout_matches(fleet_actor.hull_layout, expected_layout) and fleet_actor._visual.get_child_count() > 0, "fleet actor builds from its saved hull layout")
 	var baseline := ShipVisual.new()
 	var family := ShipBlueprintScript.family("merchant")
-	baseline.build(family.modules, "neutral", family.layout)
+	baseline.build(ship.modules, "neutral", family.layout)
 	assert(fleet_actor._visual.get_child_count() > baseline.get_child_count(), "saved armor creates additional hull meshes")
 	baseline.free()
 	fleet_actor.queue_free()
+	assert(game.state.hire("gunner").is_empty())
+	var gunner_id: String = game.state.crew.back().id
+	assert(game.crew_operations().assign_patrol(gunner_id,ship_id,game.state.system_index).is_empty())
+	game._sync_fleet_actors()
+	assert(game.fleet_actors[ship_id].weapon_damage == 25.0, "main scene spawns the saved equipment loadout")
 
 	var blueprint: Dictionary = ShipBlueprintScript.family("merchant")
 	var missing_layout: Dictionary = game.state._save_data().duplicate(true)
 	missing_layout.fleet_ships.back().erase("layout")
+	missing_layout.fleet_ships.back().erase("modules")
+	missing_layout.fleet_ships.back().capacity = int(CrewOrders.commission_quote("merchant").capacity)
 	_write_save(missing_layout)
 	var backward_compatible := GameStateScript.new()
 	assert(backward_compatible.load_save(save_path).is_empty(), "older family fleet record without a layout remains valid")
