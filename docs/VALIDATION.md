@@ -626,3 +626,44 @@ The rebuilt Windows release emitted `NEXT_INTEGRATION_OK` under Proton in hidden
 Gamescope, including the occupied-hull weapon ray. Windows ZIP packaging completed.
 The SDR white-level warning persists; no renderer-warning fix or frame-rate target
 is claimed by this increment.
+
+## Named gunner ship defense
+
+A named gunner can take a persistent `defend` order on the commander's ship. The
+domain rejects the wrong role, busy crew, missing weapons and duplicate defense
+assignments. Existing operation payroll pays every 300 hosted seconds; insufficient
+credits pause firing and restored wages resume it. This follows the existing
+operation model, including the initial work interval before the first wage is due.
+The save loader validates order shape, gunner role and uniqueness transactionally.
+An existing order may remain during a weapon refit; no weapon means no fire.
+
+The gunner searches active hostile NPC ships within 720 m for a clear mounted shot.
+Weapon origins use the modular hull bounds and a local dorsal offset of 1.6 m.
+Occupied hull boxes are tested even though the player's physics body is excluded
+from the world ray. External cover and other vessels still block fire; the gunner
+can choose another visible hostile instead of repeatedly selecting a covered one.
+The same shield/hull damage and bounty path used by player weapons applies, at a
+0.75-second firing interval. Neutral and remote player ships are not targets.
+
+The Crew Operations menu exposes assignment and cancellation. Integration testing
+also found a pre-existing callback lifetime bug: bound methods referred to temporary
+RefCounted order controllers that had been freed. The main scene now retains the
+controller for its current GameState and replaces it when visiting/returning worlds.
+Keyboard focus follows the command-deck scroll area. The new control was inspected
+in a 1440x900 hidden Gamescope capture.
+
+Focused domain and fire-solution tests passed. The full gameplay test passed under
+hidden Gamescope, exercising the real menu, persisted assignment, mounted firing
+while aboard, wage pause/resume, cover, neutral safety, one bounty and persisted
+cancellation. Existing crew, operations, fleet and visit regressions passed. The
+release-safe native smoke hires a gunner and observes actual damage while coasting.
+
+This does not add a physical crew character or animated turret gimbal, NPC boarding,
+or PvP automation. Existing procedural beams and weapon shapes remain placeholders;
+the asset checklist records the turret attachment requirement. Menus retain the
+existing combat pause. Crew piloting and authored crew/turret assets remain work.
+
+Windows export and ZIP packaging completed. The release reported
+`NEXT_INTEGRATION_OK` under Proton in hidden Gamescope, including observed gunner
+damage while aboard. The existing SDR warning remains; these checks do not establish
+the target frame rate or remove previously documented renderer warnings.

@@ -52,6 +52,16 @@ func assign_patrol(crew_id: String, ship_id: String, system: int) -> String:
 	state.crew_orders[crew_id] = {"kind": "patrol", "crew_id": crew_id, "ship_id": ship_id, "system": system, "progress": 0.0, "encounters": 0, "paused": false}
 	return ""
 
+func assign_ship_defense(crew_id: String) -> String:
+	var member: Dictionary = _member(crew_id)
+	if member.is_empty() or str(member.role) != "gunner": return "A named gunner is required."
+	if _crew_busy(crew_id): return "Crew member already has an order."
+	if state._count_kind("weapon") <= 0: return "Ship needs a weapon module for defense."
+	for order: Dictionary in state.crew_orders.values():
+		if str(order.get("kind", "")) == "defend": return "A gunner already has ship defense orders."
+	state.crew_orders[crew_id] = {"kind": "defend", "crew_id": crew_id, "progress": 0.0, "paused": false}
+	return ""
+
 func assign_station_manager(crew_id: String, station_index: int) -> String:
 	var member: Dictionary = _member(crew_id)
 	if member.is_empty() or str(member.role) != "engineer": return "A named engineer is required."
@@ -142,6 +152,9 @@ func tick(elapsed_seconds: float, local_patrol_ship_ids: Array[String] = []) -> 
 				break
 			state.credits -= wage
 			order.paused = false
+			if str(order.kind) == "defend":
+				reports.append({"kind": "defend", "status": "defense wages paid", "crew_id": crew_id, "wages": wage})
+				continue
 			if str(order.kind) == "patrol" and str(order.ship_id) in local_patrol_ship_ids:
 				var patrol_ship: Dictionary = _ship(str(order.ship_id))
 				if not patrol_ship.is_empty() and int(patrol_ship.system) == int(order.system) and int(order.system) == state.system_index:

@@ -66,6 +66,7 @@ func _ready() -> void:
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.follow_focus = true
 	body.add_child(scroll)
 	content = VBoxContainer.new()
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -585,6 +586,10 @@ func _fleet() -> void:
 	var assignment := _row()
 	var crew_choice := _choice(assignment, s.crew, "name", "id")
 	var ship_choice := _choice(assignment, s.fleet_ships, "name", "id")
+	var defense := _row()
+	defense.add_child(InterfaceTheme.button("DEFEND MY SHIP", func():
+		_act(game.crew_operations().assign_ship_defense.bind(str(crew_choice.get_selected_metadata())), "Gunner assigned to your ship's weapons.")))
+	_text("Ship defense needs a gunner and an exposed weapon module. The gunner engages hostile NPC ships while flying or walking aboard; cover and your own hull can block fire. Wages are due every five hosted minutes. Cancel the order to hold fire.", 14, InterfaceTheme.MUTED)
 	var settings := _row()
 	var destination_field := SpinBox.new()
 	destination_field.prefix = "System "

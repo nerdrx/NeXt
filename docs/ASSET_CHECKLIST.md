@@ -14,6 +14,7 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 | [ ] Colony/city kit | `scripts/space_world.gd` | Streets, service entrances, urban districts, architecture variants, interiors, vehicles, signs, LODs |
 | [ ] Humans and clothing | `scripts/ground_actor.gd` | Human-only setting; named NPC variation, rigs, gait, interaction/combat animations, factions/jobs |
 | [ ] Weapon/impact/jump effects | `scripts/main.gd`, `scripts/pilot.gd` | VFX tied to actual gameplay events; debris, shielding, propulsion, projectiles, recovery wrecks |
+| [ ] Crew-operated weapon turrets | `scripts/ship_visual.gd`, `scripts/ship_defense.gd` | Authored gimballed mounts and muzzle effects; current dorsal fire origin is module center + local Y 1.6 m; retain occupied-hull and world-cover checks |
 | [ ] Interface visual assets | `scripts/ui/` | Restrained iconography, fonts/license records, navigation/map symbols, accessibility and input glyphs |
 | [ ] Audio | `scripts/soundscape.gd` | Engines, environmental ambience, weapons, impacts, ship/station machinery, interface cues and music |
 

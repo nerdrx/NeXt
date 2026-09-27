@@ -618,11 +618,15 @@ func _load_v2(data: Dictionary) -> String:
 			loaded_fleet.append(loaded_ship)
 		var assigned_ships: Dictionary = {}
 		var assigned_stations: Dictionary = {}
+		var assigned_ship_defense: bool = false
 		for key: Variant in data.crew_orders:
 			if not key is String or not crew_ids.has(key) or not _valid_order(data.crew_orders[key], key, ship_ids, loaded_stations.size()): return "Invalid crew order."
 			var order: Dictionary = data.crew_orders[key].duplicate(true)
-			var expected_role: String = "trader" if order.kind == "trade" else ("gunner" if order.kind == "patrol" else "engineer")
+			var expected_role: String = "trader" if order.kind == "trade" else ("gunner" if order.kind in ["patrol", "defend"] else "engineer")
 			if _crew_role(loaded_crew, key) != expected_role: return "Crew role does not match assigned order."
+			if order.kind == "defend":
+				if assigned_ship_defense: return "Ship defense has duplicate gunners."
+				assigned_ship_defense = true
 			if order.has("ship_id"):
 				if assigned_ships.has(order.ship_id): return "A fleet ship has duplicate orders."
 				assigned_ships[order.ship_id] = true
@@ -639,6 +643,7 @@ func _load_v2(data: Dictionary) -> String:
 				"station":
 					order.station_index = int(order.station_index)
 					order.produced = int(order.produced)
+				"defend": pass
 			loaded_orders[key] = order
 	var loaded_contracts: Array[Dictionary] = []
 	for value: Variant in data.contracts:
@@ -708,6 +713,8 @@ func _valid_order(value: Variant, crew_id: String, ship_ids: Dictionary, station
 	if kind == "station":
 		if value.size() != 6 or not value.has_all(["kind", "crew_id", "station_index", "progress", "produced", "paused"]): return false
 		return _is_int(value.station_index) and int(value.station_index) >= 0 and int(value.station_index) < station_count and _is_int(value.produced) and int(value.produced) >= 0
+	if kind == "defend":
+		return value.size() == 4 and value.has_all(["kind", "crew_id", "progress", "paused"])
 	return false
 
 func _fleet_cargo_total(ship: Dictionary) -> int:

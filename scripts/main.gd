@@ -17,6 +17,8 @@ var interior: ShipInterior
 var coasting_hull: CoastingHull
 var aboard_cruise: bool = false
 var aboard_cruise_target := Vector3.ZERO
+var _defense_cooldown: float = 0.0
+var _crew_controller: CrewOrders
 var _coasting_deck_bodies: Array[StaticBody3D] = []
 var aboard: bool = false
 var interior_deck: int = 0
@@ -1034,6 +1036,30 @@ func _enemy_fire(actor: Node3D, origin: Vector3, direction: Vector3) -> void:
 		hud.flash = 0.5
 		if state.hull <= 0 or suit_health <= 0: _rescue()
 
+func _tick_ship_defense(delta: float) -> void:
+	_defense_cooldown = maxf(0.0, _defense_cooldown - delta)
+	if _defense_cooldown > 0 or ui_open or jump_charge > 0 or state.hull <= 0: return
+	if not pilot.flying and not (aboard and is_instance_valid(coasting_hull)): return
+	var gunner: Dictionary = {}
+	for order: Dictionary in state.crew_orders.values():
+		if order.kind == "defend" and not bool(order.paused):
+			gunner = order
+			break
+	if gunner.is_empty(): return
+	_defense_cooldown = 0.25
+	var hull: Transform3D = coasting_hull.global_transform if aboard else Transform3D(pilot.camera.global_basis, pilot.global_position)
+	var excluded: Array[RID] = [pilot.get_rid()]
+	if aboard:
+		excluded.append(coasting_hull.get_rid())
+		for body: StaticBody3D in _coasting_deck_bodies: excluded.append(body.get_rid())
+	var shot: Dictionary = ShipDefense.find_shot(state.ship_modules, hull, actors, get_world_3d().direct_space_state, excluded)
+	if shot.is_empty(): return
+	_defense_cooldown = 0.75
+	_beam(shot.origin, shot.position, Color("75f6e7"))
+	sound.play_sound("shot")
+	shot.target.set_meta("player_hit", true)
+	shot.target.take_damage(float(_last_stats.damage))
+
 func _actor_destroyed(actor: Node3D) -> void:
 	if actor.has_meta("fleet_ship_id"):
 		_persist_fleet_damage(actor)
@@ -1295,7 +1321,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_F9: load_commander()
 
 func _physics_process(delta: float) -> void:
-	if not aboard or not is_instance_valid(coasting_hull): return
+	if not aboard or not is_instance_valid(coasting_hull):
+		_tick_ship_defense(delta)
+		return
 	var previous: Transform3D = coasting_hull.global_transform
 	var result: Dictionary = coasting_hull.navigate(delta, aboard_cruise_target, pilot.flight_speed) if aboard_cruise else coasting_hull.advance(delta)
 	var frame_change: Transform3D = coasting_hull.global_transform * previous.affine_inverse()
@@ -1319,6 +1347,7 @@ func _physics_process(delta: float) -> void:
 		exit_interior()
 		_flight_impact(impact_speed)
 		if impact_speed <= 25: notify("Coasting hull contacted an obstacle. Returned to helm.")
+	_tick_ship_defense(delta)
 
 func _process(delta: float) -> void:
 	if pilot == null or state == null: return
@@ -1685,6 +1714,21 @@ func _integration_check() -> void:
 	_enemy_fire(raid_probe, raid_probe.position, Vector3.BACK)
 	raid_probe.queue_free()
 	if not _check(state.shield < shield_before_raid and aboard, "space weapons hit occupied hull"): return
+	if not _check(state.hire("gunner").is_empty(), "hire ship defense gunner"): return
+	var defense_id: String = state.crew.back().id
+	if not _check(crew_operations().assign_ship_defense(defense_id).is_empty(), "assign ship defense"): return
+	var defense_probe := ShipActor.new()
+	add_child(defense_probe)
+	defense_probe.set_physics_process(false)
+	defense_probe.position = coasting_hull.position + Vector3(10, 50, -80)
+	defense_probe.hp = 1000
+	defense_probe.shields = 0
+	actors.append(defense_probe)
+	await get_tree().create_timer(1.0).timeout
+	if not _check(defense_probe.hp < 1000 and aboard, "gunner fires while commander walks aboard"): return
+	actors.erase(defense_probe)
+	defense_probe.queue_free()
+	if not _check(crew_operations().cancel(defense_id).is_empty() and state.dismiss_crew(state.crew.size() - 1).is_empty(), "stand down defense gunner"): return
 	if not _check(save_commander(false), "save moving interior"): return
 	exit_interior()
 	if not _check(pilot.flying and pilot.velocity.x == 60, "return to moving helm"): return
@@ -1959,7 +2003,10 @@ func approach_planet(index: int) -> void:
 	cruise_system_to(Vector3(body.position) + radial * (float(body.visual_radius) + 160.0))
 
 func crew_operations() -> RefCounted:
-	return CrewOrders.new(state)
+	# Menu callables hold weak references; keep their order controller alive.
+	if _crew_controller == null or _crew_controller.state != state:
+		_crew_controller = CrewOrders.new(state)
+	return _crew_controller
 
 func rebuild_wrecks() -> void:
 	if is_instance_valid(wreck_root):

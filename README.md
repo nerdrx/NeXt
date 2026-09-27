@@ -111,4 +111,6 @@ Flight saves preserve ship velocity, including saves made from menus or while ab
 
 Space combat continues while you walk aboard: pirates and hostile police target your vessel, incoming fire damages its shields and hull, and destruction triggers rescue with a recoverable wreck. Walking away from the helm no longer freezes nearby ships or makes the vessel untargetable.
 
+Hire a gunner and choose **Defend My Ship** in Crew Operations for autonomous defense at the helm or while aboard. The gunner uses exposed weapon modules, respects hull obstructions and external cover, and attacks hostile NPC ships within 720 m. Defense orders persist; wages are due every five hosted minutes, unpaid crew stop firing, and cancelling the order holds fire.
+
 Editable floor and ceiling window panels now have transparent apertures with solid collision barriers. You can see outside while walking on the glass; room lights and trim no longer cover the opening.
