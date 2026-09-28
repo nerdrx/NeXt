@@ -2261,3 +2261,10 @@ detail; the pipe ends were then connected into the fairing. This is decorative
 hardware, not a simulated independent coolant system.
 Final three-family hidden-Gamescope capture and editor import pass without
 script/shader errors. The final Ranger engine view was visually inspected.
+
+Parallel review confirmed the fittings remain above the pressure roof and clear
+of the outlets, without changing shared exhaust emission state.
+Clean Windows export and hidden-Gamescope Proton integration pass at `d10ac65`:
+`build/windows-validation-dd5c267/build/proton-smoke.KRT76z`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Art comparisons used native hidden-Gamescope captures;
+the packaged smoke checks general gameplay, not rendering performance.
