@@ -561,3 +561,19 @@ These are fictional comfort/gameplay thresholds, not a biological tolerance
 model. Crew blend into a procedural bent-knee/raised-forearm stance over 0.25 seconds.
 No blackout, injury, tumbling, animated handhold or fleet-crew health
 simulation is implied. Normal flight controls and thrust limits are unchanged.
+
+## Wreck reclamation service
+
+At the helm in space, within 80 m of an unsalvaged structural wreck, the recovery
+menu offers a paid reclamation service. It charges 75% of module value (minimum
+1,000 credits) and adds one local custom fleet vessel with the wreck's module
+blueprint and surviving integrity. The vessel has no fuel or shield charge and
+uses a default room/panel layout because wreck records do not preserve refits.
+Existing fleet repair, refueling and helm exchange apply afterward.
+
+The wreck structure is consumed once; its cargo remains independently recoverable
+at the beacon. Range, funds, name conflicts and fleet limits reject the action
+before payment. Surface recovery and multiplayer visits are excluded. Transport
+to the local fleet is an immediate service abstraction, not a physical tow,
+boarding operation or field repair. Discovered derelicts and player structural
+wrecks share this path; cargo-only debris cannot become ships.

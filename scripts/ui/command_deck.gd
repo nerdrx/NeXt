@@ -1160,6 +1160,14 @@ func _recovery() -> void:
 		var salvage := InterfaceTheme.button("SALVAGE HULL", _act.bind(game.recover_wreck.bind(str(wreck.id), true), "Wreck salvaged."))
 		salvage.disabled = not here or distance > (80.0 if game.pilot.flying else 8.0) or game.aboard or bool(wreck.get("salvaged", false))
 		controls.add_child(salvage)
+		var reclaim_quote := ShipRecovery.reclaim_quote(wreck)
+		if str(reclaim_quote.error).is_empty():
+			var reclaim := InterfaceTheme.button("RECLAIM SHIP / %d CR" % int(reclaim_quote.price), _act.bind(game.reclaim_wreck.bind(str(wreck.id)), "Vessel recovered to local fleet. Repair and refuel at the station; cargo remains at the beacon."))
+			reclaim.set_meta("reclaim_wreck", str(wreck.id))
+			reclaim.disabled = not here or distance > 80.0 or game.aboard or not game.pilot.flying or game.surface_index != -1 or game.manual_planet >= 0 or game.session.connected or s.credits < int(reclaim_quote.price) or s.fleet_ships.size() >= CrewOrders.MAX_SHIPS
+			controls.add_child(reclaim)
+			_text("Recovery service keeps %d%% hull; fuel and shields are empty. Cargo stays at the beacon. Transport is included." % roundi(float(wreck.integrity) * 100.0), 14, InterfaceTheme.MUTED)
+
 		var space: int = maxi(0, int(s.ship_stats().cargo_capacity) - s.cargo_total())
 		for good: String in GameState.GOODS:
 			var available: int = int(wreck.cargo.get(good, 0))

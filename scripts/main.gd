@@ -3015,6 +3015,14 @@ func recover_wreck(id: String, salvage: bool = false, good: String = "", amount:
 	if error.is_empty(): rebuild_wrecks()
 	return error
 
+func reclaim_wreck(id: String) -> String:
+	if session.connected: return "Leave the world visit before reclaiming a vessel."
+	if not pilot.flying or aboard or surface_index != -1 or manual_planet >= 0:
+		return "Approach the wreck at the helm in space."
+	var error := ShipRecovery.reclaim_wreck(state, id, pilot.position, flight_origin.to_save())
+	if error.is_empty(): rebuild_wrecks()
+	return error
+
 func purchase_insurance() -> String:
 	if pilot.flying or aboard: return "Dock at a station to arrange insurance."
 	return ShipRecovery.buy_insurance(state)

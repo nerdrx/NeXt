@@ -261,6 +261,32 @@ static func salvage_wreck(state: GameState, wreck_id: String, surface: int, posi
 	return ""
 
 
+# Paid recovery service; transport is abstract and the surviving hull still needs repair.
+static func reclaim_quote(wreck: Dictionary) -> Dictionary:
+	if bool(wreck.get("salvaged", true)) or not ShipBlueprint.valid_custom_modules(wreck.get("modules", [])):
+		return {"error": "No recoverable ship structure remains."}
+	var model := GameState.new()
+	model.ship_modules.assign(wreck.modules)
+	return {"error": "", "price": maxi(1000, ceili(float(_ship_value(wreck.modules)) * 0.75)), "capacity": int(model.ship_stats().cargo_capacity)}
+
+
+static func reclaim_wreck(state: GameState, wreck_id: String, position: Vector3, origin_data: Dictionary = {}) -> String:
+	var found := _find_wreck(state, wreck_id, -1, position, 80.0, origin_data)
+	if not found.ok: return found.message
+	var wreck: Dictionary = found.wreck
+	var quote := reclaim_quote(wreck)
+	if not str(quote.error).is_empty(): return str(quote.error)
+	var operations := CrewOrders.new(state)
+	var error := operations._commission("Recovered " + wreck_id, quote, {"family": "custom", "modules": wreck.modules, "layout": ShipLayout.empty_data()})
+	if not error.is_empty(): return error
+	var vessel: Dictionary = state.fleet_ships.back()
+	vessel.hull = float(wreck.integrity) * 100.0
+	vessel.fuel = 0.0
+	vessel.defense = {"charge": 0.0, "delay": 0.0}
+	wreck.salvaged = true
+	return ""
+
+
 static func validate_data(value: Variant) -> bool:
 	if not value is Dictionary or value.size() != 4 or not value.has_all(["next_id", "insurance_until_day", "debt", "wrecks"]):
 		return false

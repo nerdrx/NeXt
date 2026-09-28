@@ -2339,3 +2339,15 @@ export and hidden-Gamescope Proton integration pass at `e73c75d`:
 `build/windows-validation-dd5c267/build/proton-smoke.SAo0Jr`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Pose checks and comparisons were native; packaged smoke
 checks general gameplay and does not establish art quality or performance.
+
+### Wreck reclamation service (2026-09-28)
+
+Native and hidden-Gamescope reclaim tests pass: range/funds failures leave state
+unchanged, one damaged unfueled vessel is created, cargo stays at the wreck,
+repeat reclaim/scrap is rejected, save/load preserves the design and condition,
+and existing fleet repair accepts it. The actual recovery-menu button invokes
+the transaction, and its price/availability were visually inspected. Native
+recovery, fleet cargo recovery and solid-wreck regression checks pass. Parallel
+review found no transaction or save-format blocker.
+A discovered procedural derelict also passes reclaim and save/load checks.
+Editor import passes.
