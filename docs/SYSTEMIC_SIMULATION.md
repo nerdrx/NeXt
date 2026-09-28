@@ -568,7 +568,8 @@ At the helm in space, within 80 m of an unsalvaged structural wreck, the recover
 menu offers a paid reclamation service. It charges 75% of module value (minimum
 1,000 credits) and adds one local custom fleet vessel with the wreck's module
 blueprint and surviving integrity. The vessel has no fuel or shield charge and
-uses a default room/panel layout because wreck records do not preserve refits.
+preserves its recorded room/panel layout. Older wrecks without layout data use
+the default layout.
 Existing fleet repair, refueling and helm exchange apply afterward.
 
 The wreck structure is consumed once; its cargo remains independently recoverable
@@ -577,3 +578,8 @@ before payment. Surface recovery and multiplayer visits are excluded. Transport
 to the local fleet is an immediate service abstraction, not a physical tow,
 boarding operation or field repair. Discovered derelicts and player structural
 wrecks share this path; cargo-only debris cannot become ships.
+
+New structural wrecks snapshot room and hull-panel refits independently of the
+replacement ship. Scanned derelicts retain their family room layout. Saved wreck
+layouts are validated against the recorded modules before loading; cargo-only
+caches cannot carry layouts. Layout-free legacy wrecks remain recoverable.

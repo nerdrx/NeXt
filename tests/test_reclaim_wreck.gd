@@ -5,10 +5,18 @@ func _initialize() -> void: _run.call_deferred()
 func _run() -> void:
 	var state := GameState.new()
 	state.credits = 100000
+	state.ship_modules.assign(ShipBlueprint.family("merchant").modules)
+	state.ship_layout = ShipBlueprint.family("merchant").layout.duplicate(true)
+	assert(ShipLayout.configure_room(state, Vector3i(-1, 0, -1), "medical").is_empty())
+	assert(ShipLayout.set_panel(state, Vector3i(0, 0, -2), "-z", "window").is_empty())
+	var original_layout := state.ship_layout.duplicate(true)
 	state.cargo.ore = 5
 	state.hull = 0.0
 	assert(ShipRecovery.destroy_ship(state, Vector3.ZERO, -1).ok)
 	var wreck: Dictionary = state.recovery.wrecks[0]
+	assert(wreck.layout == original_layout)
+	state.ship_layout = ShipLayout.empty_data()
+	assert(wreck.layout == original_layout, "wreck owns an independent layout snapshot")
 	var quote := ShipRecovery.reclaim_quote(wreck)
 	assert(str(quote.error).is_empty())
 	var before := state._save_data().duplicate(true)
@@ -23,6 +31,7 @@ func _run() -> void:
 	assert(ShipRecovery.reclaim_wreck(state, wreck.id, Vector3.ZERO).is_empty())
 	var vessel: Dictionary = state.fleet_ships[0]
 	assert(state.credits == funds - int(quote.price) and vessel.hull == 25.0 and vessel.fuel == 0.0)
+	assert(vessel.layout == original_layout, "reclaim preserves customized rooms and panels")
 	assert(vessel.defense.charge == 0.0 and vessel.modules == wreck.modules and vessel.cargo.is_empty())
 	assert(wreck.salvaged and not wreck.cargo_recovered and wreck.cargo.ore == 5, "structure consumed once, cargo remains")
 	before = state._save_data().duplicate(true)
@@ -32,10 +41,30 @@ func _run() -> void:
 	var path := "user://reclaim-wreck-%d.json" % OS.get_process_id()
 	assert(state.save(path).is_empty())
 	var restored := GameState.new()
-	assert(restored.load_save(path).is_empty() and restored.fleet_ships[0].modules == vessel.modules)
+	var load_error := restored.load_save(path)
+	assert(load_error.is_empty(), load_error)
+	assert(restored.fleet_ships[0].modules == vessel.modules)
 	assert(restored.recovery.wrecks[0].salvaged and restored.fleet_ships[0].fuel == 0.0)
+	assert(restored.recovery.wrecks[0].layout == original_layout and restored.fleet_ships[0].layout == original_layout)
+	var invalid := restored.recovery.duplicate(true)
+	invalid.wrecks[0].layout.rooms["999,0,0"] = "medical"
+	assert(not ShipRecovery.validate_data(invalid), "out-of-hull layout is rejected")
+	invalid = restored.recovery.duplicate(true)
+	invalid.wrecks[0].modules[0] = "broken"
+	assert(not ShipRecovery.validate_data(invalid), "malformed module rejected before layout validation")
+	var legacy := restored.recovery.duplicate(true)
+	legacy.wrecks[0].erase("layout")
+	legacy.wrecks[0].salvaged = false
+	assert(ShipRecovery.validate_data(legacy) and ShipRecovery.reclaim_quote(legacy.wrecks[0]).error.is_empty(), "legacy wreck accepts default layout")
+	var legacy_state := GameState.new()
+	legacy_state.credits = 100000
+	legacy_state.recovery = legacy
+	assert(ShipRecovery.reclaim_wreck(legacy_state, wreck.id, Vector3.ZERO).is_empty())
+	assert(legacy_state.fleet_ships[0].layout == ShipLayout.empty_data(), "legacy reclaim uses default layout")
 	assert(ShipRecovery.recover_cargo(restored, wreck.id, -1, Vector3.ZERO).is_empty() and restored.cargo.ore == 5)
 	assert(CrewOrders.new(restored).repair_fleet_ship(vessel.id).is_empty() and restored.fleet_ships[0].hull == 100.0)
+	assert(CrewOrders.new(restored).exchange_helm(vessel.id).is_empty())
+	assert(restored.ship_layout == original_layout, "taking reclaimed helm keeps original refits")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	var explorer := GameState.new()
 	explorer.credits = 1000000
@@ -47,6 +76,7 @@ func _run() -> void:
 	var origin := SectorPosition.new().to_save()
 	var point: Vector3 = ShipRecovery.wreck_relative(derelict, origin)
 	assert(ShipRecovery.reclaim_wreck(explorer, derelict.id, point, origin).is_empty(), "discovered derelict can join fleet")
+	assert(explorer.fleet_ships[0].layout == derelict.layout, "discovered family rooms preserved")
 	assert(explorer.save(path).is_empty() and restored.load_save(path).is_empty(), "discovered design saves")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	var game = load("res://scenes/main.tscn").instantiate()

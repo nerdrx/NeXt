@@ -53,6 +53,11 @@ static func destroy_ship(state: GameState, position: Vector3, surface: int, orig
 	if not origin_data.is_empty():
 		wreck_address = SectorPosition.from_save(origin_data)
 		if not wreck_address.move_delta(position): return _report(false, "Recovery address is out of range.")
+	var blueprint: Array[Dictionary] = state.ship_modules.duplicate(true)
+	if not _valid_blueprint(state, blueprint):
+		return _report(false, "Ship blueprint is invalid.")
+	if not ShipLayout.validate_data(state.ship_layout, blueprint):
+		return _report(false, "Ship layout is invalid.")
 	if state.recovery.wrecks.size() >= MAX_WRECKS:
 		var recyclable: int = -1
 		for index: int in range(state.recovery.wrecks.size()):
@@ -63,9 +68,6 @@ static func destroy_ship(state: GameState, position: Vector3, surface: int, orig
 		if recyclable < 0:
 			return _report(false, "Wreck registry is full; recover cargo and salvage an existing wreck first.")
 		state.recovery.wrecks.remove_at(recyclable)
-	var blueprint: Array[Dictionary] = state.ship_modules.duplicate(true)
-	if not _valid_blueprint(state, blueprint):
-		return _report(false, "Ship blueprint is invalid.")
 	var wreck_id: String = "wreck-%06d" % int(state.recovery.next_id)
 	var cargo: Dictionary = {}
 	for good: String in GameState.GOODS:
@@ -84,6 +86,7 @@ static func destroy_ship(state: GameState, position: Vector3, surface: int, orig
 		"position": [position.x, position.y, position.z],
 		"cargo": cargo,
 		"modules": blueprint,
+		"layout": state.ship_layout.duplicate(true),
 		"integrity": WRECK_INTEGRITY,
 		"salvage_value": maxi(100, ceili(float(value) * WRECK_INTEGRITY * (0.08 if insured else 1.0))),
 		"cargo_recovered": false,
@@ -161,6 +164,7 @@ static func scan_derelict(state: GameState) -> String:
 	if not stored.ok: return stored.message
 	var wreck: Dictionary = state.recovery.wrecks.back()
 	wreck.modules = modules
+	wreck.layout = ShipBlueprint.family(family).layout.duplicate(true)
 	wreck.salvaged = false
 	wreck.salvage_value = maxi(100, ceili(_ship_value(modules) * 0.08))
 	flags = flags.duplicate()
@@ -265,6 +269,8 @@ static func salvage_wreck(state: GameState, wreck_id: String, surface: int, posi
 static func reclaim_quote(wreck: Dictionary) -> Dictionary:
 	if bool(wreck.get("salvaged", true)) or not ShipBlueprint.valid_custom_modules(wreck.get("modules", [])):
 		return {"error": "No recoverable ship structure remains."}
+	if not ShipLayout.validate_data(wreck.get("layout", ShipLayout.empty_data()), wreck.modules):
+		return {"error": "Wreck layout is invalid."}
 	var model := GameState.new()
 	model.ship_modules.assign(wreck.modules)
 	return {"error": "", "price": maxi(1000, ceili(float(_ship_value(wreck.modules)) * 0.75)), "capacity": int(model.ship_stats().cargo_capacity)}
@@ -277,7 +283,7 @@ static func reclaim_wreck(state: GameState, wreck_id: String, position: Vector3,
 	var quote := reclaim_quote(wreck)
 	if not str(quote.error).is_empty(): return str(quote.error)
 	var operations := CrewOrders.new(state)
-	var error := operations._commission("Recovered " + wreck_id, quote, {"family": "custom", "modules": wreck.modules, "layout": ShipLayout.empty_data()})
+	var error := operations._commission("Recovered " + wreck_id, quote, {"family": "custom", "modules": wreck.modules, "layout": wreck.get("layout", ShipLayout.empty_data())})
 	if not error.is_empty(): return error
 	var vessel: Dictionary = state.fleet_ships.back()
 	vessel.hull = float(wreck.integrity) * 100.0
@@ -302,7 +308,7 @@ static func validate_data(value: Variant) -> bool:
 	var highest_id: int = 0
 	var verifier: GameState = GameState.new()
 	for wreck: Variant in value.wrecks:
-		if not wreck is Dictionary or wreck.size() < 10 or wreck.size() > 11 or not wreck.has_all(["id", "system", "surface", "position", "cargo", "modules", "integrity", "salvage_value", "cargo_recovered", "salvaged"]):
+		if not wreck is Dictionary or wreck.size() != 10 + (1 if wreck.has("address") else 0) + (1 if wreck.has("layout") else 0) or not wreck.has_all(["id", "system", "surface", "position", "cargo", "modules", "integrity", "salvage_value", "cargo_recovered", "salvaged"]):
 			return false
 		if wreck.has("address") and SectorPosition.from_save(wreck.address) == null:
 			return false
@@ -339,6 +345,13 @@ static func validate_data(value: Variant) -> bool:
 				return false
 		elif not _valid_blueprint(verifier, wreck.modules):
 			return false
+		if wreck.has("layout"):
+			if wreck.modules.is_empty(): return false
+			# JSON decodes coordinates as floats; layout validation expects canonical cells.
+			var layout_modules: Array[Dictionary] = []
+			for module: Dictionary in wreck.modules:
+				layout_modules.append({"kind": module.kind, "x": int(module.x), "y": int(module.y), "z": int(module.z)})
+			if not ShipLayout.validate_data(wreck.layout, layout_modules): return false
 	if int(value.next_id) <= highest_id:
 		return false
 	return true

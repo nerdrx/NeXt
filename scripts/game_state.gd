@@ -945,6 +945,7 @@ func _load_v2(data: Dictionary) -> String:
 				var layout_modules: Array = loaded_ship.modules if loaded_ship.has("modules") else ShipBlueprint.family(str(loaded_ship.hull_family)).modules
 				if not ShipLayout.validate_data(value.layout, layout_modules): return "Invalid fleet layout."
 				loaded_ship.layout = value.layout.duplicate(true)
+				loaded_ship.layout.version = int(loaded_ship.layout.version)
 			if value.has("defense"):
 				var defense: Variant = value.defense
 				if not loaded_ship.has("hull_family") or not defense is Dictionary or defense.size() != 2 or not defense.has_all(["charge", "delay"]): return "Invalid fleet defense."
@@ -1136,6 +1137,7 @@ func _normalize_recovery(value: Dictionary) -> Dictionary:
 	var result: Dictionary = value.duplicate(true)
 	for key: String in ["next_id", "insurance_until_day", "debt"]: result[key] = int(result[key])
 	for wreck: Dictionary in result.wrecks:
+		if wreck.has("layout"): wreck.layout.version = int(wreck.layout.version)
 		for key: String in ["system", "surface", "salvage_value"]: wreck[key] = int(wreck[key])
 		for good: String in wreck.cargo: wreck.cargo[good] = int(wreck.cargo[good])
 		for module: Dictionary in wreck.modules:

@@ -2356,3 +2356,14 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `84be04d`:
 `build/windows-validation-dd5c267/build/proton-smoke.M98C7U`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Dedicated reclaim tests ran natively and under hidden
 Gamescope; packaged smoke covers general gameplay, not complete co-op or FPS.
+
+### Wreck layout preservation (2026-09-28)
+
+Native reclaim tests now customize a Merchant medical room and cockpit window,
+then verify independent wreck snapshots, reclaimed fleet layout, JSON reload,
+and helm exchange all retain those edits. Discovered derelict rooms and legacy
+layout-free reclamation pass. Malformed modules and out-of-hull layouts reject
+cleanly. Recovery and fleet-layout regression checks pass. JSON-decoded module
+coordinates are canonicalized after blueprint validation for layout checks;
+wreck/fleet layout versions normalize to integers as player layouts already do.
+Initial round-trip failures exposed both issues and were fixed before publishing.
