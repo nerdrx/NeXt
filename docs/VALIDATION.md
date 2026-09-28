@@ -2367,3 +2367,8 @@ cleanly. Recovery and fleet-layout regression checks pass. JSON-decoded module
 coordinates are canonicalized after blueprint validation for layout checks;
 wreck/fleet layout versions normalize to integers as player layouts already do.
 Initial round-trip failures exposed both issues and were fixed before publishing.
+
+Clean Windows export and hidden-Gamescope Proton integration pass at `1776ed4`:
+`build/windows-validation-dd5c267/build/proton-smoke.71tB5B`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Dedicated layout round-trip assertions ran natively;
+packaged smoke covers general gameplay, not complete co-op or performance.
