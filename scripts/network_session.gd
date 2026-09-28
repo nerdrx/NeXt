@@ -9,9 +9,11 @@ signal steam_invitation_ready(lobby_id: int)
 signal pvp_damage_received(attacker: int, damage: float)
 signal pvp_hit_confirmed(attacker: int, target: int, origin_data: Dictionary, end_data: Dictionary)
 signal npc_ships_received(records: Array)
+signal npc_shot_requested(attacker: int, direction: Vector3, damage: float)
+signal npc_hit_received(faction: String, killed: bool, assault: bool)
 
 # Increment when wire payloads or shared simulation contracts become incompatible.
-const PROTOCOL_VERSION: int = 2
+const PROTOCOL_VERSION: int = 3
 const JOIN_TIMEOUT: float = 20.0
 const DEFAULT_PORT: int = 27840
 const MAX_PLAYERS: int = 8
@@ -42,6 +44,7 @@ var _last_clock_sent_msec: int = -1000
 var _last_npc_publish_msec: int = -1000
 var _last_remote_pose_msec: Dictionary = {}
 var _last_pvp_shot_msec: Dictionary = {}
+var _last_npc_shot_msec: Dictionary = {}
 var _pending_systems_online: Dictionary = {}
 var _pvp_epoch: int = 0
 var _local_pvp_allowed: bool = false
@@ -172,6 +175,7 @@ func _start_client(peer: MultiplayerPeer, status: String) -> void:
 	_pending_systems_online.clear()
 	_last_remote_pose_msec.clear()
 	_last_pvp_shot_msec.clear()
+	_last_npc_shot_msec.clear()
 	_local_pvp_allowed = false
 	_local_flying = false
 	_last_pose_msec = -1000
@@ -226,6 +230,7 @@ func leave() -> void:
 	_pending_systems_online.clear()
 	_last_remote_pose_msec.clear()
 	_last_pvp_shot_msec.clear()
+	_last_npc_shot_msec.clear()
 	_local_pvp_allowed = false
 	_local_flying = false
 	_last_pose_msec = -1000
@@ -301,6 +306,7 @@ func travel(index: int) -> String:
 	world_seed = _seed_for(index)
 	_pvp_epoch += 1
 	_last_npc_publish_msec = -1000
+	_last_npc_shot_msec.clear()
 	_reset_pvp()
 	for peer_id: int in multiplayer.get_peers():
 		_rpc_world_joined.rpc_id(peer_id, index, world_seed, world_id, _pvp_epoch, ephemeris_seconds)
@@ -351,6 +357,7 @@ func _reject_join(peer_id: int, reason: String) -> void:
 func _on_peer_disconnected(peer_id: int) -> void:
 	_last_remote_pose_msec.erase(peer_id)
 	_last_pvp_shot_msec.erase(peer_id)
+	_last_npc_shot_msec.erase(peer_id)
 	_pending_systems_online.erase(peer_id)
 	if is_host:
 		if presence.erase(peer_id):
@@ -811,6 +818,46 @@ func request_pvp_shot(direction: Vector3) -> void:
 		_accept_pvp_shot(multiplayer.get_unique_id(), direction)
 	else:
 		_rpc_pvp_shot.rpc_id(1, direction, _pvp_epoch)
+
+
+func request_npc_shot(direction: Vector3) -> void:
+	if is_host or not connected or not _local_systems_online: return
+	_rpc_npc_shot.rpc_id(1, direction, _pvp_epoch)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_npc_shot(direction: Vector3, epoch: int) -> void:
+	if not is_host or not connected or epoch != _pvp_epoch: return
+	_accept_npc_shot(multiplayer.get_remote_sender_id(), direction)
+
+
+func _accept_npc_shot(attacker: int, direction: Vector3) -> void:
+	if not is_host or not connected or attacker <= 1 or not presence.has(attacker): return
+	var profile: Dictionary = presence[attacker]
+	if not profile.get("flying", false) or not profile.get("systems_online", true): return
+	var now := Time.get_ticks_msec()
+	var stamp := int(_last_remote_pose_msec.get(attacker, -10000))
+	if now - stamp < 0 or now - stamp > 1000 or now - int(_last_npc_shot_msec.get(attacker, -1000)) < 180: return
+	if not direction.is_finite() or not is_finite(direction.length_squared()) or direction.length_squared() < 0.000001: return
+	var model := GameState.new()
+	model.ship_modules.assign(profile.get("ship_modules", []))
+	var damage := float(model.ship_stats().damage)
+	if not is_finite(damage) or damage <= 0.0: return
+	_last_npc_shot_msec[attacker] = now
+	npc_shot_requested.emit(attacker, direction.normalized(), damage)
+
+
+func confirm_npc_hit(attacker: int, faction: String, killed: bool, assault: bool) -> void:
+	if not is_host or not connected or attacker <= 1 or not presence.has(attacker): return
+	if faction not in ["pirate", "police"] or (assault and faction != "police"): return
+	_rpc_npc_hit_confirmed.rpc_id(attacker, faction, killed, assault, _pvp_epoch)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _rpc_npc_hit_confirmed(faction: String, killed: bool, assault: bool, epoch: int) -> void:
+	if is_host or not connected or epoch != _pvp_epoch: return
+	if faction not in ["pirate", "police"] or (assault and faction != "police"): return
+	npc_hit_received.emit(faction, killed, assault)
 
 
 @rpc("any_peer", "call_remote", "reliable")

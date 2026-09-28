@@ -10,6 +10,7 @@
 - Insurance, recovery debt, persistent wreck cargo and one-time salvage.
 - Player faction charters, treasury, station affiliations and stances affecting personal trade and police; dockable owned outpost decks.
 - Versioned saves, persistent destruction, separate visitor finances and experimental ENet presence/travel.
+- Host pirate/police ship snapshots and host-resolved visitor ship fire with attacker-only bounty/crime outcomes. NPC retaliation against visitors remains unfinished.
 - Automated state, generation, actor, network, visitor and control checks; Windows export workflow.
 
 These are bounded development systems. README lists their limits. Placeholder visuals do not yet meet the agreed art target.

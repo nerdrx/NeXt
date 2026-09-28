@@ -126,6 +126,8 @@ func _ready() -> void:
 	session.publish_clock(state.ephemeris_seconds)
 	session.peers_changed.connect(_sync_visitors)
 	session.npc_ships_received.connect(_receive_npc_ships)
+	session.npc_shot_requested.connect(_visitor_npc_shot)
+	session.npc_hit_received.connect(_receive_npc_hit)
 	session.pvp_damage_received.connect(_receive_pvp_damage)
 	session.pvp_hit_confirmed.connect(_receive_pvp_hit)
 	session.pvp_occlusion_check = _pvp_clear_shot
@@ -1295,7 +1297,9 @@ func _ray(origin: Vector3, direction: Vector3, distance: float, exclude: Array[R
 
 func _player_fire(origin: Vector3, direction: Vector3) -> void:
 	if ui_open or jump_charge > 0 or (pilot.flying and not state.systems_online): return
-	if session.connected and pilot.flying: session.request_pvp_shot(direction)
+	if session.connected and pilot.flying:
+		session.request_pvp_shot(direction)
+		if not session.is_host: session.request_npc_shot(direction)
 	sound.play_sound("shot")
 	var distance: float = 2200 if pilot.flying else 150
 	var hit: Dictionary = _ray(origin, direction, distance, [pilot.get_rid()])
@@ -1408,7 +1412,9 @@ func _actor_destroyed(actor: Node3D) -> void:
 		var debris := ShipRecovery.combat_debris(state, actor.global_position, actor.dry_mass_kg, flight_origin.to_save())
 		if debris.ok: rebuild_wrecks()
 		else: notify("Debris beacon unavailable: " + str(debris.message))
-	if actor.get_meta("player_hit", false):
+	if actor.get_meta("visitor_kill", false):
+		pass # The confirmed visitor outcome credits the attacking commander.
+	elif actor.get_meta("player_hit", false):
 		state.record_kill(actor.faction)
 		notify("Pirate neutralized. Bounty credited." if actor.faction == "pirate" else "Civilian/security casualty recorded. Wanted status updated.")
 	elif actor.faction == "pirate" and actor.has_meta("fleet_hit"):
@@ -3192,3 +3198,47 @@ func _update_npc_positions(delta: float) -> void:
 		actor.quaternion = Quaternion.from_euler(target_rotation) if snap else actor.quaternion.slerp(Quaternion.from_euler(target_rotation), 1.0 - exp(-12.0 * delta))
 		actor.set_meta("network_placed", true)
 		if snap: actor.reset_physics_interpolation()
+
+
+func _visitor_npc_shot(attacker: int, direction: Vector3, damage: float) -> void:
+	if not session.connected or not session.is_host or ui_open or jump_charge > 0 or surface_index >= 0: return
+	if not session.presence.has(attacker): return
+	var address: SectorPosition = SectorPosition.from_save(session.presence[attacker].address)
+	if address == null: return
+	var point: Variant = address.relative_to(flight_origin, 30000.0)
+	if point == null: return
+	var excluded: Array[RID] = []
+	if remote_ships.has(attacker):
+		var body: StaticBody3D = remote_ships[attacker].get_meta("hit_body", null)
+		if is_instance_valid(body): excluded.append(body.get_rid())
+	var origin: Vector3 = point + PvPHits.CAMERA_OFFSET
+	var hit := _ray(origin, direction, PvPHits.RANGE, excluded)
+	if hit.is_empty(): return
+	var victim: Object = hit.collider
+	if not victim is ShipActor or not victim.active or victim._destroyed or victim.faction not in ["pirate", "police"]: return
+	var assault := false
+	if victim.faction == "police":
+		var reported: Array = victim.get_meta("visitor_assaults", [])
+		assault = attacker not in reported
+		if assault:
+			reported.append(attacker)
+			victim.set_meta("visitor_assaults", reported)
+	_beam(origin, hit.position, Color("75f6e7"))
+	# Destruction persists the host world, but must not credit the host for a visitor kill.
+	victim.set_meta("visitor_kill", true)
+	victim.take_damage(damage)
+	var killed: bool = victim._destroyed
+	victim.remove_meta("visitor_kill")
+	session.confirm_npc_hit(attacker, victim.faction, killed, assault)
+
+
+func _receive_npc_hit(faction: String, killed: bool, assault: bool) -> void:
+	if session.is_host or not session.connected: return
+	if assault:
+		state.wanted += 1
+		notify("Assault reported. Security alert increased.")
+	if killed:
+		state.record_kill(faction)
+		notify("Pirate neutralized. Bounty credited." if faction == "pirate" else "Security casualty recorded. Wanted status updated.")
+	if (assault or killed) and not save_commander(false):
+		notify("Combat outcome NOT SAVED. Check storage and save again.")

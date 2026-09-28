@@ -161,7 +161,7 @@ transport configuration remain separate unfinished requirements.
 
 ## Protocol compatibility and admission deadlines
 
-Join requests and welcomes carry `NetworkSession.PROTOCOL_VERSION` (currently 2).
+Join requests and welcomes carry `NetworkSession.PROTOCOL_VERSION` (currently 3).
 A missing or different version is rejected before world identity, presence or
 visitor profile adoption. Increment this version whenever wire formats or shared
 simulation contracts become incompatible; matching version numbers alone do not
@@ -192,8 +192,30 @@ updates and beyond 30 km. Absolute addresses remain valid across origin shifts.
 Malformed batches, duplicate identities, wrong factions and stale travel epochs
 are rejected before scene updates.
 
-This is a replication foundation, not completed shared NPC combat. Visitors cannot
-damage these replicas yet; host weapon effects, NPC attacks against visitors,
-shared wrecks and rewards still need authoritative replication. Ground NPCs,
+This remains partial shared NPC combat. Visitor ship fire is now resolved by
+the host as described below; NPC attacks against visitors, shared weapon effects
+and visitor access to host wrecks still need integration. Ground NPCs,
 owned fleets and economic simulation remain local. Steam transport still requires
 an AppID and native integration verification.
+
+
+## Visitor ship fire against NPCs
+
+Protocol 3 accepts a visitor's aim direction, never a claimed victim or damage.
+The host requires an admitted pilot, flying pose no older than one second,
+online ship systems and a 180 ms shot interval. Weapon damage comes from the
+validated visiting ship design. Host physics traces the first obstruction over
+2200 metres, excluding only the shooter's own hull. Only active pirate or police
+ships can receive this damage; local fleets, scenery and player hulls obstruct it.
+PvP continues through its separate mutual-consent checks.
+
+Host-confirmed outcomes go only to the attacker. Pirate kills award the normal
+250 CR bounty and reputation; police assaults and casualties update visitor
+wanted status and reputation. A surviving police ship reports each visitor's
+first assault once. Host world destruction and debris persist without crediting
+the host for the visitor's kill. Ship snapshots then remove destroyed replicas.
+
+This path covers ship weapons, not on-foot visitor weapons. NPC targeting still
+focuses on the host and its fleet; visitor retaliation, shared wreck access and
+fully authoritative player inventories remain unfinished. Pose reports still
+come from clients, so this is not an anti-cheat movement system.
