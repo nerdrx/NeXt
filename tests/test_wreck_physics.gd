@@ -63,6 +63,26 @@ func _run() -> void:
 	assert(not hit.is_empty() and game.wreck_root.is_ancestor_of(hit.collider), "remaining freight cache stays solid")
 	for node in game.wreck_root.get_children():
 		assert(not node is ShipVisual, "salvaged hull is removed even when freight remains")
+	game.open_menu("recovery")
+	var take_one: Button
+	for candidate in game.deck.find_children("*", "Button", true, false):
+		if candidate.get_meta("recovery_good", "") == "ore" and int(candidate.get_meta("recovery_amount", -1)) == 1:
+			take_one = candidate
+	assert(take_one != null and not take_one.disabled)
+	await process_frame
+	var ancestor: Node = take_one.get_parent()
+	while ancestor != null:
+		if ancestor is ScrollContainer: ancestor.ensure_control_visible(take_one)
+		ancestor = ancestor.get_parent()
+	await process_frame
+	if DisplayServer.get_name() != "headless":
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png("user://selective-recovery.png")
+	take_one.pressed.emit()
+	assert(game.state.cargo.ore == 1 and game.state.recovery.wrecks[0].cargo.ore == 2)
+	var selection_save := GameState.new()
+	assert(selection_save.load_save(save_path).is_empty() and selection_save.cargo.ore == 1 and selection_save.recovery.wrecks[0].cargo.ore == 2)
+	game.close_menu()
 	assert(game.recover_wreck(report.wreck_id).is_empty() and game.state.cargo.ore == 3)
 	await physics_frame
 	await physics_frame

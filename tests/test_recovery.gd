@@ -105,6 +105,20 @@ func _initialize() -> void:
 	state.recovery.wrecks[0].salvaged = true
 	var reclaimed: Dictionary = Recovery.destroy_ship(state, Vector3.ZERO, 0)
 	assert(reclaimed.ok and state.recovery.wrecks.size() == Recovery.MAX_WRECKS, "completed wreck is pruned to make room")
+	var selective := GameState.new()
+	selective.cargo = {"ore": 10, "medicine": 4}
+	selective.hull = 0.0
+	assert(Recovery.destroy_ship(selective, Vector3.ZERO, -1).ok)
+	var selection_id: String = selective.recovery.wrecks[0].id
+	assert(not Recovery.recover_cargo(selective, selection_id, -1, Vector3.ZERO, 80.0, {}, "unknown", 1).is_empty())
+	assert(not Recovery.recover_cargo(selective, selection_id, -1, Vector3.ZERO, 80.0, {}, "medicine", -1).is_empty())
+	assert(selective.cargo_total() == 0)
+	assert(Recovery.recover_cargo(selective, selection_id, -1, Vector3.ZERO, 80.0, {}, "medicine", 1).is_empty())
+	assert(selective.cargo.medicine == 1 and selective.cargo.get("ore", 0) == 0)
+	assert(selective.recovery.wrecks[0].cargo.medicine == 3 and selective.recovery.wrecks[0].cargo.ore == 10)
+	selective.cargo.ore = int(selective.ship_stats().cargo_capacity) - 2
+	assert(Recovery.recover_cargo(selective, selection_id, -1, Vector3.ZERO, 80.0, {}, "medicine").is_empty())
+	assert(selective.cargo.medicine == 2 and selective.recovery.wrecks[0].cargo.medicine == 2, "selection respects remaining hold space")
 	var debris_state := GameState.new()
 	assert(not Recovery.combat_debris(debris_state, Vector3.ZERO, NAN).ok)
 	assert(not Recovery.combat_debris(debris_state, Vector3.ZERO, -1.0).ok)

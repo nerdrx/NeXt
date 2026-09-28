@@ -1369,3 +1369,10 @@ Actual-main tests passed natively and in hidden Gamescope for a real pirate dest
 Non-owned NPC destruction now invokes the existing commander save after updating eliminated actor IDs, bounty/law consequences and debris. These fields enter the same atomic-replacement world save instead of waiting for the periodic autosave. Failure explicitly reports NOT SAVED and retains live state for a retry. Visitor home-file synchronization remains a separate write; this is not a cross-file transaction or host-authoritative multiplayer loot.
 
 Actual-main hidden Gamescope checks passed automatic save creation after NPC destruction, reload of debris and eliminated actor together, duplicate callback rejection, an empty-path save failure with visible feedback, and successful manual retry. Crew-defense gameplay passed with the additional combat save. Disk-power-loss durability and the latency of large-world saves during combat are not established by these checks.
+
+
+## Selective cargo recovery — 2026-09-28
+
+Recovery caches now list each remaining commodity with TAKE 1 and TAKE UP TO available-capacity controls. Recover Cargo still collects all available goods in the existing order. Optional commodity and quantity arguments share the existing distance, capacity and one-time recovery rules; invalid selections and unavailable goods return errors before mutation. Full holds disable recovery controls.
+
+Domain checks passed selected medicine recovery without touching ore, requested-quantity and remaining-capacity limits, and invalid selection rejection. Hidden Gamescope actual-menu checks passed the one-unit button, immediate save of commander cargo plus remaining cache quantity, and subsequent completion. The scrolled controls were visually inspected. Existing wreck physics, NPC debris, failure/retry and route checks also passed. Seven Texture RID shutdown warnings remain in this graphical harness.

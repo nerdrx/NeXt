@@ -997,10 +997,22 @@ func _recovery() -> void:
 		cruise.disabled = not here or not game.pilot.flying or game.aboard
 		controls.add_child(cruise)
 		var recover := InterfaceTheme.button("RECOVER CARGO", _act.bind(game.recover_wreck.bind(str(wreck.id), false), "Available cargo recovered."))
-		recover.disabled = not here or distance > (80.0 if game.pilot.flying else 8.0) or game.aboard or units <= 0
+		recover.disabled = not here or distance > (80.0 if game.pilot.flying else 8.0) or game.aboard or units <= 0 or s.cargo_total() >= int(s.ship_stats().cargo_capacity)
 		controls.add_child(recover)
 		var salvage := InterfaceTheme.button("SALVAGE HULL", _act.bind(game.recover_wreck.bind(str(wreck.id), true), "Wreck salvaged."))
 		salvage.disabled = not here or distance > (80.0 if game.pilot.flying else 8.0) or game.aboard or bool(wreck.get("salvaged", false))
 		controls.add_child(salvage)
+		var space: int = maxi(0, int(s.ship_stats().cargo_capacity) - s.cargo_total())
+		for good: String in GameState.GOODS:
+			var available: int = int(wreck.cargo.get(good, 0))
+			if available <= 0: continue
+			_text("%s / %d units remaining" % [good.capitalize(), available], 15, InterfaceTheme.MUTED)
+			var cargo_controls := _row()
+			for quantity: int in [1, 0]:
+				var take := InterfaceTheme.button("TAKE 1" if quantity == 1 else "TAKE UP TO %d" % mini(space, available), _act.bind(game.recover_wreck.bind(str(wreck.id), false, good, quantity), "Selected cargo recovered."))
+				take.set_meta("recovery_good", good)
+				take.set_meta("recovery_amount", quantity)
+				take.disabled = recover.disabled or space <= 0
+				cargo_controls.add_child(take)
 	_button("REFRESH BEACONS", refresh)
 	_button("BACK TO EXCHANGE", show_page.bind("market"))

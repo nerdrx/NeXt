@@ -2709,9 +2709,9 @@ func approach_wreck(id: String) -> void:
 		_start_address_cruise(address)
 		return
 
-func recover_wreck(id: String, salvage: bool = false) -> String:
+func recover_wreck(id: String, salvage: bool = false, good: String = "", amount: int = 0) -> String:
 	if aboard: return "Return to the helm or approach the wreck on foot."
-	var error: String = ShipRecovery.salvage_wreck(state, id, surface_index, pilot.position, 80.0 if pilot.flying else 8.0, flight_origin.to_save()) if salvage else ShipRecovery.recover_cargo(state, id, surface_index, pilot.position, 80.0 if pilot.flying else 8.0, flight_origin.to_save())
+	var error: String = ShipRecovery.salvage_wreck(state, id, surface_index, pilot.position, 80.0 if pilot.flying else 8.0, flight_origin.to_save()) if salvage else ShipRecovery.recover_cargo(state, id, surface_index, pilot.position, 80.0 if pilot.flying else 8.0, flight_origin.to_save(), good, amount)
 	if error.is_empty(): rebuild_wrecks()
 	return error
 

@@ -188,24 +188,28 @@ static func _store_cargo_cache(state: GameState, position: Vector3, origin_data:
 	return _report(true, "Recovery cache recorded.", {"wreck_id": wreck_id})
 
 
-static func recover_cargo(state: GameState, wreck_id: String, surface: int, position: Vector3, max_distance: float = 80.0, origin_data: Dictionary = {}) -> String:
+static func recover_cargo(state: GameState, wreck_id: String, surface: int, position: Vector3, max_distance: float = 80.0, origin_data: Dictionary = {}, selected_good: String = "", requested_units: int = 0) -> String:
+	if (not selected_good.is_empty() and not GameState.GOODS.has(selected_good)) or requested_units < 0 or requested_units > MAX_CARGO:
+		return "Invalid recovery selection."
 	var result: Dictionary = _find_wreck(state, wreck_id, surface, position, max_distance, origin_data)
 	if not result.ok:
 		return result.message
 	var wreck: Dictionary = result.wreck
 	if wreck.cargo_recovered:
 		return "Wreck cargo was already recovered."
+	if not selected_good.is_empty() and int(wreck.cargo.get(selected_good, 0)) <= 0:
+		return "Selected cargo is no longer available."
 	var free_capacity: int = maxi(0, int(state.ship_stats().cargo_capacity) - state.cargo_total())
 	if free_capacity == 0:
 		return "Cargo hold is full."
-	var recovered: Dictionary = {}
+	if requested_units > 0: free_capacity = mini(free_capacity, requested_units)
 	for good: String in GameState.GOODS:
+		if not selected_good.is_empty() and good != selected_good: continue
 		var amount: int = mini(free_capacity, int(wreck.cargo.get(good, 0)))
 		if amount > 0:
 			state.cargo[good] = int(state.cargo.get(good, 0)) + amount
 			wreck.cargo[good] = int(wreck.cargo[good]) - amount
 			free_capacity -= amount
-			recovered[good] = amount
 	wreck.cargo_recovered = _sum(wreck.cargo) == 0
 	return ""
 
