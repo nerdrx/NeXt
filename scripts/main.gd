@@ -99,6 +99,7 @@ func _ready() -> void:
 	pilot.autopilot_arrived.connect(_cruise_arrived)
 	pilot.autopilot_blocked.connect(_cruise_blocked)
 	pilot.flight_impact.connect(_flight_impact)
+	pilot.landing_impact.connect(_walking_impact)
 	pilot.aerodynamic_heat.connect(_absorb_aerodynamic_heat)
 	sound = Soundscape.new()
 	sound.muted = automation
@@ -373,6 +374,18 @@ func stop_cruise() -> void:
 	pilot.cancel_autopilot()
 	if pilot.flying: pilot.request_brake()
 	notify("Braking to a stop. Propellant required.")
+
+func _walking_impact(closing_speed: float) -> void:
+	if pilot.flying or _rescuing or suit_health <= 0.0 or not is_finite(closing_speed) or closing_speed <= 8.0: return
+	# Suit impact tolerance is gameplay tuning, not a human injury model.
+	var excess := minf(closing_speed - 8.0, 10.0)
+	var damage := minf(100.0, excess * excess * 2.0)
+	suit_health -= damage
+	pilot.kick(0.5)
+	hud.flash = 0.5
+	notify("Hard landing! %d%% health lost." % roundi(damage))
+	if suit_health <= 0.0: _rescue.call_deferred()
+
 
 func _flight_impact(closing_speed: float) -> void:
 	if not pilot.flying or aboard or not is_finite(closing_speed) or closing_speed <= 25.0: return

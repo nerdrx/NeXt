@@ -351,3 +351,15 @@ separate flat colony scenes use catalog surface gravity directly. The fixed
 interiors, fleet interiors and orbital stations retain the existing 18 m/s²
 artificial-gravity tuning. This supersedes the previous fixed planetary walking
 strength; NPC ground motion, traction, fall injuries and EVA remain unchanged.
+
+
+First-person floor impacts now injure the commander above 8 m/s normal closing
+speed. Damage is `min(100, 2 * (speed - 8)^2)` with a bounded excess-speed
+calculation and a 0.35 s contact cooldown. Tangential motion and wall normals
+outside the walkable-floor angle do not count as landing impacts. Normal jumps
+retain the 6 m/s launch impulse and are below the injury threshold. This is
+suit/gameplay tuning, not a biomechanical injury prediction.
+
+Damage changes persistent commander health, not ship hull or shields. Fatal
+falls invoke the existing medical rescue after the physics callback; the ship
+remains intact. Nonfatal injuries can be treated in an equipped medical bay.

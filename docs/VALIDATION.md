@@ -1920,3 +1920,17 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `e87a866`:
 `build/windows-validation-dd5c267/build/proton-smoke.oty9HI`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Dedicated jump-height assertions ran natively; packaged
 smoke covers general gameplay, including planetary walking and interior support.
+
+
+### First-person landing injuries (2026-09-28)
+
+`test_landing_injury.gd` uses actual collision-floor drops. Short descent and
+tangential motion remain harmless; a 5 m fall injures the commander without
+altering ship hull/shields, and health survives file roundtrip within JSON float
+precision. Invalid/safe speeds and flight-mode calls are rejected. A 20 m fall
+triggers deferred medical rescue, applies the 250-credit fee, persists restored
+health and creates no ship wreck. The fixture is registered in CI.
+
+Walking-gravity jump measurements and medical-bay treatment regressions pass.
+The impact threshold/damage curve is gameplay tuning; EVA, biomechanics, ground
+NPC injuries and impact sound/animation work remain open.

@@ -7,6 +7,7 @@ signal fired(origin: Vector3, direction: Vector3)
 signal autopilot_arrived
 signal autopilot_blocked
 signal flight_impact(closing_speed: float)
+signal landing_impact(closing_speed: float)
 
 var braking: bool = false
 var thrust_g: float = 0.0
@@ -48,6 +49,7 @@ var _shake: float = 0.0
 var _roll: float = 0.0
 var _look_sway: Vector2 = Vector2.ZERO
 var _flight_impact_cooldown: float = 0.0
+var _landing_impact_cooldown: float = 0.0
 var hull_radius: float = 0.9
 var _walk_shape: CollisionShape3D
 var _module_shapes: Array[CollisionShape3D] = []
@@ -107,6 +109,7 @@ func _physics_process(delta: float) -> void:
 	aerodynamic_heat_w = 0.0
 	thrust_g = 0.0
 	_flight_impact_cooldown = maxf(0.0, _flight_impact_cooldown - delta)
+	_landing_impact_cooldown = maxf(0.0, _landing_impact_cooldown - delta)
 	_fire_cooldown = maxf(0.0, _fire_cooldown - delta)
 	_recoil = move_toward(_recoil, 0.0, delta * 2.8)
 	_shake = move_toward(_shake, 0.0, delta * 5.0)
@@ -152,8 +155,18 @@ func _walk(delta: float) -> void:
 	tangent_velocity = tangent_velocity.move_toward(direction * target_speed, 32.0 * delta)
 	_walk_velocity = tangent_velocity + up * _walk_velocity.dot(up)
 	velocity = _walk_velocity
+	var incoming := velocity
 	move_and_slide()
 	_walk_velocity = velocity
+	if incoming.is_finite() and _landing_impact_cooldown <= 0.0:
+		var closing_speed := 0.0
+		for index in get_slide_collision_count():
+			var normal := get_slide_collision(index).get_normal()
+			if normal.dot(up) >= cos(floor_max_angle):
+				closing_speed = maxf(closing_speed, -incoming.dot(normal))
+		if closing_speed > 8.0:
+			_landing_impact_cooldown = 0.35
+			landing_impact.emit(closing_speed)
 
 
 func _fly(delta: float) -> void:
