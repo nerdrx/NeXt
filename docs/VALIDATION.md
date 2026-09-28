@@ -1818,3 +1818,8 @@ landing without healing, and loading a zero-health save through the existing
 returning and revisiting health. Medical-bay tests confirm restored health is
 saved together with the medicine debit. GameState and paired-visit journal
 regressions pass. The new fixture is registered in CI.
+
+Clean Windows export and hidden-Gamescope Proton integration pass at `dc3b9da`:
+`build/windows-validation-dd5c267/build/proton-smoke.enTAep`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Health-specific assertions ran natively; the packaged
+smoke covers the general gameplay loop, not live Steam authority.
