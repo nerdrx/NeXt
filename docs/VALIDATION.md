@@ -2136,3 +2136,19 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `7826d19`:
 `build/windows-validation-dd5c267/build/proton-smoke.xd8vqH`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Dedicated production/save assertions ran natively; the
 packaged smoke checks general gameplay.
+
+### Station-to-station hauling (2026-09-28)
+
+`test_station_transfer.gd` passes finite pickup, full-storage waits, empty-source
+waits, zero market transaction, zero purchase escrow, saved station references,
+transactional malformed-save rejection, cross-system reposition/load/delivery,
+same-system physical arrival and flight continuity, and the real assignment
+button. It is registered in CI. Existing supply/export regressions and the
+headless editor import pass. Parallel review found no substantive logistics or
+save-validation defect; changing the source now moves a conflicting destination
+selection to another station.
+
+Hidden-Gamescope execution also passes; the transfer controls and assignment
+confirmation were visually inspected at 1440×900. No script errors were logged.
+Renderer shutdown reported seven leaked texture RIDs; this check does not
+establish leak-free rendering.

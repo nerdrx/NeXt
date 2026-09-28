@@ -178,8 +178,8 @@ func assign_trade_route(crew_id: String, ship_id: String, good: String, destinat
 	if not BASE.has(key): return "Unknown trade good."
 	if destination < 0 or destination >= GameState.SYSTEM_LIMIT: return "Choose a valid destination system."
 	if source_station < -1 or source_station >= state.stations.size(): return "Invalid source station."
-	if source_station >= 0 and delivery_station >= 0: return "Choose either station supply or station export."
-	if source_station >= 0 and _cargo_total(ship) > 0: return "Unload the vessel before assigning station exports."
+	if source_station >= 0 and source_station == delivery_station: return "Choose two different stations."
+	if source_station >= 0 and _cargo_total(ship) > 0: return "Unload the vessel before assigning station cargo routes."
 	if delivery_station < -1: return "Invalid delivery station."
 	if delivery_station >= 0:
 		if delivery_station >= state.stations.size(): return "Owned station does not exist."
@@ -222,6 +222,10 @@ func assign_station_supply(crew_id: String, ship_id: String, station_index: int,
 func assign_station_export(crew_id: String, ship_id: String, station_index: int, good: String, destination: int, quantity: int = 5) -> String:
 	if station_index < 0 or station_index >= state.stations.size(): return "Owned station does not exist."
 	return assign_trade_route(crew_id, ship_id, good, destination, quantity, -1, station_index)
+
+func assign_station_transfer(crew_id: String, ship_id: String, source: int, destination: int, good: String, quantity: int = 5) -> String:
+	if source < 0 or source >= state.stations.size() or destination < 0 or destination >= state.stations.size(): return "Owned station does not exist."
+	return assign_trade_route(crew_id, ship_id, good, int(state.stations[destination].system), quantity, destination, source)
 
 func assign_patrol(crew_id: String, ship_id: String, system: int) -> String:
 	var member: Dictionary = _member(crew_id)

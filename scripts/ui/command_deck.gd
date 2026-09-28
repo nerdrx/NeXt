@@ -1017,6 +1017,23 @@ func _fleet() -> void:
 			_act(game.crew_operations().assign_station_manager.bind(str(crew_choice.get_selected_metadata()), station_choice.selected), "Station manager assigned.")))
 		_text("Supply routes use the selected ship, commodity and cargo quantity. They buy from the ship’s starting system and deliver to the selected station. Each pickup reserves credits up to the initial cargo budget, plus normal crew wages, until cancelled.", 14, InterfaceTheme.MUTED)
 		_text("Exports load existing station stock, then sell at the selected destination market. Empty stations and full markets wait; wages and fuel still apply. Revenue is paid to you; manufacturing cost is not tracked as cargo profit.", 14, InterfaceTheme.MUTED)
+		if s.stations.size() > 1:
+			_text("TRANSFER / selected station above → destination below", 14, InterfaceTheme.CYAN)
+			var transfer_row := _row()
+			var target_station := OptionButton.new()
+			target_station.name = "TransferDestinationStation"
+			target_station.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			for station: Dictionary in s.stations: target_station.add_item(str(station.name))
+			target_station.select(1)
+			transfer_row.add_child(target_station)
+			station_choice.item_selected.connect(func(index: int):
+				if target_station.selected == index: target_station.select((index + 1) % s.stations.size()))
+			var transfer := InterfaceTheme.button("HAUL BETWEEN STATIONS", func():
+				_act(game.crew_operations().assign_station_transfer.bind(str(crew_choice.get_selected_metadata()), str(ship_choice.get_selected_metadata()), station_choice.selected, target_station.selected, str(goods_choice.get_selected_metadata()), int(quantity.value)), "Recurring station transfer assigned."))
+			transfer.name = "TransferStationGoods"
+			transfer.disabled = s.fleet_ships.is_empty()
+			transfer_row.add_child(transfer)
+			_text("Moves stored cargo without a market purchase or sale. Crew wages and fuel apply. Empty sources and full destinations wait.", 14, InterfaceTheme.MUTED)
 	_button("REFRESH REPORTS", refresh)
 	_button("BACK TO ENTERPRISE", show_page.bind("company"))
 

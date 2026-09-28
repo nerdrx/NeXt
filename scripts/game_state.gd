@@ -1098,7 +1098,6 @@ func _valid_order(value: Variant, crew_id: String, ship_ids: Dictionary, station
 	if kind == "trade":
 		var has_source_station: bool = value.has("source_station")
 		var has_delivery_station: bool = value.has("delivery_station")
-		if has_source_station and has_delivery_station: return false
 		var adaptive: bool = value.has("search_start")
 		if adaptive and (has_source_station or has_delivery_station or not _is_int(value.search_start) or int(value.search_start) < 0 or int(value.search_start) >= SYSTEM_LIMIT): return false
 		if value.size() != 13 + (1 if value.has("purchase_cost") else 0) + (1 if has_delivery_station else 0) + (1 if has_source_station else 0) + (1 if adaptive else 0) or not value.has_all(["kind", "crew_id", "ship_id", "good", "origin", "destination", "quantity", "escrow", "escrow_limit", "progress", "phase", "earned", "paused"]): return false
@@ -1108,9 +1107,10 @@ func _valid_order(value: Variant, crew_id: String, ship_ids: Dictionary, station
 		if adaptive and (int(value.destination) < int(value.search_start) or int(value.destination) >= mini(int(value.search_start)+32, SYSTEM_LIMIT)): return false
 		if has_source_station:
 			if not _is_int(value.source_station) or int(value.source_station) < 0 or int(value.source_station) >= stations_to_validate.size(): return false
-			return int(value.origin) == int(stations_to_validate[int(value.source_station)].system) and int(value.escrow) == 0 and int(value.escrow_limit) == 0
-		if not has_delivery_station: return int(value.origin) != int(value.destination)
+			if int(value.origin) != int(stations_to_validate[int(value.source_station)].system) or int(value.escrow) != 0 or int(value.escrow_limit) != 0: return false
+		if not has_delivery_station: return has_source_station or int(value.origin) != int(value.destination)
 		if not _is_int(value.delivery_station) or int(value.delivery_station) < 0 or int(value.delivery_station) >= stations_to_validate.size(): return false
+		if has_source_station and int(value.source_station) == int(value.delivery_station): return false
 		return int(value.destination) == int(stations_to_validate[int(value.delivery_station)].system)
 	if kind == "patrol":
 		if value.size() != 7 or not value.has_all(["kind", "crew_id", "ship_id", "system", "progress", "encounters", "paused"]): return false

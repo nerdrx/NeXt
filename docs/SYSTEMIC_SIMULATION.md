@@ -448,3 +448,18 @@ The optional station `production_good` field is validated and saved. Legacy
 stations without it retain the regional recipe. Raw ore, food and fuel still
 use abstract extraction/farming; this does not add factories with physical
 machinery, resource-site restrictions or new recipes.
+
+## Recurring station transfers
+
+Crew Operations can assign an empty trader vessel to haul a selected commodity
+between two distinct owned stations, including stations in the same system.
+The source supplies finite stock and the destination receives it directly;
+there is no market transaction or purchase escrow. Empty sources and full
+storage wait without losing cargo. Normal crew wages and fuel apply. A vessel
+starting elsewhere repositions to the source first. This connects extraction
+to manufacturing without requiring the commander to move every shipment.
+
+Local pickup and delivery require physical arrival, preserving flight position
+between legs. Distant and inter-system travel uses the existing strategic
+approximation. Both station references persist and must match the saved route
+systems; malformed references reject the save transactionally.
