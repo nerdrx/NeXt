@@ -5,9 +5,11 @@ var game: Node
 func _initialize() -> void: _run.call_deferred()
 
 func _run() -> void:
+	print("SHIP_CREW_STAGE: loading main scene")
 	game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 	await process_frame
+	print("SHIP_CREW_STAGE: main scene ready")
 	game.set_process(false)
 	game._clear_actors()
 	var path := "user://ship-crew-%d.json" % OS.get_process_id()
@@ -21,10 +23,12 @@ func _run() -> void:
 	game.pilot.teleport(Vector3(4090, 1800, 1000))
 	game.pilot.restore_flight_velocity(Vector3(90, 0, 0))
 	game.close_menu()
+	print("SHIP_CREW_STAGE: boarding")
 	game.enter_interior()
 	await create_timer(0.5).timeout
 	if not _check(game.ship_crew.size() == 3, "hired crew materialize aboard"): return
 	if not _check(game.pilot.get_collision_layer_value(4) and game.pilot.get_collision_mask_value(3), "aboard player collides with crew on its dedicated occupant layer"): return
+	print("SHIP_CREW_STAGE: crew spawned")
 	var member: ShipCrew = game.ship_crew[0]
 	var member_id: String = member.actor_id
 	if not _check(member.display_name == game.state.crew[0].name and member.role == "gunner"): return
@@ -59,7 +63,9 @@ func _run() -> void:
 	for _frame: int in 18:
 		game._process(1.0 / 60.0)
 		await physics_frame
+	print("SHIP_CREW_STAGE: walking verified; capturing")
 	await _capture_walking_crew(engineer)
+	print("SHIP_CREW_STAGE: capture complete")
 	game.open_menu("overview")
 	game._process(1.0 / 60.0)
 	var engineer_paused: Vector3 = engineer.position
