@@ -122,14 +122,17 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 				_add_box(bridge_center, Vector3(2.45, 2.2, 0.3), hull_mat)
 		match kind:
 			"cockpit":
-				if joined_hull: p.z -= 0.25
+				var first_glazing := get_child_count()
+				var glazing_tilt := Vector3.ZERO if joined_hull else Vector3(-0.16, 0, 0)
 				# Forward glazing belongs on the bow face, not as a rooftop console.
-				_add_box(p + Vector3(0, 0.45, -1.505), Vector3(1.42, 0.66, 0.045), dark_mat, Vector3(-0.16, 0, 0))
-				_add_box(p + Vector3(0, 0.45, -1.535), Vector3(1.22, 0.48, 0.03), canopy_mat, Vector3(-0.16, 0, 0))
+				_add_box(p + Vector3(0, 0.45, -1.505), Vector3(1.42, 0.66, 0.045), dark_mat, glazing_tilt)
+				var glazing := _add_box(p + Vector3(0, 0.45, -1.535), Vector3(1.22, 0.48, 0.03), canopy_mat, glazing_tilt)
+				glazing.name = "CockpitGlazing"
 				_add_box(p + Vector3(0, 0.81, -1.50), Vector3(1.62, 0.06, 0.09), plate_mat)
-				_add_box(p + Vector3(-0.72, 0.44, -1.53), Vector3(0.06, 0.62, 0.08), plate_mat, Vector3(-0.16, 0, 0))
-				_add_box(p + Vector3(0.72, 0.44, -1.53), Vector3(0.06, 0.62, 0.08), plate_mat, Vector3(-0.16, 0, 0))
-				_add_box(p + Vector3(0, 0.44, -1.56), Vector3(0.035, 0.46, 0.04), glass_trim, Vector3(-0.16, 0, 0))
+				_add_box(p + Vector3(-0.72, 0.44, -1.53), Vector3(0.06, 0.62, 0.08), plate_mat, glazing_tilt)
+				_add_box(p + Vector3(0.72, 0.44, -1.53), Vector3(0.06, 0.62, 0.08), plate_mat, glazing_tilt)
+				_add_box(p + Vector3(0, 0.44, -1.56), Vector3(0.035, 0.46, 0.04), glass_trim, glazing_tilt)
+				if joined_hull: _fit_surface_fittings(first_glazing, p + Vector3.UP * 0.45, "-z", hull_faces)
 			"engine":
 				if joined_hull:
 					_add_family_engine_housing(p, hull_mat, dark_mat)
@@ -367,7 +370,7 @@ func _add_triangle(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
 	st.add_vertex(b)
 
 
-func _add_box(pos: Vector3, size: Vector3, material: Material, angles: Vector3 = Vector3.ZERO) -> void:
+func _add_box(pos: Vector3, size: Vector3, material: Material, angles: Vector3 = Vector3.ZERO) -> MeshInstance3D:
 	var mesh := MeshInstance3D.new()
 	var box := BoxMesh.new()
 	box.size = size
@@ -376,6 +379,7 @@ func _add_box(pos: Vector3, size: Vector3, material: Material, angles: Vector3 =
 	add_child(mesh)
 	mesh.position = pos
 	mesh.rotation = angles
+	return mesh
 
 
 func _add_family_engine_housing(cell_pos: Vector3, material: Material, vent_material: Material) -> void:

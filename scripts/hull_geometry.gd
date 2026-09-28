@@ -136,3 +136,100 @@ static func profile(outline: PackedVector2Array, sections: Array) -> ArrayMesh:
 			_add_oriented_triangle(st,Vector3(a.x*section.x,section.y,a.y*section.z),Vector3(b.x*section.x,section.y,b.y*section.z),Vector3(c.x*section.x,section.y,c.y*section.z),normal)
 	st.generate_normals()
 	return st.commit()
+
+
+# Sections are Vector2(height, outward offset). Offset rings must keep original vertex order.
+static func profile_offset(outline: PackedVector2Array, sections: Array) -> ArrayMesh:
+	var points := outline.duplicate()
+	if Geometry2D.is_polygon_clockwise(points): points.reverse()
+	points = _remove_collinear_vertices(points)
+	var rings: Array[PackedVector2Array] = []
+	var caps: Array[PackedInt32Array] = []
+	for section: Vector2 in sections:
+		if not section.is_finite() or section.y < 0.0 or section.y > 0.600001:
+			return _vertical_profile(points, sections)
+		var offset_parts := Geometry2D.offset_polygon(points, section.y, Geometry2D.JOIN_MITER)
+		if offset_parts.size() != 1:
+			return _vertical_profile(points, sections)
+		var ring := offset_parts[0]
+		if Geometry2D.is_polygon_clockwise(ring): ring.reverse()
+		ring = _align_ring_vertices(points, ring, section.y)
+		if ring.size() != points.size():
+			return _vertical_profile(points, sections)
+		var triangles := Geometry2D.triangulate_polygon(ring)
+		if triangles.size() != (ring.size() - 2) * 3:
+			return _vertical_profile(points, sections)
+		rings.append(ring)
+		caps.append(triangles)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_smooth_group(-1)
+	for section in range(rings.size() - 1):
+		var lower: PackedVector2Array = rings[section]
+		var upper: PackedVector2Array = rings[section + 1]
+		var y0: float = sections[section].x
+		var y1: float = sections[section + 1].x
+		for i in lower.size():
+			var j := (i + 1) % lower.size()
+			var edge := lower[j] - lower[i]
+			var outward := Vector3(edge.y, 0.0, -edge.x)
+			var a := Vector3(lower[i].x, y0, lower[i].y)
+			var b := Vector3(lower[j].x, y0, lower[j].y)
+			var c := Vector3(upper[j].x, y1, upper[j].y)
+			var d := Vector3(upper[i].x, y1, upper[i].y)
+			_add_oriented_triangle(st, a, b, c, outward)
+			_add_oriented_triangle(st, a, c, d, outward)
+	for cap in [0, rings.size() - 1]:
+		var ring: PackedVector2Array = rings[cap]
+		var y: float = sections[cap].x
+		var normal := Vector3.DOWN if cap == 0 else Vector3.UP
+		for i in range(0, caps[cap].size(), 3):
+			var a := ring[caps[cap][i]]
+			var b := ring[caps[cap][i + 1]]
+			var c := ring[caps[cap][i + 2]]
+			_add_oriented_triangle(st, Vector3(a.x, y, a.y), Vector3(b.x, y, b.y), Vector3(c.x, y, c.y), normal)
+	st.generate_normals()
+	return st.commit()
+
+
+static func _remove_collinear_vertices(points: PackedVector2Array) -> PackedVector2Array:
+	var result := points.duplicate()
+	var changed := true
+	while changed and result.size() > 3:
+		changed = false
+		for i in result.size():
+			var previous := result[(i - 1 + result.size()) % result.size()]
+			var current := result[i]
+			var next := result[(i + 1) % result.size()]
+			var before := current - previous
+			var after := next - current
+			if absf(before.cross(after)) < 0.0001 and before.dot(after) >= 0.0:
+				result.remove_at(i)
+				changed = true
+				break
+	return result
+
+
+static func _vertical_profile(outline: PackedVector2Array, sections: Array) -> ArrayMesh:
+	var fallback: Array[Vector3] = []
+	for section: Vector2 in sections:
+		fallback.append(Vector3(1.0, section.x, 1.0))
+	return profile(outline, fallback)
+
+
+static func _align_ring_vertices(original: PackedVector2Array, ring: PackedVector2Array, offset: float) -> PackedVector2Array:
+	if ring.size() != original.size(): return PackedVector2Array()
+	var shift := 0
+	var best_cost := INF
+	for candidate in ring.size():
+		var cost := 0.0
+		for i in original.size(): cost += original[i].distance_squared_to(ring[(i + candidate) % ring.size()])
+		if cost < best_cost:
+			best_cost = cost
+			shift = candidate
+	var aligned := PackedVector2Array()
+	for i in original.size():
+		var point := ring[(i + shift) % ring.size()]
+		if not point.is_finite() or original[i].distance_to(point) > maxf(0.01, offset * 3.0): return PackedVector2Array()
+		aligned.append(point)
+	return aligned

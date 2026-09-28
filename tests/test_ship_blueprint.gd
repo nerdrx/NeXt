@@ -21,6 +21,16 @@ func _run() -> void:
 		var shell := visual.get_node_or_null("FamilyPressureHull") as MeshInstance3D
 		assert(shell != null, "family cells produce one connected pressure skin")
 		_assert_closed_mesh(shell.mesh.get_faces())
+		if family_id == "ranger":
+			var shell_arrays := shell.mesh.surface_get_arrays(0)
+			var sloped_sides := 0
+			for normal: Vector3 in shell_arrays[Mesh.ARRAY_NORMAL]:
+				if absf(normal.y) > 0.1 and absf(normal.y) < 0.9: sloped_sides += 1
+			assert(sloped_sides > 0, "Ranger must build outward sloped armor, not silently use the vertical fallback")
+		var glazing := visual.get_node("CockpitGlazing") as MeshInstance3D
+		for vertex: Vector3 in glazing.mesh.get_faces():
+			assert(not _inside_shell(glazing.transform * vertex, shell.mesh.get_faces()),
+				"cockpit glazing follows the armor surface instead of being buried")
 		var engine_fittings := visual.find_children("FamilyEngine*", "MeshInstance3D", true, false)
 		assert(not engine_fittings.is_empty(), "habitable families have exterior propulsion housings")
 		for fitting: MeshInstance3D in engine_fittings:

@@ -1423,3 +1423,9 @@ Headless blueprint checks passed connected rooms, closed pressure skin, interior
 Exterior, rear and interior-cutaway captures were generated; exterior and cutaway were visually inspected. The longer bow and wider aft plan distinguish Ranger, but the repeated fittings, blocky shell and materials remain far below the intended art target. Medical/workshop room fittings do not establish new medical or crafting gameplay. Ranger-specific moving boarding, berth clearance and target performance remain unverified.
 
 Clean Windows release export at `a779d64` passed with no script/parse errors. This increment has not received a new Proton runtime smoke; the last full Proton integration evidence above remains `ab92e4d`.
+
+## Ranger outward armor and fitted glazing — 2026-09-28
+
+Ranger now uses outward polygon-offset rings instead of a vertical shell: 0.12 m at the keel, 0.6 m at the belt and 0.03 m at the roof. Collinear merge vertices are removed before matching rings; unsupported topology falls back to an unscaled shell. The original module collision bounds and room layout are unchanged. Family cockpit glass and frames now project onto the actual armor surface instead of using a fixed forward displacement.
+
+An initial implementation silently fell back to the vertical shell. Visual inspection exposed it; a regression now requires sloped Ranger side normals as well as the existing closed-mesh, full interior containment and collision checks. After correcting vertex correspondence and float precision at the offset limit, these checks passed. New checks also require every cockpit glass vertex to remain outside all three family shells. Hidden Gamescope captures passed without script errors; Ranger's sloped outline and fitted glazing were visually inspected. This is a geometry improvement, not final-quality ship art or a performance result.
