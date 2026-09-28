@@ -1985,3 +1985,14 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `784f6f6`:
 `build/windows-validation-dd5c267/build/proton-smoke.7AlPTZ`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Dedicated NPC gravity assertions ran natively; packaged
 smoke verifies general gameplay, not arbitrary planetary NPC navigation.
+
+### Directional ground awareness (2026-09-28)
+
+The contact fixture now begins with the guard facing away: no sight acquisition
+or shot occurs. A finite impact-origin event turns the guard toward the attacker
+and allows subsequent unobstructed acquisition; invalid origins are ignored.
+A simulated impact behind cover records only its supplied origin, without
+shooting through the wall or revealing the target's changed location. Existing
+expiry, reacquisition, target isolation, peace and pursuit-leash assertions pass.
+The post-guard fixture explicitly faces its target and still verifies holding,
+shooting and damage. Attack awareness is wired into the player's ground-hit path.

@@ -47,6 +47,7 @@ func _run() -> void:
 	var post_guard := GroundActor.new()
 	post_guard.position = Vector3(80, 0, 0)
 	post_guard.hold_position = true
+	post_guard.rotation.y = -PI * 0.5
 	post_guard.target = _target_at(world, Vector3(85, 0, 0))
 	post_guard.fired.connect(_on_fired)
 	world.add_child(post_guard)

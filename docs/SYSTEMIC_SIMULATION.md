@@ -372,8 +372,11 @@ Hostile ground actors acquire targets through an unobstructed physics ray within
 When cover breaks sight they investigate the last visible position for six
 active seconds, without updating it from hidden target movement, then resume
 patrol. Target changes and peaceful status clear combat contact. Existing post
-orders and home pursuit limits still apply. Sight is omnidirectional; hearing,
-view cones, squad communication and tactical cover selection remain open.
+orders and home pursuit limits still apply. Sight uses a 120-degree horizontal
+forward cone. A hostile actor hit by the player records the shot origin and
+turns toward it, while physics rays still gate sight and firing. Visible targets
+remain the facing direction during retreat, rather than making the actor turn
+its back. Hearing, squad communication and tactical cover selection remain open.
 
 ## Planetary gravity for ground residents
 

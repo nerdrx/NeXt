@@ -1294,6 +1294,7 @@ func _player_fire(origin: Vector3, direction: Vector3) -> void:
 				victim.set_meta("assault_reported", true)
 				notify("Assault reported. Security alert increased.")
 			victim.set_meta("player_hit", true)
+			if victim is GroundActor: victim.observe_attack(origin)
 			victim.take_damage(float(_last_stats.damage) if pilot.flying else 34.0)
 
 func _enemy_fire(actor: Node3D, origin: Vector3, direction: Vector3) -> void:

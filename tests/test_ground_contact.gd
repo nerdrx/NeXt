@@ -27,6 +27,7 @@ func _run() -> void:
 	var probe := PathProbe.new()
 	root.add_child(probe)
 	var guard := GroundActor.new()
+	guard.rotation.y = PI * 0.5
 	guard.speed = 0
 	guard.patrol_radius = 0
 	guard.target = target
@@ -36,6 +37,15 @@ func _run() -> void:
 	guard.fired.connect(func(_actor, _origin, _direction): shots += 1)
 	await physics_frame
 	await physics_frame
+	guard._physics_process(0.1)
+	assert(shots == 0 and guard.contact_remaining == 0, "unseen target behind guard cannot trigger sight")
+	guard.observe_attack(Vector3(NAN, 0, 0))
+	assert(guard.contact_remaining == 0, "invalid attack origin is ignored")
+	var forward := -guard.global_basis.z
+	assert(guard._in_sight_cone(guard.global_position + forward.rotated(Vector3.UP, deg_to_rad(59)) * 20))
+	assert(not guard._in_sight_cone(guard.global_position + forward.rotated(Vector3.UP, deg_to_rad(61)) * 20), "horizontal cone boundary")
+	guard.observe_attack(target.global_position)
+	assert(guard.contact_remaining == GroundActor.SEARCH_SECONDS and guard._in_sight_cone(target.global_position), "being hit turns guard toward attack origin")
 	guard._physics_process(0.1)
 	assert(shots == 1 and guard.contact_remaining == GroundActor.SEARCH_SECONDS)
 	assert(guard.last_seen_position == Vector3(20, 0, 0) and probe.requested == guard.last_seen_position)
@@ -52,6 +62,9 @@ func _run() -> void:
 	guard._navigation_timer = 0
 	guard._physics_process(0.1)
 	assert(probe.requested.is_zero_approx(), "expired search returns to patrol home")
+	guard.observe_attack(Vector3(20, 0, -5))
+	guard._physics_process(0.1)
+	assert(shots == 1 and guard.last_seen_position == Vector3(20, 0, -5), "impact memory cannot see through cover or reveal subsequent target position")
 	wall.queue_free()
 	await physics_frame
 	await physics_frame
@@ -81,5 +94,5 @@ func _run() -> void:
 	other.queue_free()
 	floor_body.queue_free()
 	await process_frame
-	print("GROUND_CONTACT_OK: visible acquisition, last-seen pursuit, cover, expiry, reacquisition, target isolation and peace")
+	print("GROUND_CONTACT_OK: visible acquisition, last-seen pursuit, cover, expiry, reacquisition, target isolation, directional sight, impact awareness and peace")
 	quit()

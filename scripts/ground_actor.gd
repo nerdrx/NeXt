@@ -21,6 +21,7 @@ var follow_when_friendly: bool = true
 var patrol_radius: float = 8.0
 var pursuit_radius: float = INF
 const SIGHT_RANGE := 60.0
+const SIGHT_COS_HALF_ANGLE := 0.5 # 120-degree forward field of view.
 const SEARCH_SECONDS := 6.0
 var last_seen_position := Vector3.ZERO
 var contact_remaining: float = 0.0
@@ -86,7 +87,7 @@ func _physics_process(delta: float) -> void:
 	if target_id != _observed_target_id or not hostile:
 		contact_remaining = 0.0
 		_observed_target_id = target_id
-	var visible_target := hostile and has_target and target_in_leash and target_distance <= SIGHT_RANGE and _has_line_of_sight()
+	var visible_target := hostile and has_target and target_in_leash and target_distance <= SIGHT_RANGE and _in_sight_cone(target.global_position) and _has_line_of_sight()
 	if visible_target:
 		last_seen_position = target.global_position
 		contact_remaining = SEARCH_SECONDS
@@ -134,8 +135,9 @@ func _physics_process(delta: float) -> void:
 		velocity.y -= walking_gravity() * delta
 	else:
 		velocity.y = -0.15
-	if direction.length_squared() > 0.001:
-		rotation.y = atan2(-direction.x, -direction.z)
+	var facing := target.global_position - global_position if visible_target else direction
+	if Vector2(facing.x, facing.z).length_squared() > 0.001:
+		rotation.y = atan2(-facing.x, -facing.z)
 	move_and_slide()
 	_animate()
 
@@ -162,6 +164,26 @@ func take_damage(amount: float) -> void:
 		active = false
 		destroyed.emit(self)
 		queue_free()
+
+
+func _in_sight_cone(point: Vector3) -> bool:
+	var offset := point - global_position
+	offset.y = 0.0
+	if offset.length_squared() < 0.01: return true
+	var forward := -global_basis.z
+	forward.y = 0.0
+	return forward.normalized().dot(offset.normalized()) >= SIGHT_COS_HALF_ANGLE
+
+
+func observe_attack(origin: Vector3) -> void:
+	if not active or not hostile or not origin.is_finite() or not is_instance_valid(target): return
+	# An impact reveals the shot origin once; subsequent hidden motion stays unknown.
+	_observed_target_id = target.get_instance_id()
+	last_seen_position = origin
+	contact_remaining = SEARCH_SECONDS
+	var offset := origin - global_position
+	if Vector2(offset.x, offset.z).length_squared() > 0.001:
+		rotation.y = atan2(-offset.x, -offset.z)
 
 
 func _has_line_of_sight() -> bool:
