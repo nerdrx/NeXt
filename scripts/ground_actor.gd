@@ -19,6 +19,11 @@ var hold_position: bool = false
 var follow_when_friendly: bool = true
 var patrol_radius: float = 8.0
 var pursuit_radius: float = INF
+const SIGHT_RANGE := 60.0
+const SEARCH_SECONDS := 6.0
+var last_seen_position := Vector3.ZERO
+var contact_remaining: float = 0.0
+var _observed_target_id: int = 0
 var navigation_source: Node3D
 var _navigation_path := PackedVector3Array()
 var _navigation_goal := Vector3.INF
@@ -60,7 +65,7 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if not active:
+	if not active or not is_finite(delta) or delta <= 0.0 or delta > 1.0:
 		return
 	_fire_cooldown = maxf(0.0, _fire_cooldown - delta)
 	_patrol_timer -= delta
@@ -68,15 +73,30 @@ func _physics_process(delta: float) -> void:
 	var move_to := _waypoint
 	var has_target := is_instance_valid(target)
 	var target_in_leash := hold_position or not hostile or not has_target or _home.distance_to(target.global_position) <= pursuit_radius
-	var chasing := hostile and has_target and target_in_leash and not hold_position
 	var target_distance := global_position.distance_to(target.global_position) if has_target else INF
-	if hostile and has_target and target_in_leash and target_distance < 38.0 and _fire_cooldown <= 0.0 and _has_line_of_sight():
+	var target_id := target.get_instance_id() if has_target else 0
+	if target_id != _observed_target_id or not hostile:
+		contact_remaining = 0.0
+		_observed_target_id = target_id
+	var visible_target := hostile and has_target and target_in_leash and target_distance <= SIGHT_RANGE and _has_line_of_sight()
+	if visible_target:
+		last_seen_position = target.global_position
+		contact_remaining = SEARCH_SECONDS
+	else:
+		var previously_tracking := contact_remaining > 0.0
+		contact_remaining = maxf(0.0, contact_remaining - delta)
+		if previously_tracking and contact_remaining == 0.0:
+			_waypoint = _home
+			move_to = _home
+			_patrol_timer = 2.0
+	var chasing := hostile and has_target and contact_remaining > 0.0 and not hold_position
+	if visible_target and target_distance < 38.0 and _fire_cooldown <= 0.0:
 		_fire_cooldown = 1.25
 		var origin := global_position + Vector3.UP * 1.28 + (-global_basis.z * 0.48)
 		fired.emit(self, origin, (target.global_position + Vector3.UP * 0.9 - origin).normalized())
 	if chasing:
-		if target_distance > 9.0 or not _has_line_of_sight():
-			move_to = target.global_position
+		if not visible_target or target_distance > 9.0:
+			move_to = last_seen_position
 		elif target_distance > 4.0:
 			move_to = global_position
 		else:

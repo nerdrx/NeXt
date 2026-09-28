@@ -1939,3 +1939,14 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `9308cd1`:
 `build/windows-validation-dd5c267/build/proton-smoke.U7YYHJ`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Dedicated drop/injury assertions ran natively; packaged
 smoke covers general gameplay.
+
+
+### Ground combat contact memory (2026-09-28)
+
+`test_ground_contact.gd` passes real collision-ray acquisition and a wall hiding
+a moving target. A navigation probe confirms pursuit retains the last visible
+position. Covered targets receive no further fire; six-second expiry returns
+the actor to patrol, removing cover reacquires the moved target, switching to
+a distant target clears old contact, and peaceful status clears tracking.
+`test_ground_actor_behavior.gd` still passes post holding, friendly following,
+patrol radius and pursuit leash behavior. The contact fixture is registered in CI.

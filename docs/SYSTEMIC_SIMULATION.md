@@ -363,3 +363,14 @@ suit/gameplay tuning, not a biomechanical injury prediction.
 Damage changes persistent commander health, not ship hull or shields. Fatal
 falls invoke the existing medical rescue after the physics callback; the ship
 remains intact. Nonfatal injuries can be treated in an equipped medical bay.
+
+
+## Ground combat contact memory
+
+Hostile ground actors acquire targets through an unobstructed physics ray within
+60 m. They fire only with current sight inside the existing 38 m weapon range.
+When cover breaks sight they investigate the last visible position for six
+active seconds, without updating it from hidden target movement, then resume
+patrol. Target changes and peaceful status clear combat contact. Existing post
+orders and home pursuit limits still apply. Sight is omnidirectional; hearing,
+view cones, squad communication and tactical cover selection remain open.
