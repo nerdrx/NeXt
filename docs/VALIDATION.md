@@ -2102,3 +2102,8 @@ and gameplay regressions pass. The completion fixture is registered in CI.
 The journal gameplay test passes under hidden Gamescope and checks displayed
 current-system progress alongside paging/filter/course controls. Its screenshot
 was visually inspected: progress and reward text fit within the scrolling page.
+
+Clean Windows export and hidden-Gamescope Proton integration pass at `e3077d9`:
+`build/windows-validation-dd5c267/build/proton-smoke.Lhb1fF`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Dedicated bonus/persistence assertions ran natively; the
+packaged check covers general gameplay.
