@@ -1673,3 +1673,19 @@ Allegiances & Law now offers an in-flight payment through a living, unculled pol
 The hidden-Gamescope test passed missing/distant/culled/destroyed patrols, speed, funds, charging and visit guards, diplomatic hostility, a real blocking StaticBody, actual menu activation, unchanged cargo/location, exact payment, saved state and repeat-charge rejection. Its menu screenshot was inspected. Native headless patrol checks and the prior fine-settlement regression also passed. The new test is registered in Windows CI.
 
 Clean Windows export and hidden-Gamescope Proton smoke passed at `a2ef101`: `build/proton-smoke.obTYIT` in the validation checkout, `NEXT_INTEGRATION_OK`, wrapper exit 0 and no script/runtime errors. Patrol-settlement assertions run natively; the packaged smoke covers the general gameplay loop.
+
+
+### Parked crew access ramps (2026-09-28)
+
+- `d07c440`: `test_parked_boarding.gd` passes headless and under hidden
+  Gamescope, including capsule support on the slope, outward surface normals,
+  collision disable/restore on visibility, and existing F entry/E return/launch.
+- All three family captures complete under hidden Gamescope; Merchant landed
+  capture visually inspected after correcting the ramp triangle winding.
+- Clean Windows export and hidden-Gamescope Proton integration pass on `d07c440`:
+  evidence `build/windows-validation-dd5c267/build/proton-smoke.IG1r9J`, wrapper
+  exit 0 and `NEXT_INTEGRATION_OK`. General packaged smoke does not exercise
+  every dedicated ramp assertion. An SDR white-level warning remains.
+- Earlier hull/material changes also passed Windows/Proton on `40ec67f`
+  (`proton-smoke.A5Kvi3`).
+- No claim of seamless boarding, terrain adaptation, moving airlocks or final art.
