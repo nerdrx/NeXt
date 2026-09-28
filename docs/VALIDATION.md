@@ -1198,3 +1198,5 @@ Every clear deck landing is included in the main scene's roaming stops, even whe
 The furnished cargo-corridor regression exposed crates leaving only a 0.9 m aisle, smaller than the navigation agent's clearance. Corner placement now leaves 1.48 m through adjoining cargo rooms.
 
 The new furnished two-deck cargo regression passed headlessly (16.9 s) and in hidden Gamescope: approach and onward travel, blocked exit, inactive/disabled pauses, immediate second-arrival rejection, transformed cabin and invalid/disconnected routes. The transfer marking capture was inspected. Same-deck roaming, crew placement and yielding regressions passed; actual-main crew gameplay passed in hidden Gamescope with the existing seven-texture teardown warning. The focused lift render had no script errors or teardown warnings.
+
+Clean detached Windows release export at `b53b7f5` passed without script/export errors. No fresh Proton lift runtime check was performed; the ZIP remains the earlier validated development package.
