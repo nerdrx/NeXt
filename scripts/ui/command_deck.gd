@@ -238,6 +238,7 @@ func _navigation() -> void:
 	_button("INSPECT SYSTEM PHYSICS", show_page.bind("survey"))
 	_button("RECOVERY BEACONS", show_page.bind("recovery"))
 	_text("LOCAL SYSTEM / SURFACE APPROACH", 13, InterfaceTheme.CYAN)
+	_text("Survey within 1.2 km of a surface at 100 m/s or slower. Sell recorded data at an orbital station.", 15)
 	_button("CRUISE TO ORBITAL DOCK", game.approach_public_station, not game.pilot.flying or game.aboard)
 	for index in game.world.planets.size():
 		var planet: Dictionary = game.world.planets[index]
@@ -251,6 +252,14 @@ func _navigation() -> void:
 		var land_button := InterfaceTheme.button("COLONY APPROACH", game.approach_colony.bind(index))
 		land_button.disabled = not game.pilot.flying or game.surface_index >= 0
 		row.add_child(land_button)
+		var survey_key := "%d:%d" % [game.state.system_index, index]
+		var scan := InterfaceTheme.button("SURVEYED" if game.state.planet_surveys.has(survey_key) else "SURVEY", _act.bind(game.survey_planet.bind(index), "Survey recorded. Sell the data at an orbital station."))
+		scan.name = "SurveyPlanet%d" % index
+		scan.disabled = game.state.planet_surveys.has(survey_key) or not game.pilot.flying or game.aboard
+		row.add_child(scan)
+
+	_text("SURVEY ARCHIVE / %d planets / %d CR awaiting sale" % [game.state.planet_surveys.size(), PlanetSurveys.pending_value(game.state)], 16, InterfaceTheme.CYAN)
+	_button("SELL SURVEY DATA", _act.bind(game.sell_planet_surveys, "Survey data sold."), PlanetSurveys.pending_value(game.state) == 0 or game.pilot.flying or game.aboard or game.surface_index >= 0 or game.manual_planet >= 0 or game.session.connected).name = "SellSurveyData"
 
 func _survey() -> void:
 	heading.text = "PHYSICAL SYSTEM SURVEY"

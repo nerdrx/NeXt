@@ -158,3 +158,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Refine `shaders/planet_rock.gdshader` and boulder silhouettes. The placeholder now adds mineral variation, filtered grain and small normal relief, plus primary-relative sunlight, cloud shadows and planetary eclipses. Preserve per-instance custom coordinates and the shared geology material so origin shifts do not move shadows. Near-object cast shadows and physical sky illumination remain open.
 
 - [ ] Add restrained thermal-damage effects and warning audio. Capped-loop overflow now damages hull and uses the existing flash/explosion/recovery presentation; keep the temperature warning readable and avoid obscuring piloting controls.
+
+- [ ] Add survey scanner presentation and recorded-data icons. Current Navigation controls and text use the shared interface theme; retain clear range/speed requirements, pending payout and surveyed status when replacing the presentation.

@@ -43,7 +43,7 @@ func build(system_index: int) -> void:
 		var palette := [Color("68785a"), Color("a38266"), Color("8a8c83"), Color("b39b7a"), Color("778480")]
 		var style: int = (int(data.station_seed) + i * 17) % palette.size()
 		planet["color"] = palette[style]
-		planet["has_ocean"] = bool(planet.atmosphere) and (i == 0 or style == 0 or style == 4)
+		planet["has_ocean"] = Universe.planet_has_ocean(data, i)
 		planet["visual_radius"] = 850.0 if i == 0 else 170.0 + float(i) * 34.0
 		planet["position"] = Vector3(80.0 + float(i) * 500.0, 380.0 - float(i) * 100.0, -2200.0 - float(i) * 850.0)
 		planets.append(planet)

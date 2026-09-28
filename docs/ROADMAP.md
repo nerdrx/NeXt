@@ -5,6 +5,7 @@
 - First-person walking and ray combat, moving pirates/security, flight and local cruise autopilot.
 - Deterministic galaxy addresses, distinct procedural celestial visuals, station hubs and colony surfaces.
 - Modular ship assembly, live preview, generated walkable module interiors and compatible room/hull face refits.
+- Planet survey records with proximity/speed requirements and one-time station payouts.
 - Commodities, shares, contracts, named crew and timed fleet orders, company treasury and station construction/upgrades.
 - Insurance, recovery debt, persistent wreck cargo and one-time salvage.
 - Player faction charters, treasury, station affiliations and stances affecting personal trade and police; dockable owned outpost decks.

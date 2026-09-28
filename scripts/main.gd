@@ -2839,3 +2839,21 @@ func join_steam_invitation() -> String:
 	var error: String = session.join_steam(steam_app_id(), pending_steam_lobby)
 	if error.is_empty(): pending_steam_lobby = 0
 	return error
+
+
+func survey_planet(index: int) -> String:
+	if session.connected: return "Leave the multiplayer visit before recording surveys."
+	if not pilot.flying or aboard or surface_index != -1 or manual_planet >= 0: return "Survey from your ship in flight."
+	if not state.systems_online or state.hull <= 0.0: return "Operational ship systems are required to survey."
+	if index < 0 or index >= world.planets.size(): return "Planet is unavailable."
+	var center: Variant = _planet_center(index)
+	if center == null: return "Planet is outside local scanner range."
+	var altitude: float = pilot.position.distance_to(center) - float(world.planets[index].visual_radius)
+	if altitude < 0.0 or altitude > 1200.0: return "Approach within 1.2 km of the planet surface to survey."
+	if pilot.flight_velocity().length() > 100.0: return "Slow below 100 m/s for a stable survey."
+	return PlanetSurveys.record(state, index)
+
+func sell_planet_surveys() -> String:
+	if session.connected: return "Leave the multiplayer visit before selling survey data."
+	if pilot.flying or aboard or surface_index >= 0 or manual_planet >= 0: return "Dock at an orbital station to sell survey data."
+	return PlanetSurveys.sell(state)

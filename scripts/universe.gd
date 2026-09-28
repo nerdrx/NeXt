@@ -68,3 +68,9 @@ static func galaxy_position(index: int) -> Vector3:
 static func _roman(number: int) -> String:
 	const NUMERALS: Array[String] = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"]
 	return NUMERALS[clampi(number - 1, 0, NUMERALS.size() - 1)]
+
+
+static func planet_has_ocean(data: Dictionary, index: int) -> bool:
+	if index < 0 or index >= data.planets.size(): return false
+	var style := (int(data.station_seed) + index * 17) % 5
+	return bool(data.planets[index].atmosphere) and (index == 0 or style == 0 or style == 4)
