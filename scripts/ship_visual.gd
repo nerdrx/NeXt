@@ -62,6 +62,7 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 		high = Vector3i(maxi(high.x, cell.x), maxi(high.y, cell.y), maxi(high.z, cell.z))
 	var center := ShipBlueprint.center(cells)
 	var bounds := (Vector3(high - low) + Vector3.ONE) * CELL_SIZE
+	var hull_family := ShipBlueprint.family_for_cells(cells)
 	var outline := ShipBlueprint.pressure_outline(cells)
 	var joined_hull := not outline.is_empty()
 	var hull_faces := PackedVector3Array()
@@ -134,6 +135,9 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 				_add_bevelled_plate(bridge_center, Vector3(2.48, 0.46, 2.48), hull_mat)
 			else:
 				_add_box(bridge_center, Vector3(2.45, 2.2, 0.3), hull_mat)
+		if kind == "core" and not hull_family.is_empty() and not cells.has(cell + Vector3i.UP):
+			_add_stencil(hull_family.to_upper(), deck + Vector3(0, 0.016, -0.45), 0.0038)
+			_add_stencil("NX / " + {"pathfinder": "EXPLORATION", "merchant": "FREIGHT", "ranger": "PATROL"}.get(hull_family, "UTILITY"), deck + Vector3(0, 0.017, -0.16), 0.0017)
 		match kind:
 			"cockpit":
 				var first_glazing := get_child_count()
@@ -167,6 +171,7 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 				_add_box(deck + Vector3(0, 0.236, 0), Vector3(1.2, 0.025, 1.45), dark_mat)
 				for z in range(8):
 					_add_box(deck + Vector3(0, 0.258, -0.59 + z * 0.17), Vector3(1.08, 0.04, 0.07), hull_mat)
+				_add_stencil("THERMAL / KEEP CLEAR", deck + Vector3(0, 0.235, -0.84), 0.0015, Color("d9b468"))
 			"cargo":
 				# Paired access leaves with visible seals, hinges and painted latch tabs.
 				_add_box(deck + Vector3(0, 0.035, 0), Vector3(1.98, 0.055, 1.96), dark_mat)
@@ -175,6 +180,8 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 					for z in [-0.58, 0.58]:
 						_add_box(deck + Vector3(float(side) * 0.95, 0.098, z), Vector3(0.14, 0.065, 0.22), hull_mat)
 					_add_box(deck + Vector3(float(side) * 0.12, 0.12, 0), Vector3(0.08, 0.02, 0.21), accent_mat)
+				_add_stencil("CARGO / %02d" % (cells.find(cell) + 1), deck + Vector3(-0.46, 0.111, -0.55), 0.00155)
+				_add_stencil("LIFT HERE", deck + Vector3(0.47, 0.111, 0.57), 0.00135, Color("d9b468"))
 			"weapon":
 				_add_box(deck + Vector3(0, 0.09, -0.2), Vector3(0.52, 0.16, 1.9), hull_mat, Vector3(-0.06, 0, 0))
 				for side in [-1, 1]:
@@ -202,6 +209,22 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 	_add_box(Vector3(0.52, 0.05, -bounds.z * 0.49), Vector3(0.065, 0.04, 0.13), warm_mat)
 	_add_box(Vector3(0, -0.12, bounds.z * 0.49), Vector3(bounds.x * 0.34, 0.09, 0.12), dark_mat)
 	_apply_engine_glow()
+
+
+# Painted identification remains attached to physical panels and responds to light.
+func _add_stencil(text: String, at: Vector3, pixel: float, ink: Color = Color("d6d7c9")) -> Label3D:
+	var label := Label3D.new()
+	label.name = "HullStencil"
+	label.text = text
+	label.font_size = 48
+	label.pixel_size = pixel
+	label.outline_size = 0
+	label.shaded = true
+	label.modulate = ink
+	label.basis = Basis(Vector3.UP, PI) * Basis(Vector3.RIGHT, -PI * 0.5)
+	label.position = at
+	add_child(label)
+	return label
 
 
 # Deployed only on the parked display. Four broad pads replace a skid per module.

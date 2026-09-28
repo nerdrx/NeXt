@@ -2051,3 +2051,12 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `bef0056`:
 `build/windows-validation-dd5c267/build/proton-smoke.yZMumT`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Screenshots were visually inspected; neither these images
 nor the smoke test establishes cinematic quality or the 1440p/60 target.
+
+### Exterior identification stencils (2026-09-28)
+
+Family and role designations are placed on exposed core roofs; cargo leaves
+carry bay indices and lifting cues, and reactor covers carry heat warnings.
+Labels use shaded, non-billboarded text without outlines. Hidden-Gamescope
+captures of all three families complete without engine errors. Visual review
+found the initial text direction faced aft; the labels now face the bow.
+These add scale and identification, not unique registrations or finished art.

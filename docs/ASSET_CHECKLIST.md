@@ -190,3 +190,9 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
   masks. Preserve separate paint/bare-metal roughness and clearcoat response,
   metre-scale wear and distance filtering. Current result remains placeholder
   quality; material noise does not replace hull design, bevels or authored detail.
+
+- [ ] Exterior hull stencils (`scripts/ship_visual.gd`, `_add_stencil`): replace
+  procedural shaded text with authored typography/decal atlases. Preserve family
+  designation, role, cargo-bay index, lifting cues and reactor heat warnings;
+  markings belong to panel surfaces and must not billboard or glow. These are
+  family/bay identifiers, not unique vessel registration numbers.
