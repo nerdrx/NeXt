@@ -1252,3 +1252,10 @@ Family pressure shells opt into filtered procedural fastener recesses and seal d
 Blueprint room/outer-hull containment regression passed. ShipDesigner interaction regression, family exterior/rear/cutaway captures and radiator capture passed in hidden Gamescope with no Godot script or shader errors. An initial incorrect reflection enum was fixed using the installed engine's ClassDB constants. A radiator capture mistakenly attempted on the dummy headless renderer failed and timed out; its subsequent hidden graphical run passed. These checks do not establish performance, photorealism or final authored asset quality.
 
 Clean Windows release export at `7282af9` passed without script/export errors. No fresh Proton runtime or updated development ZIP is claimed.
+
+
+## Fleet surface distance filtering — 2026-09-28
+
+The shared hull/cabin shader now fades low-frequency paint noise, seal dirt and panel color variation when their projected detail becomes too small. Fasteners use their own smaller fade range and symmetric edge filtering; narrow groove opacity scales down with screen footprint rather than growing into a dark pixel-wide grid.
+
+Added `tests/capture_surface_distance.gd`, a repeatable GPU review fixture with close, mid, far, distant and grazing views. Hidden Gamescope produced all five images without script or shader errors; close fasteners and distant detail fade were visually inspected. Existing family exterior/rear/cutaway capture also passed. These static captures verify rendering and the sampled appearances, not temporal stability under all motion, every material/lighting condition or a performance target.

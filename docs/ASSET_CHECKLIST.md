@@ -130,3 +130,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Replace multi-deck floor transfer markings with authored lift landings and a physical shaft/cabin system. Crew currently walk to the existing abstract deck-transfer landing, wait and transfer to a clear destination. Preserve approach/onward routing, occupant clearance, pause behavior and moving-cabin coordinates.
 
 - [ ] Replace procedural family fastener rings, seal dirt and fairing grilles with authored construction detail. Keep distance filtering and cabin clearance. Shipyard previews now use a neutral reflection sky shared with family review captures; approve final materials under actual hangar, sunlight and planetary conditions as well.
+
+- [ ] Review replacement hull/cabin materials at close, mid, far and grazing views using `tests/capture_surface_distance.gd`. Preserve screen-footprint filtering: small fasteners disappear before wider panel joints; seal dirt and paint noise must not remain as subpixel speckles. Add moving-camera review before final acceptance.

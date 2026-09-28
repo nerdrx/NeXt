@@ -21,8 +21,10 @@ float grain(vec3 p) {
 }
 void vertex() { local_position = VERTEX; local_normal = NORMAL; }
 void fragment() {
- float mottling = grain(local_position * 3.5);
- float footprint = length(fwidth(local_position)) * 95.0;
+ float surface_footprint = length(fwidth(local_position));
+ float mottling_detail = 1.0 - smoothstep(0.3, 1.2, surface_footprint * 3.5);
+ float mottling = mix(0.5, grain(local_position * 3.5), mottling_detail);
+ float footprint = surface_footprint * 95.0;
  float detail = 1.0 - smoothstep(0.3, 1.2, footprint);
  float micro = mix(0.5, grain(local_position * 95.0), detail);
  float abrasion = smoothstep(0.77, 0.94, grain(local_position * vec3(85.0, 2.0, 2.0))) * detail;
@@ -38,14 +40,18 @@ void fragment() {
  float edge_distance = min(edge.x, edge.y);
  float pixel = max(length(fwidth(surface)), 0.0001);
  float panel_detail = 1.0 - smoothstep(0.03, 0.14, pixel);
- float groove = (1.0-smoothstep(0.003, 0.003+pixel, edge_distance)) * panel_detail * panel_strength;
+ float groove = (1.0-smoothstep(0.003, 0.003+pixel, edge_distance)) * min(1.0, 0.006/pixel) * panel_detail * panel_strength;
  // Recessed fasteners and seal dirt establish metre scale without luminous trim.
  vec2 corner_offset = edge - vec2(0.065);
  float bolt_radius = length(corner_offset);
- float bolt = (1.0-smoothstep(0.012, 0.012+pixel, bolt_radius)) * panel_detail * industrial_detail;
- float bolt_rim = (1.0-smoothstep(0.022, 0.022+pixel, bolt_radius)) * panel_detail * industrial_detail;
- float seal_dirt = (1.0-smoothstep(0.012, 0.075, edge_distance)) * industrial_detail * panel_strength;
- float panel_tone = hash3(vec3(floor(panel_uv), 7.0));
+ // Fade each feature at its own physical scale; widening it by a whole pixel
+ // without reducing coverage would turn distant fasteners into dark blobs.
+ float fastener_detail = (1.0-smoothstep(0.006, 0.025, pixel)) * industrial_detail;
+ float bolt = (1.0-smoothstep(0.012-pixel*0.5, 0.012+pixel*0.5, bolt_radius)) * fastener_detail;
+ float bolt_rim = (1.0-smoothstep(0.022-pixel*0.5, 0.022+pixel*0.5, bolt_radius)) * fastener_detail;
+ float seal_dirt = (1.0-smoothstep(0.012, 0.075, edge_distance)) * industrial_detail * panel_strength * panel_detail;
+ float tone_detail = 1.0-smoothstep(0.25, 1.0, length(fwidth(panel_uv)));
+ float panel_tone = mix(0.5, hash3(vec3(floor(panel_uv), 7.0)), tone_detail);
  float panel_height = smoothstep(0.0, 0.018, edge_distance) * 0.002 * panel_detail * panel_strength;
  float finish_tone = mix(0.94 + 0.08 * mottling, 0.975 + 0.035 * mottling, panel_strength);
  ALBEDO = paint.rgb * finish_tone * (1.0 + (panel_tone-0.5)*0.065*panel_strength);
