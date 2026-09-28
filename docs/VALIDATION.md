@@ -1341,3 +1341,10 @@ Actual-main checks passed headlessly and in hidden Gamescope: world rays hit wre
 Recovery now measures distance to the nearest conservative wreck collision box, accounting for tilt, scale and absolute address. Menu availability and domain actions use the same calculation. Shared geometry drives collision and range, so salvaging switches both to the smaller freight cache. Cruise approach targets use wreck bounding radius plus player hull radius and 12 m clearance rather than a fixed 25 m center offset.
 
 Recovery tests passed the 7.9 m/8.1 m walking boundary beside a large tilted Merchant hull, including origin rebasing and non-finite position rejection. Actual-main wreck physics passed headlessly and in hidden Gamescope; an additional headless check verifies the requested approach target clearance. Conservative boxes are not exact damaged-mesh surfaces; route-wide avoidance of all wrecks, towing and derelict repair remain open.
+
+
+## Cruise wreck avoidance — 2026-09-28
+
+Cruise route planning includes active local wrecks and freight caches as conservative spheres expanded by the player hull radius. Completed recovery records and other locations are excluded. Recovery approach destinations now include the planner clearance plus 5 m, avoiding a destination inside the safety margin. Failed-route feedback refers to nearby obstacles instead of only planets.
+
+Actual-main checks passed headlessly and in hidden Gamescope: a direct course through a wreck produces a detour, every generated segment clears the expanded obstacle, a destination inside the wreck is refused, the dedicated recovery approach retains clearance, and complete recovery restores the direct route. Existing route geometry and cruise gameplay regressions passed. This verifies route construction and existing cruise behavior, not dynamic replanning for newly created wrecks during a leg or complete avoidance of stations and moving ships.

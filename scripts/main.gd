@@ -316,12 +316,18 @@ func _plan_cruise_leg() -> bool:
 	for index in world.planets.size():
 		var center: Variant = _planet_center(index)
 		if center != null: obstacles.append({"center": center, "radius": float(world.planets[index].visual_radius) + pilot.hull_radius})
+	for wreck: Dictionary in state.recovery.get("wrecks", []):
+		if int(wreck.system) != state.system_index or int(wreck.surface) != surface_index: continue
+		if bool(wreck.salvaged) and bool(wreck.cargo_recovered): continue
+		var center: Variant = _wreck_position(wreck)
+		if center != null:
+			obstacles.append({"center": center, "radius": ShipRecovery.wreck_radius(wreck) + pilot.hull_radius})
 	var route: Dictionary = CruiseRoute.plan(_helm_position(), _cruise_point(cruise_address), obstacles)
 	if not bool(route.ok):
 		pilot.cancel_autopilot()
 		aboard_cruise = false
 		cruise_address = null
-		notify("Cruise cannot find a clear planetary route. Reposition manually and retry.")
+		notify("Cruise cannot find a clear route around nearby obstacles. Reposition manually and retry.")
 		return false
 	for point: Vector3 in route.points:
 		var waypoint := flight_origin.clone()
@@ -2682,7 +2688,7 @@ func approach_wreck(id: String) -> void:
 		if address == null:
 			var p: Array = wreck.position
 			address = SectorPosition.new(Vector3i.ZERO, Vector3(p[0], p[1], p[2]))
-		address.move_delta(Vector3(0, 0, ShipRecovery.wreck_radius(wreck) + pilot.hull_radius + 12.0))
+		address.move_delta(Vector3(0, 0, ShipRecovery.wreck_radius(wreck) + pilot.hull_radius + CruiseRoute.CLEARANCE + 5.0))
 		_start_address_cruise(address)
 		return
 

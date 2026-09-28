@@ -33,11 +33,25 @@ func _run() -> void:
 		assert(material.emission_energy_multiplier == 0.0, "wreck engines are unpowered")
 	game.pilot.set_flight(true)
 	game.pilot.teleport(point + Vector3(0, 0, 100))
+	var far_goal: SectorPosition = game.flight_origin.clone()
+	far_goal.move_delta(point - Vector3(0, 0, 100))
+	game._start_address_cruise(far_goal)
+	assert(game.cruise_waypoints.size() > 1, "autopilot detours around a wreck on the direct route")
+	var previous: Vector3 = game.pilot.position
+	var obstacle := {"center": point, "radius": ShipRecovery.wreck_radius(game.state.recovery.wrecks[0]) + game.pilot.hull_radius}
+	for waypoint: SectorPosition in game.cruise_waypoints:
+		var next: Vector3 = waypoint.relative_to(game.flight_origin, 30000.0)
+		assert(not CruiseRoute._blocked(previous, next, obstacle), "every planned segment clears wreck and player hull")
+		previous = next
+	var unsafe_goal: SectorPosition = game.flight_origin.clone()
+	unsafe_goal.move_delta(point)
+	game._start_address_cruise(unsafe_goal)
+	assert(game.cruise_address == null and game.cruise_waypoints.is_empty(), "destination inside wreck is refused")
 	game.approach_wreck(report.wreck_id)
 	assert(game.cruise_address != null)
 	var target: Vector3 = game.cruise_address.relative_to(game.flight_origin, 30000.0)
 	var radius := ShipRecovery.wreck_radius(game.state.recovery.wrecks[0])
-	assert(is_equal_approx(target.distance_to(point), radius + game.pilot.hull_radius + 12.0), "approach leaves clearance around wreck and player hull")
+	assert(is_equal_approx(target.distance_to(point), radius + game.pilot.hull_radius + CruiseRoute.CLEARANCE + 5.0), "approach leaves clearance around wreck and player hull")
 	game.pilot.cancel_autopilot()
 	game.pilot.teleport(point + Vector3(0, 0, 20))
 	assert(game.recover_wreck(report.wreck_id, true).is_empty())
@@ -51,6 +65,9 @@ func _run() -> void:
 	await physics_frame
 	await physics_frame
 	assert(_ray(game, point).is_empty(), "completed recovery removes stale collision")
+	game.pilot.teleport(point + Vector3(0, 0, 100))
+	game._start_address_cruise(far_goal)
+	assert(game.cruise_waypoints.size() == 1, "fully recovered wreck no longer blocks route")
 	game.sound.shutdown()
 	game.session.leave()
 	game.queue_free()
