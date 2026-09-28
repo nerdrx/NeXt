@@ -1915,3 +1915,8 @@ The walking fixture also passes under hidden Gamescope. The colony HUD capture
 shows 1.22 g for the fixture's 12 m/s² planet, with readable telemetry. The foot
 mode caption now says ON FOOT rather than implying an implemented magnetic-boot
 system. This is a mechanics check, not visual-quality acceptance.
+
+Clean Windows export and hidden-Gamescope Proton integration pass at `e87a866`:
+`build/windows-validation-dd5c267/build/proton-smoke.oty9HI`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Dedicated jump-height assertions ran natively; packaged
+smoke covers general gameplay, including planetary walking and interior support.
