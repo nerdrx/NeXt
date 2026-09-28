@@ -13,6 +13,10 @@ var destination: int = 0
 var navigation_info: Label
 var navigation_chart: GalaxyChart
 var navigation_address: SpinBox
+var survey_route: Dictionary = {}
+var survey_route_label: Label
+var survey_route_approach: Button
+var survey_route_clear: Button
 var journal_page_index: int = 0
 var journal_pending_only: bool = false
 var _visit_menu_state: Array = []
@@ -228,14 +232,15 @@ func _navigation() -> void:
 	content.add_child(chart)
 	chart.configure(game.state.system_index)
 	chart.selected.connect(_select_destination)
-	destination = game.state.system_index
+	if not survey_route.is_empty() and not _survey_route_recorded(): survey_route.clear()
+	destination = int(survey_route.system) if not survey_route.is_empty() else game.state.system_index
 	navigation_info = _text("Select a star to inspect its system.", 17)
 	var controls := _row()
 	var address := SpinBox.new()
 	navigation_address = address
 	address.max_value = Universe.SYSTEM_LIMIT - 1
 	address.step = 1
-	address.value = game.state.system_index
+	address.value = destination
 	address.prefix = "Address "
 	address.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	controls.add_child(address)
@@ -244,6 +249,15 @@ func _navigation() -> void:
 		chart.destination = int(address.value)
 		chart.queue_redraw()))
 	controls.add_child(InterfaceTheme.button("ENGAGE HYPERDRIVE", func(): game.request_jump(destination)))
+	survey_route_label = _text("", 16, InterfaceTheme.CYAN)
+	var route_controls := _row()
+	survey_route_approach = InterfaceTheme.button("APPROACH RECORDED PLANET", _approach_journal_planet)
+	survey_route_approach.name = "SurveyRouteApproach"
+	route_controls.add_child(survey_route_approach)
+	survey_route_clear = InterfaceTheme.button("CLEAR SURVEY COURSE", _clear_survey_route)
+	survey_route_clear.name = "ClearSurveyRoute"
+	route_controls.add_child(survey_route_clear)
+	_select_destination(destination)
 	_button("INSPECT SYSTEM PHYSICS", show_page.bind("survey"))
 	_button("RECOVERY BEACONS", show_page.bind("recovery"))
 	_button("SURVEY JOURNAL", show_page.bind("journal")).name = "OpenSurveyJournal"
@@ -303,7 +317,9 @@ func _update_survey() -> void:
 			survey_labels[i].text += "\nSpin %.1f hours / Axial tilt %.1f° / Inclination %.1f°\nEquator, longitude 0°: %s / Direct light %.1f W/m² before atmosphere" % [body.rotation_seconds / 3600.0, rad_to_deg(body.axial_tilt_rad), rad_to_deg(body.inclination_rad), "Day" if surface.sun_above_horizon else "Night", surface.direct_irradiance_w_m2]
 
 func _select_destination(address: int) -> void:
+	if not survey_route.is_empty() and int(survey_route.system) != address: survey_route.clear()
 	destination = address
+	_update_survey_route()
 	if is_instance_valid(navigation_address): navigation_address.value = address
 	if is_instance_valid(navigation_chart):
 		navigation_chart.destination = address
@@ -1106,7 +1122,7 @@ func _survey_journal() -> void:
 Address %d / %s / %s" % [body.name, data.name, entry.system, traits, "Unsold" if entry.status == 1 else "Sold"], 16)
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(label)
-		var route := InterfaceTheme.button("SET COURSE", _journal_course.bind(int(entry.system)))
+		var route := InterfaceTheme.button("SET COURSE", _journal_course.bind(int(entry.system), int(entry.planet)))
 		route.name = "SurveyCourse%d_%d" % [entry.system, entry.planet]
 		row.add_child(route)
 	var pages := _row()
@@ -1125,9 +1141,36 @@ func _journal_page(index: int) -> void:
 	journal_page_index = index
 	show_page("journal")
 
-func _journal_course(system: int) -> void:
+func _journal_course(system: int, planet: int) -> void:
+	survey_route = {"system": system, "planet": planet}
 	show_page("navigation")
-	_select_destination(system)
+
+func _survey_route_recorded() -> bool:
+	return not survey_route.is_empty() and game.state.planet_surveys.has("%d:%d" % [survey_route.system, survey_route.planet])
+
+func _update_survey_route() -> void:
+	if not is_instance_valid(survey_route_label): return
+	var active := _survey_route_recorded()
+	survey_route_label.visible = active
+	survey_route_approach.get_parent().visible = active
+	if not active: return
+	var system := int(survey_route.system)
+	var planet := int(survey_route.planet)
+	var data := Universe.system_data(system)
+	var local: bool = game.state.system_index == system
+	survey_route_label.text = "SURVEY COURSE / %s / %s\n%s" % [data.planets[planet].name, data.name, "Arrived in system. Surface approach is available from your ship helm in flight." if local else "Jump to address %d, then choose Approach Recorded Planet." % system]
+	survey_route_approach.disabled = not local or not game.pilot.flying or game.aboard or game.surface_index >= 0
+
+func _clear_survey_route() -> void:
+	survey_route.clear()
+	show_page("navigation")
+
+func _approach_journal_planet() -> void:
+	# Recheck the live world: a retained menu action must never steer toward the
+	# same planet index in a different system or a newly loaded commander's world.
+	if not _survey_route_recorded() or game.state.system_index != int(survey_route.system): return
+	if not game.pilot.flying or game.aboard or game.surface_index >= 0: return
+	game.approach_planet_surface(int(survey_route.planet))
 
 
 func _visit_status() -> Array:

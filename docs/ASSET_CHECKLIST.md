@@ -161,7 +161,7 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 
 - [ ] Add survey scanner presentation and recorded-data icons. Current Navigation controls and text use the shared interface theme; retain clear range/speed requirements, pending payout and surveyed status when replacing the presentation.
 
-- [ ] Refine survey journal presentation: current text rows show planet/system names, atmospheric traits, sold status and course actions, with an unsold filter and twenty records per page. Preserve keyboard controls and bounded list construction when adding thumbnails or discovery imagery.
+- [ ] Refine survey journal presentation: current text rows show planet/system names, atmospheric traits, sold status and course actions, with an unsold filter and twenty records per page. Preserve keyboard controls and bounded list construction when adding thumbnails or discovery imagery. Navigation now carries the selected survey planet through jumps; keep its name, arrival guidance, explicit approach action and clear-course control readable.
 
 - [ ] Refine host session controls and peer-list presentation. Preserve clear admission state, host-only removal actions, departure refresh and the distinction between removing a visitor and preventing rejoining.
 

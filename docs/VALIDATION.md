@@ -1575,3 +1575,7 @@ Clean Windows release export and full Proton integration smoke passed at `39001d
 ### Ship equipment material separation
 
 Opaque ship fittings reuse the fleet surface shader with per-material roughness and metalness. Three-family front, rear and cutaway captures completed under hidden Gamescope without script or shader errors; Ranger front view was visually inspected. The change is subtle at full-ship distance and does not establish cinematic quality. Windows Desktop export completed. A radiator capture mistakenly run with the dummy headless renderer failed because viewport textures are unavailable there; the corrected hidden-Gamescope run completed with RADIATOR_VISUAL_CAPTURE_OK and no script or shader errors. The resulting radiator capture was visually inspected.
+
+### Survey planet courses
+
+`test_survey_route_gameplay.gd` runs the journal button, retains a second-planet destination across menu changes and an actual `request_jump`/`_complete_jump` transition, then verifies that its explicit approach targets that planet. It checks remote, docked, aboard and surface guards, clearing, manual star selection and removal of stale survey records. Hidden Gamescope passed with `SURVEY_ROUTE_GAMEPLAY_OK` and no script/shader errors; the arrival menu capture was inspected. Existing journal unit and gameplay checks passed. The route is session-only and does not automatically jump or land.
