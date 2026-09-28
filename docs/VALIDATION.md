@@ -1234,3 +1234,10 @@ Route quotes preserve gross cargo margin and escrow, and now separately estimate
 The new domain/menu regression passed in hidden Gamescope, including a vessel whose origin differs from the player system, gross-versus-operating accounting, unavailable fuel, no purchase side effects and actual quote-button output. Its screenshot was inspected: running costs and caveats are readable. Existing crew and trade cost-basis regressions passed. The graphical run retains the known seven-texture teardown warning.
 
 The final quote regression also passed headlessly. Clean detached Windows release export at `fd8ae24` passed without script/export errors. No new Proton runtime result or ZIP refresh is claimed for this change.
+
+
+## Patrol flight persistence — 2026-09-28
+
+Owned patrols now save system-space position, velocity, patrol center and course clock. Capture and restore account for floating-origin changes and culled actors retaining an older local frame. Patrol order identity prevents a cancelled actor from seeding a replacement order; cancellation and system relocation clear the previous flight. Save loading validates the patrol record and its assigned order atomically, while accepting older saves without flight state.
+
+The actual-main regression passed headlessly and in hidden Gamescope for rebased reload, independent patrol center, course clock, empty-fuel coasting, culled rebuild, invalid records, legacy saves and immediate cancellation/reassignment. Additional headless checks passed relocation cleanup, existing trader flight saves, fleet order fuel and patrol timing. The deliberate infinite-value fixture emits Godot's `Exponent too high` warning and is rejected without state mutation. This Gamescope run showed no texture teardown warning. CI includes the new regression. Remote patrol movement remains an abstract encounter simulation; this preserves the last materialized course, not combat targets or continuous distant trajectories.

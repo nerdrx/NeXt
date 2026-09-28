@@ -229,3 +229,10 @@ Passive engineer payroll no longer generates free hull points. An explicit, save
 Materialized owned fleet actors use the player propulsion impulse conversion (5,000,000 N s per fuel unit), with actual dry plus cargo mass. A propulsion callback debits the authoritative vessel record and limits velocity change to available fuel; heating uses the resulting impulse. Empty ships coast rather than receiving free braking. Saves and refuelling use the same record, avoiding actor/record tank divergence. Unowned NPC fuel inventories remain unmodelled.
 
 At remote order events, intersystem transfers cost 10 units for hyperdrive, matching player jumps. That jump cost also applies after represented local departure/berth flight; it is separate from thruster propellant. Remote same-system patrol/trade legs cost two units as a gameplay approximation; materialized same-system legs pay only actual thrust. Insufficient reserves pause before wages and market mutations. Failed stock/storage attempts do not debit travel fuel. Paid fleet fuel service consumes finite market stock at the vessel's system; delivery vehicles and arrival delay remain abstract.
+
+
+### Patrol flight persistence
+
+Materialized owned patrol ships retain position, velocity, patrol center and course clock in local saves. The center is stored in system coordinates independently of the vessel position, including when a distant actor is culled or the player changes the floating origin. Restoring an empty tank preserves coasting momentum. Cancelling or replacing an order discards its saved flight; changing patrol systems discards the previous system's flight.
+
+Remote patrols still use strategic encounter events. Saved local flight is the last materialized state, not a continuously integrated remote trajectory. Patrol course persistence does not preserve a combat target, contact-search timer or weapon cooldown.

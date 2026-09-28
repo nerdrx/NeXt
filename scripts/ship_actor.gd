@@ -235,6 +235,20 @@ func set_patrol_center(center: Vector3) -> void:
 	_home = center
 	_patrol_center_set = true
 
+func patrol_center() -> Vector3:
+	return _home
+
+func patrol_clock() -> float:
+	return _patrol_phase
+
+func restore_patrol_state(center: Vector3, clock: float) -> bool:
+	if not center.is_finite() or not is_finite(clock) or clock < 0.0:
+		return false
+	_home = center
+	_patrol_center_set = true
+	_patrol_phase = clock
+	return true
+
 
 func set_travel_target(point: Vector3) -> void:
 	if not point.is_finite(): return

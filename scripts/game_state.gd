@@ -881,7 +881,8 @@ func _load_v2(data: Dictionary) -> String:
 				loaded_ship.drive_temperature_k = float(value.drive_temperature_k)
 			if value.has("flight"):
 				var flight: Variant = value.flight
-				if not flight is Dictionary or flight.size() != 3 or not flight.has_all(["phase", "address", "velocity"]) or not flight.phase is String or not flight.phase in ["outbound", "inbound"] or not flight.velocity is Array or flight.velocity.size() != 3: return "Invalid fleet flight record."
+				var patrol_flight: bool = flight is Dictionary and flight.get("phase", "") == "patrol"
+				if not flight is Dictionary or flight.size() != (5 if patrol_flight else 3) or not flight.has_all(["phase", "address", "velocity"] + (["patrol_center", "patrol_clock"] if patrol_flight else [])) or not flight.phase is String or (flight.phase not in ["outbound", "inbound"] and not patrol_flight) or not flight.velocity is Array or flight.velocity.size() != 3: return "Invalid fleet flight record."
 				var address: Variant = SectorPosition.from_save(flight.address)
 				if not address is SectorPosition or address.relative_to(SectorPosition.new(), SectorPosition.MAX_RELATIVE_DISTANCE) == null: return "Invalid fleet flight address."
 				var velocity: Array[float] = []
@@ -890,6 +891,12 @@ func _load_v2(data: Dictionary) -> String:
 					velocity.append(float(component))
 				if Vector3(velocity[0], velocity[1], velocity[2]).length() > 1000.0: return "Invalid fleet flight velocity."
 				loaded_ship.flight = {"phase": flight.phase, "address": address.to_save(), "velocity": velocity}
+				if patrol_flight:
+					var center: Variant = SectorPosition.from_save(flight.patrol_center)
+					if not center is SectorPosition or center.relative_to(SectorPosition.new(), SectorPosition.MAX_RELATIVE_DISTANCE) == null: return "Invalid fleet patrol center."
+					if not _is_number(flight.patrol_clock) or not is_finite(float(flight.patrol_clock)) or float(flight.patrol_clock) < 0.0: return "Invalid fleet patrol clock."
+					loaded_ship.flight.patrol_center = center.to_save()
+					loaded_ship.flight.patrol_clock = float(flight.patrol_clock)
 			if _fleet_cargo_total(loaded_ship) > int(value.capacity): return "Fleet cargo exceeds capacity."
 			ship_ids[value.id] = true
 			loaded_fleet.append(loaded_ship)
@@ -927,10 +934,12 @@ func _load_v2(data: Dictionary) -> String:
 			loaded_orders[key] = order
 	for ship: Dictionary in loaded_fleet:
 		if not ship.has("flight"): continue
-		var assigned_trade: Dictionary = {}
+		var assigned_order: Dictionary = {}
 		for order: Dictionary in loaded_orders.values():
-			if order.kind == "trade" and str(order.ship_id) == str(ship.id): assigned_trade = order; break
-		if assigned_trade.is_empty() or str(ship.flight.phase) != str(assigned_trade.phase) or int(ship.system) != int(assigned_trade.origin if assigned_trade.phase == "outbound" else assigned_trade.destination): return "Fleet flight does not match its trade route."
+			if str(order.kind) == ("patrol" if ship.flight.phase == "patrol" else "trade") and str(order.ship_id) == str(ship.id): assigned_order = order; break
+		if ship.flight.phase == "patrol":
+			if assigned_order.is_empty() or int(ship.system) != int(assigned_order.system): return "Fleet flight does not match its patrol order."
+		elif assigned_order.is_empty() or str(ship.flight.phase) != str(assigned_order.phase) or int(ship.system) != int(assigned_order.origin if assigned_order.phase == "outbound" else assigned_order.destination): return "Fleet flight does not match its trade route."
 	var loaded_contracts: Array[Dictionary] = []
 	for value: Variant in data.contracts:
 		if not _valid_contract(value): return "Invalid contract record."

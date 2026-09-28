@@ -235,8 +235,8 @@ func assign_station_manager(crew_id: String, station_index: int) -> String:
 func cancel(crew_id: String) -> String:
 	if not state.crew_orders.has(crew_id): return "Crew member has no active order."
 	var order: Dictionary = state.crew_orders[crew_id]
-	if order.kind == "trade":
-		state.credits += int(order.escrow)
+	if order.kind == "trade": state.credits += int(order.escrow)
+	if order.kind in ["trade", "patrol"]:
 		var ship: Dictionary = _ship(str(order.ship_id))
 		if not ship.is_empty(): ship.erase("flight")
 	state.crew_orders.erase(crew_id)
@@ -580,6 +580,7 @@ func _trade_leg(order: Dictionary) -> Dictionary:
 func _patrol_leg(order: Dictionary) -> Dictionary:
 	var ship: Dictionary = _ship(str(order.ship_id))
 	if ship.is_empty(): return {"kind": "patrol", "status": "fleet ship missing", "crew_id": order.crew_id}
+	if int(ship.system) != int(order.system): ship.erase("flight")
 	ship.system = int(order.system)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(order.encounters) * 97 + int(order.system) * 31 + int(state.day) * 13 + int(str(ship.id).hash())

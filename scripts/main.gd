@@ -758,12 +758,18 @@ func _capture_fleet_flights() -> void:
 		if not ship.is_empty() and int(ship.system) == state.system_index:
 			ship.drive_temperature_k = actor.drive_temperature_k
 			if not actor.hull_family.is_empty(): ship.defense = {"charge": actor.shields, "delay": actor.shield_delay}
-		if str(actor.get_meta("fleet_order_kind", "")) != "trade": continue
-		var order := _trade_order(id)
-		if ship.is_empty() or order.is_empty() or int(ship.system) != state.system_index or not is_same(actor.get_meta("trade_order", {}), order): continue
-		var phase: String = str(order.get("phase", ""))
-		if str(actor.get_meta("trade_phase", "")) != phase: continue
-		_store_trade_flight(actor, ship, phase)
+		if ship.is_empty() or int(ship.system) != state.system_index: continue
+		match str(actor.get_meta("fleet_order_kind", "")):
+			"trade":
+				var order := _trade_order(id)
+				if order.is_empty() or not is_same(actor.get_meta("trade_order", {}), order): continue
+				var phase: String = str(order.get("phase", ""))
+				if str(actor.get_meta("trade_phase", "")) != phase: continue
+				_store_trade_flight(actor, ship, phase)
+			"patrol":
+				var order := _patrol_order(id)
+				if order.is_empty() or not is_same(actor.get_meta("patrol_order", {}), order) or int(order.system) != state.system_index: continue
+				_store_patrol_flight(actor, ship)
 
 func _store_trade_flight(actor: ShipActor, ship: Dictionary, phase: String) -> void:
 	var address: SectorPosition = flight_frame.address_for(actor, flight_origin)
@@ -771,6 +777,15 @@ func _store_trade_flight(actor: ShipActor, ship: Dictionary, phase: String) -> v
 	var velocity: Vector3 = actor.velocity
 	if not velocity.is_finite() or velocity.length() > 1000.0: return
 	ship.flight = {"phase": phase, "address": address.to_save(), "velocity": [velocity.x, velocity.y, velocity.z]}
+
+func _store_patrol_flight(actor: ShipActor, ship: Dictionary) -> void:
+	var address: SectorPosition = flight_frame.address_for(actor, flight_origin)
+	var velocity: Vector3 = actor.velocity
+	var clock: float = actor.patrol_clock()
+	if address == null or address.relative_to(SectorPosition.new(), SectorPosition.MAX_RELATIVE_DISTANCE) == null or not velocity.is_finite() or velocity.length() > 1000.0 or not is_finite(clock) or clock < 0.0: return
+	var center := address.clone()
+	if not center.move_delta(actor.patrol_center() - actor.position) or center.relative_to(SectorPosition.new(), SectorPosition.MAX_RELATIVE_DISTANCE) == null: return
+	ship.flight = {"phase": "patrol", "address": address.to_save(), "velocity": [velocity.x, velocity.y, velocity.z], "patrol_center": center.to_save(), "patrol_clock": clock}
 
 func _fleet_trade_target(order: Dictionary) -> Vector3:
 	if order.has("delivery_station"):
@@ -796,7 +811,7 @@ func _sync_fleet_actors() -> Array[String]:
 			var desired_kind: String = "trade" if is_trader else "patrol"
 			if fleet_actors.has(id):
 				var current: ShipActor = fleet_actors[id]
-				if str(current.get_meta("fleet_order_kind", "")) != desired_kind or str(current.get_meta("trade_phase", "")) != trade_phase or (is_trader and not is_same(current.get_meta("trade_order", {}), trade_order)):
+				if str(current.get_meta("fleet_order_kind", "")) != desired_kind or str(current.get_meta("trade_phase", "")) != trade_phase or (is_trader and not is_same(current.get_meta("trade_order", {}), trade_order)) or (is_patrol and not is_same(current.get_meta("patrol_order", {}), order)):
 					# A local supply route changes its destination without teleporting its ship.
 					if is_trader and trade_order.has("delivery_station") and int(trade_order.origin) == int(trade_order.destination) and is_same(current.get_meta("trade_order", {}), trade_order):
 						_store_trade_flight(current, ship, trade_phase)
@@ -823,6 +838,7 @@ func _sync_fleet_actors() -> Array[String]:
 				actor.shield_delay = float(ship.get("defense", {}).get("delay", 0.0))
 				actor.set_meta("trade_phase", trade_phase)
 				if is_trader: actor.set_meta("trade_order", trade_order)
+				if is_patrol: actor.set_meta("patrol_order", order)
 				actor.position = Vector3(-420 + (local_actor_ids.size() - 1) * 25, 100, -2000 if is_trader and trade_phase == "inbound" else -650)
 				if is_trader:
 					actor.set_travel_target(_fleet_trade_target(trade_order))
@@ -835,6 +851,19 @@ func _sync_fleet_actors() -> Array[String]:
 							if saved_relative != null and saved_velocity.size() == 3:
 								actor.position = saved_relative
 								actor.restore_flight_velocity(Vector3(float(saved_velocity[0]), float(saved_velocity[1]), float(saved_velocity[2])))
+				elif is_patrol:
+					var saved_flight: Dictionary = ship.get("flight", {})
+					if str(saved_flight.get("phase", "")) == "patrol":
+						var saved_address: Variant = SectorPosition.from_save(saved_flight.get("address"))
+						var saved_center: Variant = SectorPosition.from_save(saved_flight.get("patrol_center"))
+						if saved_address is SectorPosition and saved_center is SectorPosition:
+							var saved_relative: Variant = saved_address.relative_to(SectorPosition.new(), SectorPosition.MAX_RELATIVE_DISTANCE)
+							var center_relative: Variant = saved_center.relative_to(SectorPosition.new(), SectorPosition.MAX_RELATIVE_DISTANCE)
+							var saved_velocity: Array = saved_flight.get("velocity", [])
+							if saved_relative != null and center_relative != null and saved_velocity.size() == 3:
+								actor.position = saved_relative
+								actor.restore_flight_velocity(Vector3(float(saved_velocity[0]), float(saved_velocity[1]), float(saved_velocity[2])))
+								actor.restore_patrol_state(center_relative, float(saved_flight.patrol_clock))
 				actor.damaged.connect(_persist_fleet_damage)
 				actor.destroyed.connect(_actor_destroyed)
 				actor.fired.connect(_enemy_fire)
