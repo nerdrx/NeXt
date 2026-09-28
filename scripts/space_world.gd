@@ -276,7 +276,7 @@ func _build_star() -> void:
 	light.light_color = star_color
 	light.light_energy = 1.2 if star_type != "Black Hole" else 0.2
 	light.shadow_enabled = true
-	light.rotation_degrees = Vector3(-28, -34, 0)
+	light.basis = Basis.looking_at(-PRIMARY_POSITION, Vector3.UP)
 	add_child(light)
 	if star_type == "Black Hole":
 		_sphere("Black hole event horizon", 245, PRIMARY_POSITION, Color("010208"), 0.0, 0.95)
@@ -338,7 +338,7 @@ func _build_planets() -> void:
 		globe.mesh.radial_segments = 128
 		globe.mesh.rings = 64
 		if planet.atmosphere:
-			var sun_direction := Basis.from_euler(Vector3(deg_to_rad(-28), deg_to_rad(-34), 0)).z
+			var sun_direction := planet_sun_direction(i)
 			var light_strength := 0.17 if data.star_type == "Black Hole" else 1.0
 			if planet.has_ocean:
 				var cloud_material := ShaderMaterial.new()
@@ -361,13 +361,19 @@ func _build_planets() -> void:
 			halo.mesh.rings = 64
 			halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
+func planet_sun_direction(index: int) -> Vector3:
+	if index < 0 or index >= planets.size(): return Vector3.ZERO
+	return (PRIMARY_POSITION - Vector3(planets[index].position)).normalized()
+
 func configure_planet_weather(material: ShaderMaterial, index: int) -> void:
 	if material == null or index < 0 or index >= planets.size(): return
 	var planet: Dictionary = planets[index]
 	material.set_shader_parameter("weather_enabled", bool(planet.atmosphere) and bool(planet.has_ocean))
 	material.set_shader_parameter("weather_seed", float(index * 41 + int(data.station_seed % 997)))
 	material.set_shader_parameter("weather_shell_radius", float(planet.visual_radius) * 1.01 + PlanetHeightField.HEIGHT_SCALE)
-	material.set_shader_parameter("weather_sun_direction", Basis.from_euler(Vector3(deg_to_rad(-28), deg_to_rad(-34), 0)).z)
+	material.set_shader_parameter("weather_sun_direction", planet_sun_direction(index))
+	if material.shader == PLANET_SHADER:
+		material.set_shader_parameter("planet_sun_position", PRIMARY_POSITION - Vector3(planet.position))
 
 func set_fine_terrain_patch(index: int, normal: Vector3, radius: float, extent: float) -> void:
 	if index < 0 or index >= _planet_materials.size(): return

@@ -11,6 +11,8 @@ uniform vec3 weather_sun_direction = vec3(-0.5, 0.47, 0.73);
 uniform vec4 surface_color : source_color = vec4(0.3, 0.5, 0.32, 1.0);
 uniform vec4 ocean_color : source_color = vec4(0.04, 0.12, 0.22, 1.0);
 uniform float planet_radius = 850.0;
+uniform vec3 planet_sun_position = vec3(-1700.0, 1150.0, -4100.0);
+varying vec3 stellar_direction_view;
 uniform float seed = 0.0;
 uniform bool has_ocean = true;
 uniform sampler2D height_map : filter_linear, repeat_enable;
@@ -37,6 +39,7 @@ void vertex() {
 	float height = height_at(direction);
 	planet_local_position = direction;
 	VERTEX = direction * (length(VERTEX) + (has_ocean ? max(height, sea_level) : height));
+	stellar_direction_view = (MODELVIEW_MATRIX * vec4(planet_sun_position - VERTEX, 0.0)).xyz;
 }
 
 float hash(vec3 p) {
@@ -100,9 +103,30 @@ void fragment() {
 	ALBEDO = mix(ALBEDO, vec3(0.72, 0.76, 0.78), polar * 0.78);
 	if (weather_enabled) {
 		vec3 relative = direction * (planet_radius + (has_ocean ? max(height, sea_level) : height));
-		ALBEDO *= 1.0 - 0.4 * weather_shadow(relative, weather_sun_direction, weather_shell_radius, weather_seed, TIME);
+		ALBEDO *= 1.0 - 0.4 * weather_shadow(relative, normalize(planet_sun_position - relative), weather_shell_radius, weather_seed, TIME);
 	}
 	ROUGHNESS = has_ocean ? mix(0.88, 0.58, 1.0 - land) : 0.92;
 	METALLIC = 0.0;
 	SPECULAR = 0.18;
+}
+
+// The compact map places worlds around a finite primary, so each globe needs
+// its own light vector. The single scene directional light supplies color/energy.
+void light() {
+	vec3 l = LIGHT_IS_DIRECTIONAL ? normalize(stellar_direction_view) : LIGHT;
+	// Global parallel shadow maps do not describe this per-planet primary vector.
+	float attenuation = LIGHT_IS_DIRECTIONAL ? 1.0 : ATTENUATION;
+	float nl = max(dot(NORMAL, l), 0.0);
+	DIFFUSE_LIGHT += nl * LIGHT_COLOR * attenuation / PI;
+	vec3 half_vector = normalize(VIEW + l);
+	float nv = max(dot(NORMAL, VIEW), 0.001);
+	float nh = max(dot(NORMAL, half_vector), 0.0);
+	float vh = max(dot(VIEW, half_vector), 0.0);
+	float a2 = pow(max(ROUGHNESS, 0.08), 4.0);
+	float denominator = nh * nh * (a2 - 1.0) + 1.0;
+	float distribution = a2 / (PI * denominator * denominator);
+	float k = pow(ROUGHNESS + 1.0, 2.0) / 8.0;
+	float geometry = nv / (nv * (1.0 - k) + k) * nl / (nl * (1.0 - k) + k);
+	float fresnel = 0.04 + 0.96 * pow(1.0 - vh, 5.0);
+	SPECULAR_LIGHT += LIGHT_COLOR * attenuation * distribution * geometry * fresnel / (4.0 * nv);
 }

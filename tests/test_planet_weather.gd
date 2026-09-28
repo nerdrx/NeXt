@@ -37,7 +37,7 @@ func _run() -> void:
 	world.add_child(camera)
 	camera.far = 20000
 	camera.fov = 55
-	camera.position = world.planets[0].position + Vector3(0, 180, 2300)
+	camera.position = world.planets[0].position + world.planet_sun_direction(0) * 2300
 	camera.look_at(world.planets[0].position)
 	camera.make_current()
 	await create_timer(1.0).timeout
@@ -54,7 +54,7 @@ func _run() -> void:
 		assert(_center_brightness(clear) > _center_brightness(shadowed) + 0.002, "cloud coverage dims the rendered terrain")
 		world.configure_planet_weather(world._planet_materials[0], 0)
 		for cloud: MeshInstance3D in cloud_nodes: cloud.show()
-		camera.position = world.planets[0].position - Basis.from_euler(Vector3(deg_to_rad(-28), deg_to_rad(-34), 0)).z * 2300
+		camera.position = world.planets[0].position - world.planet_sun_direction(0) * 2300
 		camera.look_at(world.planets[0].position)
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png("res://build/planet-weather-night.png")
