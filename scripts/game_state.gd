@@ -81,7 +81,7 @@ var company_balance: int = 0
 var crew_paid: bool = false
 var field_repairs_enabled: bool = false
 var contracts: Array[Dictionary] = []
-# Persist changed market stocks; there is no passive restock/consumption yet.
+# Persist deviations from each market's steady-state supply.
 var market_stocks: Dictionary = {}
 
 func _init() -> void:
@@ -229,6 +229,29 @@ func market_stock(good: String, system: int = -1) -> int:
 	var index: int = system_index if system == -1 else system
 	if not GOODS.has(key) or index < 0 or index >= SYSTEM_LIMIT: return -1
 	return int(market_stocks.get(str(index), {}).get(key, _initial_market_stock(key, index)))
+
+func market_daily_flow(good: String, system: int = -1) -> int:
+	var key := good.to_lower()
+	var index := system_index if system == -1 else system
+	var stock := market_stock(key, index)
+	if stock < 0: return 0
+	var target := _initial_market_stock(key, index)
+	# Background logistics approximation: supply/demand repairs at most 10% of
+	# nominal inventory each hosted day. No individual factories or haulers yet.
+	var rate := maxi(1, ceili(target * 0.1))
+	return clampi(target - stock, -rate, rate)
+
+
+func _settle_markets() -> void:
+	# Only modified markets need storage or work; untouched markets are balanced.
+	for system_key: String in market_stocks.keys():
+		var stocks: Dictionary = market_stocks[system_key]
+		for good: String in stocks.keys():
+			var next := int(stocks[good]) + market_daily_flow(good, int(system_key))
+			if next == _initial_market_stock(good, int(system_key)): stocks.erase(good)
+			else: stocks[good] = next
+		if stocks.is_empty(): market_stocks.erase(system_key)
+
 
 func market_total(good: String, system: int, quantity: int, buy: bool, multiplier: float = 1.0) -> int:
 	var key: String = good.to_lower()
@@ -409,6 +432,7 @@ func clock_text() -> String:
 
 func _advance_day() -> void:
 	day += 1
+	_settle_markets()
 	_pay_crew_and_company()
 	_refresh_contracts()
 

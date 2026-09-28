@@ -337,11 +337,13 @@ func _market() -> void:
 	heading.text = "ORBITAL EXCHANGE"
 	var s: GameState = game.state
 	_text("Hold %d / %d    •    Cash %d CR" % [s.cargo_total(), s.ship_stats().cargo_capacity, s.credits], 21, InterfaceTheme.CYAN)
-	_text("Prices respond to supply. Button prices include the entire order.", 14, InterfaceTheme.MUTED)
+	_text("Prices respond to supply. Background supply and demand settle each simulation day; closed worlds stay paused. Button prices include the entire order.", 14, InterfaceTheme.MUTED)
 	if game.pilot.flying or game.aboard: _text("Dock to trade commodities.", 16, InterfaceTheme.GOLD)
 	for good: String in GameState.GOODS:
 		var row := _row()
-		var label := InterfaceTheme.label("%s\n%d in market  •  %d in hold" % [good.capitalize(), s.market_stock(good), int(s.cargo.get(good, 0))], 17)
+		var flow: int = s.market_daily_flow(good)
+		var flow_text := "Balanced supply" if flow == 0 else (("Supply +%d/day" % flow) if flow > 0 else ("Demand %d/day" % -flow))
+		var label := InterfaceTheme.label("%s\n%d in market  •  %d in hold\n%s" % [good.capitalize(), s.market_stock(good), int(s.cargo.get(good, 0)), flow_text], 17)
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(label)
 		for quantity in [1, 10]:

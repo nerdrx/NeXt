@@ -45,8 +45,9 @@ func _initialize() -> void:
 	var crowded_wallet := crowded.credits
 	assert(not crowded.trade("ore", 1, true).is_empty() and crowded.credits == crowded_wallet and crowded.cargo_total() == 0 and crowded.market_stocks.size() == GameState.MAX_MARKETS, "market capacity cannot evict shortages or charge rejected trades")
 	assert(crowded.market_transfer("ore", 0, 1, false).is_empty(), "existing market can still receive deliveries at record cap")
+	var daily_flow := crowded.market_daily_flow("ore", 0)
 	crowded.advance_time(GameState.DAY_SECONDS)
-	assert(crowded.market_stock("ore", 0) == 1, "clock changes do not silently replenish stock")
+	assert(crowded.market_stock("ore", 0) == 1 + daily_flow, "bounded resupply also works at the market record cap")
 	_test_freight()
 	for file_path: String in [path, path + ".bak"]:
 		if FileAccess.file_exists(file_path): DirAccess.remove_absolute(ProjectSettings.globalize_path(file_path))
@@ -76,10 +77,12 @@ func _test_freight() -> void:
 	reports = orders.tick(600)
 	assert(reports.size() == 1 and reports[0].status == "waiting: destination market full")
 	assert(ship.cargo.ore == bought and state.crew_orders[crew_id].phase == "inbound" and state.crew_orders[crew_id].escrow == escrow_before, "full destination cannot erase or pay for undelivered cargo")
-	assert(state.market_transfer("ore", 17, GameState.MARKET_CAPACITY - destination_stock, true).is_empty())
+	state.advance_time(GameState.DAY_SECONDS)
+	var before_delivery := state.market_stock("ore", 17)
+	assert(before_delivery < GameState.MARKET_CAPACITY, "background demand reopens destination capacity")
 	reports = orders.tick(600)
 	assert(reports.size() == 1 and reports[0].status == "cargo sold")
-	assert(int(ship.cargo.ore) == 0 and state.market_stock("ore", 17) == destination_stock + bought, "delivery moves actual cargo into destination supply")
+	assert(int(ship.cargo.ore) == 0 and state.market_stock("ore", 17) == before_delivery + bought, "delivery moves actual cargo into destination supply")
 
 func _write(data: Dictionary) -> void:
 	var file := FileAccess.open(path, FileAccess.WRITE)

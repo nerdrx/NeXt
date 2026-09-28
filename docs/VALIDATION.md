@@ -1823,3 +1823,23 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `dc3b9da`:
 `build/windows-validation-dd5c267/build/proton-smoke.enTAep`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Health-specific assertions ran natively; the packaged
 smoke covers the general gameplay loop, not live Steam authority.
+
+
+### Background market supply and demand (2026-09-28)
+
+Each modified system/commodity inventory now moves toward its deterministic
+nominal stock by at most 10% of that stock per simulation day. Shortages receive
+background supply; surplus is consumed. Settlement uses the existing active-time
+and jump-driven economic day, never wall-clock load time. Balanced records are
+removed, and untouched markets stay sparse. Exchange rows show the next daily
+flow. This approximates outside logistics and demand; no factory inputs, physical
+background haulers, or material conservation for that outside economy are claimed.
+
+`test_market_flow.gd` passes bounded flow, read-only quotes, fractional-day save
+continuation, no loading restock, fixed-day scarcity-price response, remote full
+markets, separate-world isolation, batched/split steps and sparse equilibrium.
+`test_market_inventory.gd` now verifies resupply at the 10,000-market record cap
+and an actual waiting crew trade unloading after daily demand frees capacity.
+Calendar, adaptive trade and partial delivery regressions pass. Hidden Gamescope
+passes the flow fixture, and its exchange screenshot was inspected for readable
+flow labels and order buttons. The flow fixture is registered in CI.
