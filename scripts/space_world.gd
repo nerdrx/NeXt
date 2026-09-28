@@ -66,6 +66,25 @@ func primary_contact(global_point: Vector3) -> bool:
 	return to_local(global_point).distance_squared_to(PRIMARY_POSITION) <= pow(primary_radius(), 2.0)
 
 
+# Constant-velocity contact estimate; steering and gravity can change the course.
+func primary_approach(global_point: Vector3, global_velocity: Vector3) -> Dictionary:
+	if _surface_mode or stellar_profile.is_empty() or not is_visible_in_tree() or not global_point.is_finite() or not global_velocity.is_finite(): return {}
+	var offset := to_local(global_point) - PRIMARY_POSITION
+	var velocity := global_basis.inverse() * global_velocity
+	var distance := offset.length()
+	var speed_squared := velocity.length_squared()
+	if not is_finite(distance) or not is_finite(speed_squared): return {}
+	var radius := primary_radius()
+	var impact_seconds := 0.0 if distance <= radius else -1.0
+	if impact_seconds < 0.0 and speed_squared > 0.000001:
+		var closest_time := -offset.dot(velocity) / speed_squared
+		if is_finite(closest_time) and closest_time >= 0.0:
+			var miss_squared := (offset + velocity * closest_time).length_squared()
+			if is_finite(miss_squared) and miss_squared <= radius * radius:
+				impact_seconds = maxf(0.0, closest_time - sqrt((radius * radius - miss_squared) / speed_squared))
+	return {"clearance_m": maxf(0.0, distance - radius), "impact_seconds": impact_seconds}
+
+
 func gravity_acceleration(global_point: Vector3) -> Vector3:
 	if _surface_mode or not is_visible_in_tree() or not global_point.is_finite(): return Vector3.ZERO
 	var point := to_local(global_point)

@@ -2212,3 +2212,14 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `1005713`:
 `build/windows-validation-dd5c267/build/proton-smoke.IovcX2`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Dedicated primary-contact assertions ran natively and in
 hidden Gamescope; packaged smoke checks general gameplay.
+
+### Primary approach warning (2026-09-28)
+
+`test_primary_warning.gd` checks time to contact, tangencies, misses, stationary
+and receding motion, inside-core contact, invalid input, transformed origin,
+hidden/surface guards, and helm/coasting/menu/on-foot HUD selection. Native and
+hidden-Gamescope runs pass without script errors. The 1440×900 screenshot
+`primary-warning.png` was inspected: the urgent banner and estimate label fit
+above the reticle without overlapping radar or existing flight telemetry.
+Primary-contact and stellar-gravity regressions plus editor import pass. The
+fixture is registered in CI.

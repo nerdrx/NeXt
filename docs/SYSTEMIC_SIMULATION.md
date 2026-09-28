@@ -509,3 +509,14 @@ The existing debris/rescue rules remain abstractions even for a black-hole loss;
 no claim is made that wrecks or rescue could physically escape a real horizon.
 Hidden/legacy surface scenes disable the contact field. Remote strategic ships
 are not spatially integrated through this hazard.
+
+### Primary approach warning
+
+The helm and coasting-hull HUD now show core clearance within 500 local metres,
+or a collision-course alert when the current velocity intersects the visible
+core within 30 seconds. Alerts become urgent at ten seconds. A ray/sphere
+closest-approach calculation includes tangencies and rejects receding or missing
+trajectories. This is explicitly a constant-velocity estimate, not a prediction
+of a gravity-curved trajectory or braking distance. It does not take control.
+Docked/on-foot and menu views suppress the warning; aboard warnings use the
+ship's position and velocity rather than the passenger's.

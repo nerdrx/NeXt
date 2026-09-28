@@ -27,6 +27,31 @@ func _process(delta: float) -> void:
 func _word(at: Vector2, text: String, font_size: int = 16, color: Color = InterfaceTheme.WHITE) -> void:
 	draw_string(ThemeDB.fallback_font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
 
+func primary_warning() -> Dictionary:
+	if game == null or game.ui_open: return {}
+	var sample: Dictionary
+	if game.aboard and is_instance_valid(game.coasting_hull):
+		sample = game.world.primary_approach(game.coasting_hull.global_position, game.coasting_hull.velocity)
+	elif game.pilot.flying:
+		sample = game.world.primary_approach(game.pilot.global_position, game.pilot.flight_velocity())
+	else: return {}
+	if sample.is_empty(): return {}
+	var seconds := float(sample.impact_seconds)
+	var collision_course := seconds >= 0.0 and seconds <= 30.0
+	if not collision_course and float(sample.clearance_m) > 500.0: return {}
+	return {"title": "PRIMARY COLLISION COURSE / %.1f s" % seconds if collision_course else "PRIMARY CORE / %.0f m CLEARANCE" % float(sample.clearance_m), "urgent": seconds >= 0.0 and seconds <= 10.0, "detail": "Current velocity estimate / turn away or brake" if collision_course else "Core contact destroys the ship / increase separation"}
+
+func _draw_primary_warning() -> void:
+	var warning := primary_warning()
+	if warning.is_empty(): return
+	var width := minf(620.0, size.x - 32.0)
+	var rect := Rect2(Vector2((size.x - width) * 0.5, 174), Vector2(width, 66))
+	var color := Color("ff8a70") if warning.urgent else InterfaceTheme.GOLD
+	_marker_labels.append(rect.grow(8.0))
+	draw_style_box(InterfaceTheme.box(InterfaceTheme.PANEL, color, 6, 8), rect)
+	_word(rect.position + Vector2(18, 26), warning.title, 18, color)
+	_word(rect.position + Vector2(18, 49), warning.detail, 14, InterfaceTheme.WHITE)
+
 func _draw() -> void:
 	_marker_labels.clear()
 	if game == null or game.state == null or game.pilot == null: return
@@ -42,6 +67,7 @@ func _draw() -> void:
 	_word(Vector2(w - 365, 32), "%s CR" % String.num_int64(state.credits), 21, InterfaceTheme.GOLD)
 	_word(Vector2(w - 365, 57), "DAY %03d  %s   •   %d SYSTEMS CHARTED" % [state.day, state.clock_text(), state.visited.size()], 12, InterfaceTheme.MUTED)
 	if game.ui_open: return
+	_draw_primary_warning()
 	var center := size * 0.5
 	draw_line(center + Vector2(-10, 0), center + Vector2(-4, 0), InterfaceTheme.CYAN, 1.2)
 	draw_line(center + Vector2(4, 0), center + Vector2(10, 0), InterfaceTheme.CYAN, 1.2)
