@@ -2060,3 +2060,10 @@ Labels use shaded, non-billboarded text without outlines. Hidden-Gamescope
 captures of all three families complete without engine errors. Visual review
 found the initial text direction faced aft; the labels now face the bow.
 These add scale and identification, not unique registrations or finished art.
+
+Corrected close-up was visually inspected; all three capture sets are free of
+engine errors. Parallel placement review found no overlap/orientation defect.
+Clean Windows export and hidden-Gamescope Proton integration pass at `e68982e`:
+`build/windows-validation-dd5c267/build/proton-smoke.CYa4qH`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Distant legibility and overall art quality remain limited
+by the placeholder assets.
