@@ -816,6 +816,8 @@ func _store_patrol_flight(actor: ShipActor, ship: Dictionary) -> void:
 	ship.flight = {"phase": "patrol", "address": address.to_save(), "velocity": [velocity.x, velocity.y, velocity.z], "patrol_center": center.to_save(), "patrol_clock": clock}
 
 func _fleet_trade_target(order: Dictionary) -> Vector3:
+	if order.has("source_station") and order.phase == "outbound" and state.system_index == int(order.origin):
+		return _owned_station_system_position(int(order.source_station)) + OwnedStation.FREIGHT_APPROACH
 	if order.has("delivery_station"):
 		if order.phase == "inbound": return _owned_station_system_position(int(order.delivery_station)) + OwnedStation.FREIGHT_APPROACH
 		if int(order.origin) == int(order.destination): return Vector3(-420, 100, -650)
@@ -840,8 +842,8 @@ func _sync_fleet_actors() -> Array[String]:
 			if fleet_actors.has(id):
 				var current: ShipActor = fleet_actors[id]
 				if str(current.get_meta("fleet_order_kind", "")) != desired_kind or str(current.get_meta("trade_phase", "")) != trade_phase or (is_trader and not is_same(current.get_meta("trade_order", {}), trade_order)) or (is_patrol and not is_same(current.get_meta("patrol_order", {}), order)):
-					# A local supply route changes its destination without teleporting its ship.
-					if is_trader and trade_order.has("delivery_station") and int(trade_order.origin) == int(trade_order.destination) and is_same(current.get_meta("trade_order", {}), trade_order):
+					# A local station route changes destination without teleporting its ship.
+					if is_trader and (trade_order.has("delivery_station") or trade_order.has("source_station")) and int(trade_order.origin) == int(trade_order.destination) and is_same(current.get_meta("trade_order", {}), trade_order):
 						_store_trade_flight(current, ship, trade_phase)
 					actors.erase(current)
 					remove_child(current)

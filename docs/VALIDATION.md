@@ -1848,3 +1848,20 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `f61dd11`:
 `build/windows-validation-dd5c267/build/proton-smoke.iTL5wN`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Market-flow assertions were native; the packaged run
 covers general integration, not shared market authority or frame-rate targets.
+
+
+### Station output exports (2026-09-28)
+
+`test_station_export.gd` passes native and hidden-Gamescope checks: no purchase
+escrow, empty-storage waiting, finite station-to-hold transfers, unchanged source
+market inventory, save/load of loaded cargo and source station, atomic rejection
+of malformed/mismatched source references and conflicting route modes, full-market
+waiting, partial revenue without invented manufacturing profit, and cancellation
+retaining cargo. A real scene checks the station pickup target, local position
+continuity, arrival-gated selling and return target. Crew Operations exposes the
+export action; its rendered controls were inspected. The GPU run reported the
+known seven Texture RID cleanup warning at shutdown.
+
+Station-supply, adaptive-trade and partial-sale regressions pass. The new fixture
+is registered in CI. This does not validate live Steam logistics, physical remote
+transit, production invoice accounting or performance targets.

@@ -192,6 +192,7 @@ jobs:
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_route_running_costs.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_station_industry.gd -- --capture-only
           timeout 40s "$GODOT_BIN" --headless --path . -s tests/test_station_supply.gd -- --capture-only
+          timeout 40s "$GODOT_BIN" --headless --path . -s tests/test_station_export.gd -- --capture-only
           timeout 40s "$GODOT_BIN" --headless --path . -s tests/test_network_loadout.gd
           timeout 40s "$GODOT_BIN" --headless --path . -s tests/test_npc_thermal.gd
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_thermal_escape.gd -- --capture-only

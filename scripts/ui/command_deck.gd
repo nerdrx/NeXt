@@ -900,7 +900,8 @@ func _fleet() -> void:
 			var cost: int = int(order.get("purchase_cost", -1))
 			if order.has("search_start"): text += "\nAdaptive %s / addresses %d–%d" % [str(order.good), int(order.search_start), mini(int(order.search_start) + 31, GameState.SYSTEM_LIMIT-1)]
 			if order.has("delivery_station"): text += "\nSupplying " + str(s.stations[int(order.delivery_station)].name)
-			text += "\nCargo purchase cost: " + (("%d CR" % cost) if cost >= 0 else "unknown / carried or legacy cargo")
+			if order.has("source_station"): text += "\nExporting from " + str(s.stations[int(order.source_station)].name)
+			text += "\nCargo purchase cost: " + (("%d CR" % cost) if cost >= 0 else ("unknown / station production" if order.has("source_station") else "unknown / carried or legacy cargo"))
 		var label := InterfaceTheme.label(text, 16)
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(label)
@@ -994,9 +995,15 @@ func _fleet() -> void:
 			_act(game.crew_operations().assign_station_supply.bind(str(crew_choice.get_selected_metadata()), str(ship_choice.get_selected_metadata()), station_choice.selected, str(goods_choice.get_selected_metadata()), int(quantity.value)), "Recurring station supply route assigned."))
 		supply.disabled = s.fleet_ships.is_empty()
 		property_row.add_child(supply)
+		var export_button := InterfaceTheme.button("EXPORT TO MARKET", func():
+			_act(game.crew_operations().assign_station_export.bind(str(crew_choice.get_selected_metadata()), str(ship_choice.get_selected_metadata()), station_choice.selected, str(goods_choice.get_selected_metadata()), int(destination_field.value), int(quantity.value)), "Recurring station export route assigned."))
+		export_button.name = "ExportStationGoods"
+		export_button.disabled = s.fleet_ships.is_empty()
+		property_row.add_child(export_button)
 		property_row.add_child(InterfaceTheme.button("MANAGE STATION", func():
 			_act(game.crew_operations().assign_station_manager.bind(str(crew_choice.get_selected_metadata()), station_choice.selected), "Station manager assigned.")))
 		_text("Supply routes use the selected ship, commodity and cargo quantity. They buy from the ship’s starting system and deliver to the selected station. Each pickup reserves credits up to the initial cargo budget, plus normal crew wages, until cancelled.", 14, InterfaceTheme.MUTED)
+		_text("Exports load existing station stock, then sell at the selected destination market. Empty stations and full markets wait; wages and fuel still apply. Revenue is paid to you; manufacturing cost is not tracked as cargo profit.", 14, InterfaceTheme.MUTED)
 	_button("REFRESH REPORTS", refresh)
 	_button("BACK TO ENTERPRISE", show_page.bind("company"))
 

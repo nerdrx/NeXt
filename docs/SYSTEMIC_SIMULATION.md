@@ -307,3 +307,20 @@ Each drag step now deposits 10% of its lost kinetic energy, `0.1 * 0.5 * loaded_
 Heat is applied immediately to piloted ships, moving walkable hulls and loaded NPC vessels. No deferred heat queue can be discarded by saving or changing seats. Radiation and system waste heat keep their existing time-step update. Once the shared store reaches 700 K, excess energy damages hull directly while leaving shields unchanged; fatal exposure uses existing wreck/rescue handling. Player rescue is deferred once on a fatal transition so a moving body's signal cannot rebuild its own scene mid-step or repeatedly retry a failed recovery. The flight HUD shows AIR HEAT in kW separately from drag acceleration.
 
 This is one aggregate heat store, not separate skin/cabin/engine temperatures. Ablation, plasma, shock layers, heat-shield construction and atmospheric convection remain unfinished.
+
+
+## Recurring station exports
+
+Crew Operations can assign a trader and empty vessel to load a selected good
+from an owned station and sell it at the selected system's exchange. The source
+station defines the pickup system; a remote vessel first repositions there.
+Exports reserve no purchase escrow and wait for real station inventory. Cargo
+moves from station storage into the hold; sales use the same finite market,
+partial unloading, wages and fuel rules as other freight. Cancellation keeps
+remaining cargo aboard. Sale proceeds go to commander credits; station
+production lacks per-unit invoice tracking, so export profit remains unknown.
+
+Same-system station-to-market routes retain local position and velocity between
+legs and require physical arrival before settlement. Inter-system transit and
+distant ships retain the existing strategic travel approximation. Production
+input delivery and output export can now run as separate recurring crew jobs.

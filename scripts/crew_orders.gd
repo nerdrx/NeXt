@@ -169,7 +169,7 @@ func refit_module(ship_id: String, cell: Vector3i, kind: String) -> String:
 	return ""
 
 
-func assign_trade_route(crew_id: String, ship_id: String, good: String, destination: int, quantity: int = 5, delivery_station: int = -1) -> String:
+func assign_trade_route(crew_id: String, ship_id: String, good: String, destination: int, quantity: int = 5, delivery_station: int = -1, source_station: int = -1) -> String:
 	var member: Dictionary = _member(crew_id)
 	var ship: Dictionary = _ship(ship_id)
 	var key: String = good.to_lower()
@@ -177,24 +177,30 @@ func assign_trade_route(crew_id: String, ship_id: String, good: String, destinat
 	if ship.is_empty(): return "Fleet ship does not exist."
 	if not BASE.has(key): return "Unknown trade good."
 	if destination < 0 or destination >= GameState.SYSTEM_LIMIT: return "Choose a valid destination system."
+	if source_station < -1 or source_station >= state.stations.size(): return "Invalid source station."
+	if source_station >= 0 and delivery_station >= 0: return "Choose either station supply or station export."
+	if source_station >= 0 and _cargo_total(ship) > 0: return "Unload the vessel before assigning station exports."
 	if delivery_station < -1: return "Invalid delivery station."
 	if delivery_station >= 0:
 		if delivery_station >= state.stations.size(): return "Owned station does not exist."
 		if int(state.stations[delivery_station].system) != destination: return "Station destination does not match its system."
-	elif destination == int(ship.system): return "Choose a different valid destination system."
+	elif source_station < 0 and destination == int(ship.system): return "Choose a different valid destination system."
 	if quantity < 1 or quantity > int(ship.capacity): return "Trade quantity exceeds fleet hold capacity."
 	for held_good: Variant in ship.cargo:
 		if int(ship.cargo[held_good]) > 0 and str(held_good) != key: return "Unload the other commodity before changing this route."
 	if _cargo_total(ship) >= int(ship.capacity): return "Fleet hold is full."
 	if _crew_busy(crew_id) or _ship_busy(ship_id): return "Crew member or ship already has an order."
 	var available: int = mini(mini(quantity, int(ship.capacity) - _cargo_total(ship)), state.market_stock(key, int(ship.system)))
-	if available <= 0: return "Origin market is out of stock."
-	var escrow: int = state.market_total(key, int(ship.system), available, true)
+	if source_station < 0 and available <= 0: return "Origin market is out of stock."
+	var escrow: int = 0 if source_station >= 0 else state.market_total(key, int(ship.system), available, true)
 	if escrow < 0: return "Origin market cannot fill this order."
 	if state.credits < escrow: return "Insufficient credits for trade escrow (%d required)." % escrow
 	state.credits -= escrow
 	ship.erase("flight")
 	var order: Dictionary = {"kind": "trade", "crew_id": crew_id, "ship_id": ship_id, "good": key, "origin": int(ship.system), "destination": destination, "quantity": quantity, "escrow": escrow, "escrow_limit": escrow, "progress": 0.0, "phase": "outbound", "earned": 0, "paused": false, "purchase_cost": 0 if _cargo_total(ship) == 0 else -1}
+	if source_station >= 0:
+		order.source_station = source_station
+		order.origin = int(state.stations[source_station].system)
 	if delivery_station >= 0: order.delivery_station = delivery_station
 	state.crew_orders[crew_id] = order
 	return ""
@@ -212,6 +218,10 @@ func assign_adaptive_trade(crew_id: String, ship_id: String, good: String, first
 func assign_station_supply(crew_id: String, ship_id: String, station_index: int, good: String, quantity: int = 5) -> String:
 	if station_index < 0 or station_index >= state.stations.size(): return "Owned station does not exist."
 	return assign_trade_route(crew_id, ship_id, good, int(state.stations[station_index].system), quantity, station_index)
+
+func assign_station_export(crew_id: String, ship_id: String, station_index: int, good: String, destination: int, quantity: int = 5) -> String:
+	if station_index < 0 or station_index >= state.stations.size(): return "Owned station does not exist."
+	return assign_trade_route(crew_id, ship_id, good, destination, quantity, -1, station_index)
 
 func assign_patrol(crew_id: String, ship_id: String, system: int) -> String:
 	var member: Dictionary = _member(crew_id)
@@ -582,6 +592,23 @@ func _trade_leg(order: Dictionary) -> Dictionary:
 			if choices.is_empty(): return {"kind": "trade", "status": "waiting: no profitable route within reserved capital", "crew_id": order.crew_id, "ship_id": ship.id}
 			order.destination = int(choices[0].destination)
 		var quantity: int = mini(int(order.quantity), int(ship.capacity) - _cargo_total(ship))
+		if order.has("source_station"):
+			var station_index := int(order.source_station)
+			if station_index < 0 or station_index >= state.stations.size(): return {"kind": "trade", "status": "source station missing", "crew_id": order.crew_id}
+			var station: Dictionary = state.stations[station_index]
+			if int(station.system) != int(order.origin): return {"kind": "trade", "status": "source station changed", "crew_id": order.crew_id}
+			var stock: Dictionary = station.get("stock", {})
+			quantity = mini(quantity, int(stock.get(good, 0)))
+			if quantity <= 0: return {"kind": "trade", "status": "waiting: station stock unavailable", "crew_id": order.crew_id}
+			stock[good] = int(stock[good]) - quantity
+			station.stock = stock
+			ship.cargo[good] = int(ship.cargo.get(good, 0)) + quantity
+			# Station production has no persisted per-unit invoice yet.
+			order.purchase_cost = -1
+			ship.erase("flight")
+			ship.system = int(order.destination)
+			order.phase = "inbound"
+			return {"kind": "trade", "status": "station cargo loaded", "crew_id": order.crew_id, "ship_id": ship.id, "good": good, "quantity": quantity, "system": ship.system}
 		quantity = mini(quantity, state.market_stock(good, int(order.origin)))
 		if quantity <= 0: return {"kind": "trade", "status": "waiting: origin stock unavailable", "crew_id": order.crew_id}
 		var escrow_top_up: int = 0
