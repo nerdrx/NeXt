@@ -143,5 +143,5 @@ Fleet traders unload as much cargo as the destination market can accept, retain 
 During criminal pursuit, **Allegiances & Law → Settle With Nearby Patrol** offers a peaceful fine payment while flying below 5 m/s within 350 m of an unobstructed living police ship. It preserves your ship, cargo and location and stops criminal hostility after payment. Insufficient funds, charging hyperdrive, diplomatic hostility and multiplayer visits block this option. Arrest, impoundment and criminal jurisdictions remain unfinished.
 
 Parked hull families have a marked crew-access hatch and a walkable ramp. F still
-enters the cabin using the existing transition; opening airlocks, seamless boarding
+enters the room adjoining the exterior hatch using the existing transition; opening airlocks, seamless boarding
 and terrain-adjusting access gear remain unfinished.

@@ -75,6 +75,13 @@ func _run() -> void:
 	game._unhandled_key_input(f_key)
 	await create_timer(0.35).timeout
 	if not _check(game.aboard and game.pilot.is_on_floor(), "F enters physical parked interior"): return
+	var entry_cell: Vector3i = access.get_meta("entry_cell")
+	var cabin_position: Vector3 = game.interior.to_local(game.pilot.global_position)
+	var expected_position := Vector3(entry_cell) * ShipBlueprint.CELL_SIZE
+	if not _check(Vector2(cabin_position.x, cabin_position.z).distance_to(Vector2(expected_position.x, expected_position.z)) < 0.1,
+		"F enters the room adjoining the exterior hatch"): return
+	if not _check((-game.pilot.global_basis.z).dot(-game.interior.global_basis.x) > 0.99,
+		"boarding faces into the ship"): return
 	if DisplayServer.get_name() != "headless":
 		await RenderingServer.frame_post_draw
 		if not _check(root.get_texture().get_image().save_png("user://parked-boarding.png") == OK, "capture parked interior"): return
@@ -87,6 +94,20 @@ func _run() -> void:
 	# Check restoration before the next physics step can move the walking capsule.
 	if not _check(not game.aboard and not game.pilot.flying and game.pilot.position.distance_to(outside) < 0.001,
 		"E exits and restores outside position (aboard=%s flying=%s distance=%.3f)" % [game.aboard, game.pilot.flying, game.pilot.position.distance_to(outside)]): return
+	for family: String in ["merchant", "ranger"]:
+		if not _check(game.state.refit_hull_family(family).is_empty(), "refit " + family): return
+		game.apply_ship_stats()
+		game.rebuild_player_ship()
+		game.pilot.teleport(game._ship_pad())
+		var family_access := game.ship_display.get_node("BoardingAccess") as Node3D
+		var family_cell: Vector3i = family_access.get_meta("entry_cell")
+		if not _check(game.board_parked_interior(), "board " + family): return
+		await create_timer(0.35).timeout
+		var actual: Vector3 = game.interior.to_local(game.pilot.global_position)
+		var target := Vector3(family_cell) * ShipBlueprint.CELL_SIZE
+		if not _check(game.pilot.is_on_floor() and Vector2(actual.x, actual.z).distance_to(Vector2(target.x, target.z)) < 0.1,
+			family + " hatch arrives in supported adjoining room"): return
+		game._unhandled_key_input(e_key)
 	game._unhandled_key_input(e_key)
 	if not _check(game.pilot.flying, "E still launches ship from pad"): return
 	_cleanup()

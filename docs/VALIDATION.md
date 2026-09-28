@@ -1689,3 +1689,15 @@ Clean Windows export and hidden-Gamescope Proton smoke passed at `a2ef101`: `bui
 - Earlier hull/material changes also passed Windows/Proton on `40ec67f`
   (`proton-smoke.A5Kvi3`).
 - No claim of seamless boarding, terrain adaptation, moving airlocks or final art.
+
+
+### Hatch-aligned parked entry (2026-09-28)
+
+Parked F boarding uses the exterior access assembly's selected module coordinate
+and faces inward. The optional entry is accepted only for a present interior cell,
+on the player's parked ship; menu, fleet and coasting entry keep their prior spawn.
+`test_parked_boarding.gd` passes with supported arrival in the adjoining room for
+Pathfinder, Merchant and Ranger. The Pathfinder arrival render was inspected.
+The hidden-Gamescope run exits 0 but reports seven leaked Texture RIDs at renderer
+shutdown; this cleanup warning is unresolved. Anchored and coasting interior
+regressions pass headless. No seamless door traversal is claimed.

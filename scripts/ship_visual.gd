@@ -285,6 +285,7 @@ func add_boarding_access(modules: Array) -> void:
 	var threshold := center + Vector3(ShipBlueprint.collision_size(cells).x * 0.5 + 0.04, -ShipBlueprint.FLOOR_OFFSET, 0)
 	var access := BoardingAccess.new()
 	access.name = "BoardingAccess"
+	access.set_meta("entry_cell", selected)
 	add_child(access)
 	access.position = threshold
 	# Parked hull floor is 0.75 m above the landing plane, including multi-deck hulls.

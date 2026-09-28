@@ -1162,7 +1162,9 @@ func _near_ship_boarding() -> bool:
 func board_parked_interior() -> bool:
 	if aboard or pilot.flying or ui_open or jump_charge > 0 or session.connected: return false
 	if not _near_ship_boarding() or not bool(state.ship_stats().get("walkable", false)): return false
-	enter_interior()
+	var access := ship_display.get_node_or_null("BoardingAccess")
+	var entry: Variant = access.get_meta("entry_cell", null) if access != null else null
+	enter_interior("", entry)
 	return aboard
 
 
@@ -2523,7 +2525,7 @@ func fleet_boarding_issue(ship_id: String) -> String:
 	return ""
 
 
-func enter_interior(fleet_id: String = "") -> void:
+func enter_interior(fleet_id: String = "", entry_cell: Variant = null) -> void:
 	if not fleet_id.is_empty():
 		var issue := fleet_boarding_issue(fleet_id)
 		if not issue.is_empty():
@@ -2589,11 +2591,17 @@ func enter_interior(fleet_id: String = "") -> void:
 	pilot.set_collision_layer_value(4, true)
 	pilot.set_collision_mask_value(3, true)
 	interior_deck = 0 if 0 in interior.decks else interior.decks[0]
+	var use_access: bool = not return_flying and fleet_id.is_empty() and entry_cell is Vector3i and entry_cell in interior_cells
+	if use_access: interior_deck = entry_cell.y
 	pilot.set_flight(false)
 	pilot.reset_view()
 	pilot.global_basis = interior.global_basis * Basis.looking_at(interior.entry_direction(interior_deck),Vector3.UP)
 	pilot.set_walk_up(interior.global_basis.y)
-	pilot.teleport(interior.spawn_on_deck(interior_deck))
+	if use_access:
+		pilot.global_basis = interior.global_basis * Basis.looking_at(Vector3.LEFT, Vector3.UP)
+		pilot.teleport(interior.to_global(Vector3(entry_cell) * ShipBlueprint.CELL_SIZE + Vector3.UP * 0.25))
+	else:
+		pilot.teleport(interior.spawn_on_deck(interior_deck))
 	close_menu()
 	_populate_ship_crew()
 	if not fleet_id.is_empty():
