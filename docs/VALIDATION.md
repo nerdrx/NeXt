@@ -1794,3 +1794,9 @@ guards, adjacent-room and other-deck rejection, translated/rotated room bounds,
 keyboard and menu actions, repeated-use rejection and saved cargo debit. The
 treatment overview capture was inspected. Existing anchored-interior walking,
 rotated gravity, doorway, lift and saved-position regression also passes.
+
+The final medical fixture also passes headless with explicit visit and hyperdrive
+guards. Clean Windows export and hidden-Gamescope Proton integration pass at
+`07df9f8`: `build/windows-validation-dd5c267/build/proton-smoke.51qmpz`, wrapper
+exit 0 and `NEXT_INTEGRATION_OK`. Dedicated treatment assertions were native;
+the packaged smoke covers the general gameplay loop.
