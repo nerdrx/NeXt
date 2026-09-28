@@ -2324,11 +2324,12 @@ func _integration_check() -> void:
 	actors.erase(defense_probe)
 	defense_probe.queue_free()
 	if not _check(crew_operations().cancel(defense_id).is_empty() and state.dismiss_crew(state.crew.size() - 1).is_empty(), "stand down defense gunner"): return
+	var saved_coasting_velocity: Vector3 = coasting_hull.velocity
 	if not _check(save_commander(false), "save moving interior"): return
 	exit_interior()
-	if not _check(pilot.flying and pilot.velocity.x == 60, "return to moving helm"): return
+	if not _check(pilot.flying and pilot.velocity.is_equal_approx(saved_coasting_velocity), "return to moving helm"): return
 	load_commander()
-	if not _check(pilot.flying and pilot.flight_velocity() == Vector3(60, 0, 0), "restore saved ship momentum"): return
+	if not _check(pilot.flying and pilot.flight_velocity().is_equal_approx(saved_coasting_velocity), "restore saved ship momentum"): return
 	cruise_to(pilot.position + Vector3(180, 60, -100))
 	enter_interior()
 	await get_tree().create_timer(0.6).timeout
