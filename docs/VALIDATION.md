@@ -1457,3 +1457,5 @@ Integrated the unfinished station exterior draft with paired vertical hoops, fre
 Station gameplay passed docking speed rejection, pad support, launch and faction/police interactions. Station interior checks passed physical walks to every service room and back, service use and saved-position recovery. The new superstructure test checks level 1 and 100 on a translated/rotated station: ring collision, a clear gap between supports, collision-free small/large +Z approach sweeps, initial-overlap rejection and rebuild cleanup. It is registered in Windows CI. Hidden Gamescope front/rear captures were generated and visually inspected; the replacement checklist was updated.
 
 This remains an exterior blockout: the hoops do not rotate, contain walkable districts or simulate artificial gravity. Collision and approach checks do not establish automatic routing from every direction, arbitrary vessel clearance or target performance. Existing station service interiors remain separate from the new exterior frame.
+
+Clean Windows release export at `89fec51` passed without script or parse errors. A new Proton runtime smoke was not run for this increment.
