@@ -78,6 +78,7 @@ jobs:
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_partial_trade.gd
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_route_discovery.gd
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_adaptive_trade.gd
+          timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_fine_settlement.gd -- --capture-only
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_route_discovery_ui.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_fleet_flight_save.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_patrol_flight_save.gd -- --capture-only

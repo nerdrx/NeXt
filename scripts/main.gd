@@ -1532,17 +1532,34 @@ func land(planet_index: int) -> void:
 	save_commander(false)
 	notify("Landing complete. Explore the colony; return to your ship to depart.")
 
+func fine_payment_issue() -> String:
+	if pilot.flying or aboard: return "Dock and leave your ship interior to settle fines."
+	if state.wanted <= 0: return "No outstanding criminal fines."
+	if state.credits < state.wanted * 750: return "Outstanding fine: %d CR." % (state.wanted * 750)
+	return ""
+
+
 func pay_fines() -> void:
-	var cost: int = state.wanted * 750
-	if pilot.flying or aboard or state.wanted <= 0:
-		notify("Dock at a station to settle your fines.")
-	elif state.credits < cost: notify("Outstanding fine: %d CR." % cost)
-	else:
-		state.credits -= cost
-		state.wanted = 0
-		save_commander(false)
-		deck.refresh()
-		notify("Fines paid. Wanted status cleared.")
+	var issue := fine_payment_issue()
+	if not issue.is_empty():
+		notify(issue)
+		return
+	state.credits -= state.wanted * 750
+	state.wanted = 0
+	var diplomatic_hostility := PlayerFaction.police_hostile(state.faction, str(world.data.faction), 0)
+	for actor in actors:
+		if not is_instance_valid(actor): continue
+		# A later attack on a surviving victim is a new reportable incident.
+		if actor.has_meta("assault_reported"): actor.remove_meta("assault_reported")
+		if actor.faction == "police":
+			actor.hostile = diplomatic_hostility
+			if actor is ShipActor and not diplomatic_hostility: actor.observe_target(null)
+	var saved := save_commander(false)
+	deck.refresh()
+	var message := "Fines paid. Criminal wanted status cleared."
+	if diplomatic_hostility: message += " Local police remain hostile because of faction relations."
+	if not saved: message += " Payment is NOT SAVED; check storage."
+	notify(message)
 
 func location_title() -> String:
 	if aboard: return ("Fleet interior" if not aboard_fleet_id.is_empty() else "Ship interior") + " / deck %d" % interior_deck

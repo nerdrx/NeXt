@@ -538,7 +538,10 @@ func _factions() -> void:
 	var s: GameState = game.state
 	_text("Wanted level: %d" % s.wanted, 22, InterfaceTheme.GOLD)
 	_text("Pirate bounties build your standing. Attacking police creates a wanted level; local security pursues wanted ships.", 16)
-	_button("PAY OUTSTANDING FINES", game.pay_fines, game.pilot.flying or s.wanted <= 0)
+	var fine_issue: String = game.fine_payment_issue()
+	var fine_button := _button("PAY OUTSTANDING FINES / %d CR" % (s.wanted * 750), game.pay_fines, not fine_issue.is_empty())
+	fine_button.name = "PayFines"
+	fine_button.tooltip_text = fine_issue
 
 	_text("YOUR FACTION", 13, InterfaceTheme.CYAN)
 	if str(s.faction.name).is_empty():

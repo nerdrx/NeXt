@@ -1657,3 +1657,9 @@ The optional validated `search_start` save field retains this policy; fixed-rout
 The final adaptive fixture starts with exactly the quoted purchase, two wages and replacement-fuel budget. Adaptive selection accounts for the departure wage already paid by `tick`, avoiding a duplicate budget requirement. That exact-budget case and the later waiting/cancellation checks pass.
 
 Clean Windows export and hidden-Gamescope Proton smoke passed at final code `d1bb1a7`: `build/proton-smoke.h3b2qu` in the validation checkout, `NEXT_INTEGRATION_OK`, wrapper exit 0 and no script/runtime errors. Dedicated adaptive assertions ran natively; the Windows smoke covers the general gameplay loop.
+
+### Fine settlement and repeat assaults
+
+Successful fine payment clears prior assault-report markers on surviving local actors, so a new attack on the same victim creates a new criminal alert. Police hostility updates immediately; ship police also clear their pursuit memory when criminal settlement makes them neutral. Diplomatic hostility remains independent, and the payment notification explicitly explains it. The UI shows the amount and shares flight/interior/funds/no-fines guards with the action. Failed saving is reported rather than presenting the payment as durably saved. Existing on-foot settlement access remains unchanged; this does not implement surrender, arrest or local criminal jurisdictions.
+
+The hidden-Gamescope fixture used actual weapon rays against a surviving guard, paid and reloaded the fine result, then hit the same guard again. It passed immediate ground/ship police de-escalation, pursuit clearing, repeat-incident reporting, no double charge, insufficient-funds/flight/interior rejection and preserved diplomatic hostility. Menu amount/disabled states passed and the screenshot was inspected. The new fixture is registered in Windows CI.
