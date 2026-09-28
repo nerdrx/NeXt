@@ -2010,3 +2010,7 @@ hostility before delivering that event. `test_ground_attack.gd` fires a real
 player ray into a neutral guard's back and verifies damage, assault reporting,
 immediate hostile contact and facing toward the origin. This fixture passes
 and is registered in CI.
+
+Corrected first-hit integration at `0b8f33a` also passes clean Windows export
+and hidden-Gamescope Proton smoke: `proton-smoke.Xn2OzU` under the same validation
+build directory, wrapper exit 0 and `NEXT_INTEGRATION_OK`.
