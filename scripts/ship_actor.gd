@@ -33,6 +33,9 @@ var travel_target := Vector3.ZERO
 var propulsion_limiter: Callable
 var stellar_heat_source: Callable
 var stellar_heat_w: float = 0.0
+var thermal_retreat: bool = false
+var _thermal_escape_direction := Vector3.ZERO
+var _thermal_probe_cooldown: float = 0.0
 var _thermal_dimensions := Vector3.ONE
 
 var hull_family: String = ""
@@ -118,9 +121,17 @@ func _physics_process(delta: float) -> void:
 	if not hostile: search_seconds_remaining = 0.0
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
 	_patrol_phase += delta
+	stellar_heat_w = stellar_heat_source.call(global_position, global_basis, _thermal_dimensions) if stellar_heat_source.is_valid() else 0.0
+	var total_heat := (systems_heat_w if hp > 0.0 else 0.0) + stellar_heat_w
+	var heat_damage := ThermalSignature.overflow_damage(drive_temperature_k, radiator_area_m2, total_heat, delta)
+	drive_temperature_k = ThermalSignature.step_temperature(drive_temperature_k, radiator_area_m2, total_heat, delta)
+	if heat_damage > 0.0:
+		take_damage(heat_damage, true)
+		if _destroyed: return
+	_update_thermal_escape(delta)
 	var destination := _home + Vector3(sin(_patrol_phase * 0.22) * 26.0, sin(_patrol_phase * 0.31) * 8.0, cos(_patrol_phase * 0.22) * 26.0)
 	if travel_active: destination = travel_target
-	var attacking := hostile and _target_is_active()
+	var attacking := hostile and not thermal_retreat and _target_is_active()
 	if not attacking and hostile and search_seconds_remaining > 0.0:
 		search_seconds_remaining = maxf(0.0, search_seconds_remaining - delta)
 		if search_seconds_remaining > 0.0:
@@ -146,16 +157,11 @@ func _physics_process(delta: float) -> void:
 			var fire_direction: Vector3 = aim_position - origin
 			if fire_direction.length_squared() > 0.000001:
 				fired.emit(self, origin, fire_direction.normalized())
+	if thermal_retreat:
+		destination = global_position + _thermal_escape_direction * 1000.0
 	var offset := destination - global_position
 	var distance := offset.length()
 	var desired_speed := speed * (0.55 if attacking and hp < 30.0 else 1.0)
-	stellar_heat_w = stellar_heat_source.call(global_position, global_basis, _thermal_dimensions) if stellar_heat_source.is_valid() else 0.0
-	var total_heat := (systems_heat_w if hp > 0.0 else 0.0) + stellar_heat_w
-	var heat_damage := ThermalSignature.overflow_damage(drive_temperature_k, radiator_area_m2, total_heat, delta)
-	drive_temperature_k = ThermalSignature.step_temperature(drive_temperature_k, radiator_area_m2, total_heat, delta)
-	if heat_damage > 0.0:
-		take_damage(heat_damage, true)
-		if _destroyed: return
 	var heat_factor := clampf((700.0 - drive_temperature_k) / 200.0, 0.0, 1.0)
 	var mass := maxf(1.0, dry_mass_kg + cargo_mass_kg)
 	var acceleration := minf(acceleration_limit_mps2, thrust_newtons * heat_factor / mass)
@@ -314,3 +320,26 @@ func apply_origin_shift(delta: Vector3) -> void:
 	last_contact_position -= delta
 	travel_target -= delta
 	reset_physics_interpolation()
+
+
+func _update_thermal_escape(delta: float) -> void:
+	if not stellar_heat_source.is_valid() or drive_temperature_k <= 500.0 or stellar_heat_w <= 0.0 or not is_finite(stellar_heat_w):
+		thermal_retreat = false
+		_thermal_escape_direction = Vector3.ZERO
+		_thermal_probe_cooldown = 0.0
+		return
+	var cooling := ThermalSignature.emitted_power_w(drive_temperature_k, radiator_area_m2) - ThermalSignature.emitted_power_w(300.0, radiator_area_m2)
+	if not thermal_retreat and (drive_temperature_k < 550.0 or stellar_heat_w + systems_heat_w <= cooling): return
+	_thermal_probe_cooldown = maxf(0.0, _thermal_probe_cooldown - delta)
+	if _thermal_probe_cooldown > 0.0: return
+	_thermal_probe_cooldown = 1.0
+	var best_heat := stellar_heat_w * 0.99
+	var direction := Vector3.ZERO
+	# Bounded local search; normal obstacle avoidance still handles the chosen course.
+	for axis: Vector3 in [Vector3.RIGHT, Vector3.LEFT, Vector3.UP, Vector3.DOWN, Vector3.FORWARD, Vector3.BACK]:
+		var sample: float = stellar_heat_source.call(global_position + axis * 500.0, global_basis, _thermal_dimensions)
+		if is_finite(sample) and sample >= 0.0 and sample < best_heat:
+			best_heat = sample
+			direction = axis
+	_thermal_escape_direction = direction
+	thermal_retreat = direction != Vector3.ZERO

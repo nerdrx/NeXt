@@ -109,7 +109,9 @@ func _draw() -> void:
 		for actor: Node3D in game.actors:
 			if is_instance_valid(actor) and not bool(actor.get_meta("spatial_culled", false)) and actor.position.distance_to(pilot.position) < 2800:
 				if actor is ShipActor and not game._ship_detectable(pilot, actor): continue
-				_draw_marker(actor.position, str(actor.get_meta("contact_name", actor.faction)).to_upper(), Color("f08670") if actor.faction == "pirate" else Color("75b9f1"), pilot.camera)
+				var label := str(actor.get_meta("contact_name", actor.faction)).to_upper()
+				if actor is ShipActor and actor.thermal_retreat: label += " / HEAT RETREAT"
+				_draw_marker(actor.position, label, Color("f08670") if actor.faction == "pirate" else Color("75b9f1"), pilot.camera)
 	else:
 		_word(Vector2(w * 0.5 - 180, h - 90), ("" if game.aboard else "[E] ") + game.interaction_hint(), 17, InterfaceTheme.CYAN)
 	if state.wanted > 0:
