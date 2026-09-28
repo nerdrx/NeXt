@@ -2486,3 +2486,17 @@ Clean Windows export and hidden-Gamescope Proton smoke pass at `a946267`:
 `NEXT_INTEGRATION_OK` and no logged script errors. The packaged smoke covers
 general gameplay; dedicated aboard multiplayer assertions ran natively and in
 hidden Gamescope. This does not establish complete Steam or shared-cabin play.
+
+
+### Shared NPC weapon beams (2026-09-28)
+
+Protocol 6 loopback passes broadcast to two visitors, authority-only publication,
+identity/address/length validation, stale epochs and the rolling 64-event budget
+with travel/leave resets. The initial import caught a missing explicit float
+annotation in the validator; fixed before passing import and regression checks.
+
+The beam scene passes headless and hidden Gamescope: actual host ray to ENet
+event, wall and miss endpoints, correctly rebased orange beam geometry, distant
+culling, unchanged health and tween cleanup. The GPU run retains the known seven
+texture RID cleanup warning. Retaliation and aboard multiplayer scene regressions
+pass. The visual signal intentionally carries no gameplay damage.

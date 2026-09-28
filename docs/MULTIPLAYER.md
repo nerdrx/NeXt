@@ -161,7 +161,7 @@ transport configuration remain separate unfinished requirements.
 
 ## Protocol compatibility and admission deadlines
 
-Join requests and welcomes carry `NetworkSession.PROTOCOL_VERSION` (currently 5).
+Join requests and welcomes carry `NetworkSession.PROTOCOL_VERSION` (currently 6).
 A missing or different version is rejected before world identity, presence or
 visitor profile adoption. Increment this version whenever wire formats or shared
 simulation contracts become incompatible; matching version numbers alone do not
@@ -194,7 +194,7 @@ are rejected before scene updates.
 
 This remains partial shared NPC combat. Visitor ship fire is now resolved by
 the host as described below. Host NPCs also target and damage visiting pilots;
-shared weapon effects and visitor access to host wrecks still need integration. Ground NPCs,
+visitor access to host wrecks and complete shared weapon effects still need integration. Ground NPCs,
 owned fleets and economic simulation remain local. Steam transport still requires
 an AppID and native integration verification.
 
@@ -241,7 +241,7 @@ Damage and player rescue remain client-applied, not tamper-proof host-owned
 health. Visitors walking inside their own coasting ships publish the exterior hull pose
 and remain eligible for exterior damage, as described below.
 Police memory of visitor assaults belongs to the current patrol/session; full
-shared law enforcement and all-viewer weapon effects remain unfinished.
+shared law enforcement and shared player-weapon effects remain unfinished.
 
 
 ## Walking aboard your ship during a visit
@@ -263,3 +263,19 @@ This does not let visitors board each other's ships or replicate cabin occupants
 Manual ship fire is unavailable through the normal walking controls, but the
 protocol trusts client flight/shot reports and does not enforce a separate helm
 occupancy state against modified clients. Player health is still client-applied.
+
+
+## Visible NPC weapon fire
+
+Protocol 6 broadcasts host pirate/police weapon beams as presentation events.
+The host sends the real ray's origin and hit endpoint as absolute sector
+addresses; visitors place the effect relative to their current origin. A missed
+shot keeps the existing short tracer. Distant effects beyond the local 30 km
+conversion bound are discarded. Events validate the NPC identity, addresses,
+travel epoch and nonzero segment length of at most 2400.1 metres.
+
+Effects use unreliable delivery and a 64-event-per-second host budget, allowing
+simultaneous patrol volleys without replay queues. Lost effects never change
+damage: reliable damage messages remain separate. This covers host pirate and
+police weapons; shared crew/fleet effects and all player-shot misses remain
+unfinished. The beam mesh is still replaceable placeholder art.

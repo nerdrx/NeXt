@@ -220,3 +220,7 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 
 - [ ] Replace articulated procedural crew bracing pose with authored handhold/stance animations
   matched to cabin load, retaining the route-pause behavior and 1.5/1.0 g hysteresis.
+
+- [ ] Shared patrol weapon beams (`scripts/main.gd` `_receive_npc_beam`): replace
+  the current orange tracer while retaining host-confirmed absolute endpoints,
+  origin rebasing and the separation between visual effects and damage.

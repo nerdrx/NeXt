@@ -129,6 +129,7 @@ func _ready() -> void:
 	session.npc_shot_requested.connect(_visitor_npc_shot)
 	session.npc_hit_received.connect(_receive_npc_hit)
 	session.npc_damage_received.connect(_receive_npc_damage)
+	session.npc_beam_received.connect(_receive_npc_beam)
 	session.pvp_damage_received.connect(_receive_pvp_damage)
 	session.pvp_hit_confirmed.connect(_receive_pvp_hit)
 	session.pvp_occlusion_check = _pvp_clear_shot
@@ -1356,6 +1357,8 @@ func _enemy_fire(actor: Node3D, origin: Vector3, direction: Vector3) -> void:
 	var hit: Dictionary = _ray(origin, direction, 2400 if actor is ShipActor else 120, excluded)
 	var endpoint: Vector3 = hit.get("position", origin + direction * 180)
 	_beam(origin, endpoint, Color("ff9673"))
+	if actor is ShipActor and actor.faction in ["pirate", "police"]:
+		_publish_npc_beam(actor.actor_id, origin, endpoint)
 	var struck: Object = hit.get("collider")
 	if actor is ShipActor and actor.faction in ["pirate", "police"] and struck is Node and struck.has_meta("peer_id"):
 		session.send_npc_damage(int(struck.get_meta("peer_id")), damage)
@@ -3304,3 +3307,22 @@ func _network_ship_pose() -> Dictionary:
 	return {"position": pilot.position,
 		"rotation": Vector3(pilot.camera.rotation.x, pilot.rotation.y, pilot.camera.rotation.z) if pilot.flying else pilot.rotation,
 		"flying": pilot.flying and not aboard}
+
+
+func _publish_npc_beam(actor_id: String, origin: Vector3, endpoint: Vector3) -> void:
+	if not session.connected or not session.is_host: return
+	var start_address := flight_origin.clone()
+	var end_address := flight_origin.clone()
+	if not start_address.move_delta(origin) or not end_address.move_delta(endpoint): return
+	session.publish_npc_beam(actor_id, start_address.to_save(), end_address.to_save())
+
+
+func _receive_npc_beam(_actor_id: String, origin_data: Dictionary, end_data: Dictionary) -> void:
+	if not session.connected or session.is_host: return
+	var start_address: SectorPosition = SectorPosition.from_save(origin_data)
+	var end_address: SectorPosition = SectorPosition.from_save(end_data)
+	if start_address == null or end_address == null: return
+	var origin: Variant = start_address.relative_to(flight_origin, 30000.0)
+	var endpoint: Variant = end_address.relative_to(flight_origin, 30000.0)
+	if origin == null or endpoint == null: return
+	_beam(origin, endpoint, Color("ff9673"))

@@ -12,9 +12,10 @@ signal npc_ships_received(records: Array)
 signal npc_shot_requested(attacker: int, direction: Vector3, damage: float)
 signal npc_hit_received(faction: String, killed: bool, assault: bool)
 signal npc_damage_received(damage: float)
+signal npc_beam_received(actor_id: String, origin_data: Dictionary, end_data: Dictionary)
 
 # Increment when wire payloads or shared simulation contracts become incompatible.
-const PROTOCOL_VERSION: int = 5
+const PROTOCOL_VERSION: int = 6
 const JOIN_TIMEOUT: float = 20.0
 const DEFAULT_PORT: int = 27840
 const MAX_PLAYERS: int = 8
@@ -43,6 +44,7 @@ var _join_remaining: float = 0.0
 var _last_pose_msec: int = 0
 var _last_clock_sent_msec: int = -1000
 var _last_npc_publish_msec: int = -1000
+var _npc_beam_times_msec: Array[int] = []
 var _last_remote_pose_msec: Dictionary = {}
 var _last_pvp_shot_msec: Dictionary = {}
 var _last_npc_shot_msec: Dictionary = {}
@@ -237,6 +239,7 @@ func leave() -> void:
 	_last_pose_msec = -1000
 	_last_clock_sent_msec = -1000
 	_last_npc_publish_msec = -1000
+	_npc_beam_times_msec.clear()
 	if had_session:
 		peers_changed.emit()
 
@@ -298,6 +301,18 @@ func publish_npc_ships(records: Array) -> void:
 	_rpc_npc_ships.rpc(snapshot.records, _pvp_epoch)
 
 
+func publish_npc_beam(actor_id: String, origin_data: Dictionary, end_data: Dictionary) -> void:
+	if not is_host or not connected: return
+	var beam := _validate_npc_beam(actor_id, origin_data, end_data)
+	if not beam.ok: return
+	var now := Time.get_ticks_msec()
+	while not _npc_beam_times_msec.is_empty() and now - _npc_beam_times_msec[0] >= 1000:
+		_npc_beam_times_msec.pop_front()
+	if _npc_beam_times_msec.size() >= 64: return
+	_npc_beam_times_msec.append(now)
+	_rpc_npc_beam.rpc(beam.actor_id, beam.origin, beam.end, _pvp_epoch)
+
+
 func travel(index: int) -> String:
 	if not is_host or not connected:
 		return "Only the host can change systems."
@@ -308,6 +323,7 @@ func travel(index: int) -> String:
 	_pvp_epoch += 1
 	_last_npc_publish_msec = -1000
 	_last_npc_shot_msec.clear()
+	_npc_beam_times_msec.clear()
 	_reset_pvp()
 	for peer_id: int in multiplayer.get_peers():
 		_rpc_world_joined.rpc_id(peer_id, index, world_seed, world_id, _pvp_epoch, ephemeris_seconds)
@@ -570,6 +586,28 @@ func _rpc_npc_ships(records: Array, epoch: int) -> void:
 	if is_host or not connected or epoch != _pvp_epoch: return
 	var snapshot := _validate_npc_snapshot(records)
 	if snapshot.ok: npc_ships_received.emit(snapshot.records)
+
+
+@rpc("authority", "call_remote", "unreliable")
+func _rpc_npc_beam(actor_id: String, origin_data: Dictionary, end_data: Dictionary, epoch: int) -> void:
+	if is_host or not connected or epoch != _pvp_epoch: return
+	var beam := _validate_npc_beam(actor_id, origin_data, end_data)
+	if beam.ok:
+		npc_beam_received.emit(beam.actor_id, beam.origin, beam.end)
+
+
+func _validate_npc_beam(actor_id: String, origin_data: Variant, end_data: Variant) -> Dictionary:
+	var known_ids := ["raider_0", "raider_1", "raider_2", "raider_3", "raider_4", "security_0", "security_1"]
+	if not known_ids.has(actor_id): return {"ok": false}
+	if not origin_data is Dictionary or not end_data is Dictionary: return {"ok": false}
+	var origin: Variant = SectorPosition.from_save(origin_data)
+	var end_position: Variant = SectorPosition.from_save(end_data)
+	if origin == null or end_position == null: return {"ok": false}
+	var offset: Variant = end_position.relative_to(origin, 2400.1)
+	if offset == null or not offset.is_finite(): return {"ok": false}
+	var distance: float = offset.length()
+	if not is_finite(distance) or distance <= 0.0 or distance > 2400.1: return {"ok": false}
+	return {"ok": true, "actor_id": actor_id, "origin": origin.to_save(), "end": end_position.to_save()}
 
 
 func _validate_npc_snapshot(records: Variant) -> Dictionary:
