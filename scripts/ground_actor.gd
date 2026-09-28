@@ -3,6 +3,7 @@ extends CharacterBody3D
 
 signal fired(actor: GroundActor, origin: Vector3, direction: Vector3)
 signal destroyed(actor: GroundActor)
+signal contact_spotted(actor: GroundActor, position: Vector3)
 
 var faction: String = "pirate"
 var hostile: bool = true
@@ -26,6 +27,7 @@ const SEARCH_SECONDS := 6.0
 var last_seen_position := Vector3.ZERO
 var contact_remaining: float = 0.0
 var _observed_target_id: int = 0
+var _report_cooldown: float = 0.0
 var navigation_source: Node3D
 var _navigation_path := PackedVector3Array()
 var _navigation_goal := Vector3.INF
@@ -77,6 +79,7 @@ func _physics_process(delta: float) -> void:
 	if not active or not is_finite(delta) or delta <= 0.0 or delta > 1.0:
 		return
 	_fire_cooldown = maxf(0.0, _fire_cooldown - delta)
+	_report_cooldown = maxf(0.0, _report_cooldown - delta)
 	_patrol_timer -= delta
 	_gait += delta * (7.0 if velocity.length() > 0.2 else 1.8)
 	var move_to := _waypoint
@@ -91,6 +94,9 @@ func _physics_process(delta: float) -> void:
 	if visible_target:
 		last_seen_position = target.global_position
 		contact_remaining = SEARCH_SECONDS
+		if _report_cooldown <= 0.0:
+			_report_cooldown = 1.0
+			contact_spotted.emit(self, last_seen_position)
 	else:
 		var previously_tracking := contact_remaining > 0.0
 		contact_remaining = maxf(0.0, contact_remaining - delta)
@@ -177,7 +183,7 @@ func _in_sight_cone(point: Vector3) -> bool:
 
 func observe_attack(origin: Vector3) -> void:
 	if not active or not hostile or not origin.is_finite() or not is_instance_valid(target): return
-	# An impact reveals the shot origin once; subsequent hidden motion stays unknown.
+	# An impact or allied report supplies one position; hidden motion stays unknown.
 	_observed_target_id = target.get_instance_id()
 	last_seen_position = origin
 	contact_remaining = SEARCH_SECONDS

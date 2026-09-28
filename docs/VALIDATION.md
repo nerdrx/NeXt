@@ -2014,3 +2014,13 @@ and is registered in CI.
 Corrected first-hit integration at `0b8f33a` also passes clean Windows export
 and hidden-Gamescope Proton smoke: `proton-smoke.Xn2OzU` under the same validation
 build directory, wrapper exit 0 and `NEXT_INTEGRATION_OK`.
+
+### Local ground radio (2026-09-28)
+
+`test_ground_radio.gd` verifies live resident signal wiring, actual visual
+acquisition by a source, a nearby ally behind a collision wall receiving the
+observed position, and exclusion of neutral, inactive, different-faction, distant
+and other-colony actors. Reports are rate limited. A blocked recipient neither
+fires nor rebroadcasts and cannot track hidden movement; its memory expires
+without another sighting. Contact, first-assault and ground behavior regressions
+pass. The radio fixture is registered in CI.

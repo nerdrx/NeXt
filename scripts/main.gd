@@ -724,6 +724,7 @@ func _spawn_people(eliminated: Array) -> void:
 		person.set_meta("service", ["shipyard", "market", "company", "factions"][i])
 		person.destroyed.connect(_actor_destroyed)
 		person.fired.connect(_enemy_fire)
+		person.contact_spotted.connect(_ground_contact_report)
 		add_child(person)
 		actors.append(person)
 	if surface_index >= 0:
@@ -740,6 +741,7 @@ func _spawn_people(eliminated: Array) -> void:
 			person.target = pilot
 			person.destroyed.connect(_actor_destroyed)
 			person.fired.connect(_enemy_fire)
+			person.contact_spotted.connect(_ground_contact_report)
 			add_child(person)
 			actors.append(person)
 
@@ -778,6 +780,7 @@ func _spawn_colony_people(eliminated: Array) -> void:
 				person.position = colony.to_global(Vector3(-12 if slot == 4 else 12, 0.3, 12))
 			person.destroyed.connect(_actor_destroyed)
 			person.fired.connect(_enemy_fire)
+			person.contact_spotted.connect(_ground_contact_report)
 			add_child(person)
 			actors.append(person)
 
@@ -1298,6 +1301,17 @@ func _player_fire(origin: Vector3, direction: Vector3) -> void:
 				if victim.faction == "police": victim.hostile = PlayerFaction.police_hostile(state.faction, str(world.data.faction), state.wanted)
 				victim.observe_attack(origin)
 			victim.take_damage(float(_last_stats.damage) if pilot.flying else 34.0)
+
+func _ground_contact_report(source: GroundActor, observed: Vector3) -> void:
+	if not is_instance_valid(source) or not source.active or not source.hostile or not observed.is_finite(): return
+	if not is_instance_valid(source.target): return
+	for ally in actors:
+		if not is_instance_valid(ally) or not ally is GroundActor or ally == source: continue
+		if not ally.active or not ally.hostile or ally.faction != source.faction or ally.target != source.target: continue
+		if ally.get_meta("colony_index", -1) != source.get_meta("colony_index", -1): continue
+		if ally.global_position.distance_squared_to(source.global_position) > 80.0 * 80.0: continue
+		ally.observe_attack(observed)
+
 
 func _enemy_fire(actor: Node3D, origin: Vector3, direction: Vector3) -> void:
 	if ui_open or jump_charge > 0: return

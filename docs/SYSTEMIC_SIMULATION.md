@@ -376,7 +376,7 @@ orders and home pursuit limits still apply. Sight uses a 120-degree horizontal
 forward cone. A hostile actor hit by the player records the shot origin and
 turns toward it, while physics rays still gate sight and firing. Visible targets
 remain the facing direction during retreat, rather than making the actor turn
-its back. Hearing, squad communication and tactical cover selection remain open.
+its back. Hearing and tactical cover selection remain open.
 
 ## Planetary gravity for ground residents
 
@@ -393,3 +393,16 @@ Ground NPC movement still uses world-up, appropriate to the current horizontal
 port decks. Radial surface roaming, airborne steering, fall injuries and NPC
 EVA remain unimplemented. This is gravity magnitude integration, not a claim
 that NPCs can navigate arbitrary planetary terrain.
+
+## Local ground radio reports
+
+An active hostile ground actor with current visual contact reports the observed
+position at most once per second. Nearby active hostile allies within 80 m,
+sharing its faction, target and colony, receive that position and face it.
+Reception uses the existing six-second contact memory; it does not bypass
+weapon sight checks or pursuit limits. Receiving a report does not emit another
+report, so information cannot flood across unseen chains of guards.
+
+This approximates local squad radio, including transmission through walls. It
+does not model equipment, jamming, latency, command hierarchies or audio barks.
+Only confirmed visual sightings are broadcast; hits alone do not broadcast.
