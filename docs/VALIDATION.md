@@ -1979,3 +1979,9 @@ behavior regressions pass.
 The shared player walking-gravity fixture also passes after extracting the
 planet sampling helper. The NPC fixture additionally verifies actual ShipCrew
 acceleration along a rotated cabin's up vector, matching artificial deck gravity.
+
+Crew roaming regression passes, including moving cabins and unreachable routes.
+Clean Windows export and hidden-Gamescope Proton integration pass at `784f6f6`:
+`build/windows-validation-dd5c267/build/proton-smoke.7AlPTZ`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Dedicated NPC gravity assertions ran natively; packaged
+smoke verifies general gameplay, not arbitrary planetary NPC navigation.
