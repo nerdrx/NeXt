@@ -33,6 +33,8 @@ var atmospheric_density_source: Callable
 var drag_mass_kg: float = 40000.0
 var drag_dimensions := Vector3.ONE
 var acceleration_vector := Vector3.ZERO
+var proper_acceleration_vector := Vector3.ZERO
+var cabin_load_g: float = 0.0
 var aerodynamic_g: float = 0.0
 var aerodynamic_heat_w: float = 0.0
 
@@ -105,6 +107,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(delta: float) -> void:
 	acceleration_vector = Vector3.ZERO
+	proper_acceleration_vector = Vector3.ZERO
 	aerodynamic_g = 0.0
 	aerodynamic_heat_w = 0.0
 	thrust_g = 0.0
@@ -146,11 +149,11 @@ func _walk(delta: float) -> void:
 	var up: Vector3 = up_direction
 	if not is_on_floor():
 		_walk_velocity -= up * walking_gravity() * delta
-	elif Input.is_action_just_pressed("move_up"):
+	elif Input.is_action_just_pressed("move_up") and cabin_load_g < 1.5:
 		_walk_velocity += up * maxf(0.0, 6.0 - _walk_velocity.dot(up))
 	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var direction := (global_basis * Vector3(input.x, 0.0, input.y)).slide(up).normalized()
-	var target_speed := speed * (1.8 if Input.is_action_pressed("boost") else 1.0)
+	var target_speed := speed * (1.8 if Input.is_action_pressed("boost") else 1.0) * FlightDynamics.cabin_mobility(cabin_load_g)
 	var tangent_velocity: Vector3 = _walk_velocity.slide(up)
 	tangent_velocity = tangent_velocity.move_toward(direction * target_speed, 32.0 * delta)
 	_walk_velocity = tangent_velocity + up * _walk_velocity.dot(up)
@@ -221,6 +224,7 @@ func _fly(delta: float) -> void:
 	_flight_velocity = AtmosphericFlight.drag_velocity(_flight_velocity, density, drag_dimensions, camera.global_basis, drag_mass_kg, delta)
 	aerodynamic_g = FlightDynamics.thrust_load(before_drag, _flight_velocity, delta)
 	acceleration_vector = FlightDynamics.acceleration_vector(incoming_thrust, _flight_velocity, delta)
+	proper_acceleration_vector = FlightDynamics.acceleration_vector(incoming_thrust + gravity_velocity, _flight_velocity, delta)
 	var heat_j := AtmosphericFlight.drag_heat_j(before_drag, _flight_velocity, drag_mass_kg)
 	aerodynamic_heat_w = heat_j / delta if delta > 0.0 else 0.0
 	if heat_j > 0.0: aerodynamic_heat.emit(heat_j)
@@ -303,6 +307,7 @@ func reset_view() -> void:
 
 func set_flight(value: bool) -> void:
 	acceleration_vector = Vector3.ZERO
+	proper_acceleration_vector = Vector3.ZERO
 	aerodynamic_g = 0.0
 	aerodynamic_heat_w = 0.0
 	braking = false
@@ -450,6 +455,7 @@ func restore_flight_velocity(value: Vector3) -> void:
 
 func teleport(pos: Vector3) -> void:
 	acceleration_vector = Vector3.ZERO
+	proper_acceleration_vector = Vector3.ZERO
 	thrust_g = 0.0
 	aerodynamic_g = 0.0
 	aerodynamic_heat_w = 0.0

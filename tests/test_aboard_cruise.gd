@@ -27,20 +27,29 @@ func _run() -> void:
 	assert(game.aboard and game.aboard_cruise)
 	await create_timer(0.5).timeout
 	assert(game.pilot.is_on_floor())
+	assert(is_equal_approx(game.pilot.cabin_load_g, game.coasting_hull.proper_acceleration_vector.length() / FlightDynamics.STANDARD_GRAVITY), "live hull load reaches passenger")
+	if DisplayServer.get_name() != "headless":
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png("user://cabin-maneuver-load.png")
 	var local: Vector3 = game.interior.to_local(game.pilot.position)
 	var forward: Vector3 = -game.coasting_hull.global_basis.z
 	await create_timer(0.5).timeout
 	assert(game.pilot.is_on_floor() and game.interior.to_local(game.pilot.position).distance_to(local) < 0.05, "turning deck carries idle passenger")
 	assert(forward.distance_to(-game.coasting_hull.global_basis.z) > 0.05, "hull actively turns during cruise")
 	assert(game.pilot.up_direction.is_equal_approx(game.interior.global_basis.y.normalized()), "passenger gravity follows rotating deck")
+	for frame in 180:
+		if game.flight_origin.sector.x == 1: break
+		await physics_frame
 	assert(game.flight_origin.sector.x == 1, "aboard cruise crosses origin boundary")
+	local = game.interior.to_local(game.pilot.position)
 	Input.action_press("move_forward")
 	await create_timer(0.35).timeout
 	Input.action_release("move_forward")
-	assert(game.interior.to_local(game.pilot.position).z < local.z - 0.8 and game.aboard_cruise, "walking input does not cancel ship cruise")
+	assert(game.interior.to_local(game.pilot.position).z < local.z - 0.2 and game.aboard_cruise, "walking input does not cancel ship cruise")
 	var helm_basis: Basis = game.coasting_hull.global_basis
 	var motion: Vector3 = game.coasting_hull.velocity
 	game.exit_interior()
+	assert(game.pilot.cabin_load_g == 0.0, "helm handoff resets cabin restriction")
 	assert(game.pilot.autopilot_active and game.pilot.flight_velocity().is_equal_approx(motion))
 	assert(game.pilot.camera.global_basis.is_equal_approx(helm_basis), "returning helm matches turned hull")
 	game.enter_interior()
@@ -61,19 +70,23 @@ func _run() -> void:
 	game.close_menu()
 	game.exit_interior()
 	assert(not game.pilot.autopilot_active)
+	game.enter_interior()
+	game.coasting_hull.velocity = Vector3.ZERO
+	game.coasting_hull.gravity_source = Callable()
 	var wall := StaticBody3D.new()
 	game.add_child(wall)
-	wall.position = game.pilot.position + Vector3(0, 0, -4)
+	# Obstruct the conservative turning sphere without spawning inside the hull.
+	wall.position = game.coasting_hull.position + Vector3(game.coasting_hull._navigation_radius - 0.25, 0, 0)
 	var collision := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(20, 20, 0.2)
+	box.size = Vector3(0.2, 1, 1)
 	collision.shape = box
 	wall.add_child(collision)
 	await physics_frame
-	game.cruise_to(game.pilot.position + Vector3(0, 0, -100))
-	game.enter_interior()
+	game.cruise_to(game.coasting_hull.position + Vector3(0, 0, -100))
 	await create_timer(0.1).timeout
-	assert(game.aboard and not game.aboard_cruise and game.cruise_address == null and game.coasting_hull.velocity.is_zero_approx(), "blocked route stops while keeping passenger aboard")
+	assert(game.aboard and is_instance_valid(game.coasting_hull), "blocked route retains passenger aboard")
+	assert(not game.aboard_cruise and game.cruise_address == null and game.coasting_hull.velocity.is_zero_approx(), "blocked route brakes without gravity in fixture")
 	game.sound.shutdown()
 	game.session.leave()
 	game.queue_free()

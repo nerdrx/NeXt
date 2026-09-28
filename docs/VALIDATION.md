@@ -2302,3 +2302,18 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `f8a52cd`:
 `build/windows-validation-dd5c267/build/proton-smoke.37rMau`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Dedicated detour checks ran natively and under hidden
 Gamescope; the packaged smoke covers general gameplay, not FPS or co-op.
+
+### Cabin maneuver load (2026-09-28)
+
+Native and hidden-Gamescope cabin-load checks pass: zero proper load in free
+fall, nonzero hover support, retained cruise thrust, atmospheric drag, zero-step
+telemetry reset, 25% walking speed at 3 g and crew bracing hysteresis. Native
+crew-roaming checks verify route preservation and resumed physical movement.
+Coasting navigation and the live aboard-cruise integration pass, including load
+binding and reset on helm handoff. The earlier aboard fixture assumed a fixed
+rebase time and spawned a wall near the hull; it now waits for the crossing and
+uses a non-overlapping turning-sphere obstacle with gravity disabled only for
+that isolated final check. The published baseline also failed its fixed-time
+rebase assertion. Parallel review found no actionable cabin-load defect.
+Hidden-Gamescope aboard-cruise also passes. The captured cabin HUD was inspected
+with 3 g maneuver load and bracing status visible. Editor import passes.

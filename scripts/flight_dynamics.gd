@@ -48,3 +48,8 @@ static func braking_distance(speed: float, acceleration: float = STANDARD_GRAVIT
 static func usable_acceleration(acceleration: float) -> float:
 	if not is_finite(acceleration): return 0.0
 	return clampf(acceleration, 0.0, STANDARD_GRAVITY * CRUISE_G)
+
+# Fictional cabin comfort response; excludes artificial deck gravity and impacts.
+static func cabin_mobility(load_g: float) -> float:
+	if not is_finite(load_g): return 1.0
+	return lerpf(1.0, 0.25, clampf((load_g - 1.0) / 2.0, 0.0, 1.0))

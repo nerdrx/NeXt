@@ -51,6 +51,15 @@ func _run() -> void:
 	assert(began_moving, "crew leaves its berth and starts following the saved cabin route")
 	assert(crew.is_on_floor() and absf(crew.position.y - start.y) < 0.4, "roaming crew stays supported on its deck")
 
+	crew.set_cabin_load(3.0)
+	var braced_at := crew.position
+	var braced_path := crew._local_path.duplicate()
+	for _frame: int in 20: await physics_frame
+	assert(crew.position.distance_to(braced_at) < 0.03 and crew._local_path == braced_path, "bracing stops roaming while preserving route")
+	crew.set_cabin_load(0.0)
+	for _frame: int in 20: await physics_frame
+	assert(crew.position.distance_to(braced_at) > 0.1, "crew resumes route after maneuver")
+
 	crew.active = false
 	var paused_at: Vector3 = crew.position
 	for _frame: int in 20: await physics_frame

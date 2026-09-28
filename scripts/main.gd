@@ -1786,6 +1786,7 @@ func _absorb_aerodynamic_heat(energy_j: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if not aboard: _update_cabin_load(0.0)
 	var primary_contact := false
 	if aboard and is_instance_valid(coasting_hull):
 		primary_contact = world.primary_contact(coasting_hull.global_position)
@@ -1809,6 +1810,7 @@ func _physics_process(delta: float) -> void:
 		return
 	var previous: Transform3D = coasting_hull.global_transform
 	var result: Dictionary = coasting_hull.navigate(delta, aboard_cruise_target, pilot.flight_speed) if aboard_cruise else coasting_hull.advance(delta)
+	_update_cabin_load(coasting_hull.proper_acceleration_vector.length() / FlightDynamics.STANDARD_GRAVITY)
 	var frame_change: Transform3D = coasting_hull.global_transform * previous.affine_inverse()
 	interior.global_transform = frame_change * interior.global_transform
 	pilot.carry_with_frame(frame_change)
@@ -1831,6 +1833,11 @@ func _physics_process(delta: float) -> void:
 		_flight_impact(impact_speed)
 		if impact_speed <= 25: notify("Coasting hull contacted an obstacle. Returned to helm.")
 	_tick_ship_defense(delta)
+
+func _update_cabin_load(load_g: float) -> void:
+	pilot.cabin_load_g = load_g
+	for member: ShipCrew in ship_crew:
+		if is_instance_valid(member): member.set_cabin_load(load_g)
 
 func _process(delta: float) -> void:
 	if pilot == null or state == null: return
@@ -2797,6 +2804,7 @@ func _ship_crew_lost(member: GroundActor) -> void:
 		break
 
 func exit_interior() -> void:
+	_update_cabin_load(0.0)
 	if not aboard: return
 	_crew_spawn_serial += 1
 	ship_crew.clear()

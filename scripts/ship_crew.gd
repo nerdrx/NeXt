@@ -3,6 +3,7 @@ extends GroundActor
 
 var _crew_label: Label3D
 var roaming_enabled: bool = true
+var bracing: bool = false
 var _cabin: ShipInterior
 var _stops: Array[Vector3] = []
 var _local_path := PackedVector3Array()
@@ -26,7 +27,14 @@ func configure_roaming(cabin: ShipInterior, stops: Array[Vector3], occupant: Nod
 	hold_position = false
 
 
+func set_cabin_load(load_g: float) -> void:
+	if not is_finite(load_g): load_g = 0.0
+	if load_g >= 1.5: bracing = true
+	elif load_g <= 1.0: bracing = false
+
+
 func activity() -> String:
+	if bracing: return "Bracing for maneuver"
 	if not _lift_route.is_empty() and _local_path.is_empty() and roaming_enabled: return "Waiting for lift"
 	if _yielding and roaming_enabled: return "Giving way"
 	return "Checking rooms" if not _local_path.is_empty() and roaming_enabled else "On duty"
@@ -68,7 +76,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		vertical = -0.15
 	var direction := Vector3.ZERO
-	if roaming_enabled and is_instance_valid(_cabin):
+	if not bracing and roaming_enabled and is_instance_valid(_cabin):
 		_room_wait = maxf(0.0, _room_wait - delta)
 		if not _lift_route.is_empty() and _local_path.is_empty():
 			_lift_wait += delta
@@ -108,7 +116,7 @@ func _physics_process(delta: float) -> void:
 				break
 			_local_path.remove_at(0)
 		if was_walking and _local_path.is_empty(): _room_wait = 8.0 + float(posmod(actor_id.hash(), 7))
-	else:
+	elif not bracing:
 		_local_path.clear()
 		_lift_route.clear()
 	direction = _yield_to_people(direction)

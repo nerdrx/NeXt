@@ -543,3 +543,20 @@ This prevents relying solely on a short obstacle fan for a planet-sized crossing
 The same one-second refresh, rebase and unsafe-destination braking rules apply.
 Surface scenes omit these space routes; this does not implement NPC atmospheric
 landing, terrain-following flight or collision-free routing through dense overlaps.
+
+## Cabin maneuver load
+
+Pilot and coasting hull telemetry now track the vector change from thrust and
+aerodynamic drag separately from gravity. Free fall therefore has zero maneuver
+load, while hovering with thrust can have nonzero load despite zero net
+acceleration. Measurements precede collision response and exclude artificial
+deck gravity, rotation-induced acceleration and impact impulses.
+
+While walking aboard a moving player hull, this load reduces walking speed
+from full speed at 1 g to 25% at 3 g, and disables jumping at 1.5 g. Physical
+crew stop roaming at 1.5 g and resume their preserved routes below or at 1 g;
+their duty label reports bracing. Returning to the helm clears cabin movement
+restrictions. The HUD displays maneuver load separately from net acceleration.
+These are fictional comfort/gameplay thresholds, not a biological tolerance
+model. No blackout, injury, tumbling, animated handhold or fleet-crew health
+simulation is implied. Normal flight controls and thrust limits are unchanged.

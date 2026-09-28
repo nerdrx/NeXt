@@ -215,3 +215,8 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
   machinery. These sit above the pressure roof and remain visual-only; they do
   not implement separate coolant circuits or component damage. Preserve nozzle
   throat power/thrust behavior when replacing the higher-resolution throat mesh.
+
+### Cabin maneuver response
+
+- [ ] Replace stationary crew bracing placeholder with handhold/stance animations
+  matched to cabin load, retaining the route-pause behavior and 1.5/1.0 g hysteresis.

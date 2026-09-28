@@ -12,6 +12,7 @@ var atmospheric_density_source: Callable
 var drag_mass_kg: float = 40000.0
 var drag_dimensions := Vector3.ONE
 var acceleration_vector := Vector3.ZERO
+var proper_acceleration_vector := Vector3.ZERO
 var aerodynamic_g: float = 0.0
 var aerodynamic_heat_w: float = 0.0
 var _module_shapes: Array[CollisionShape3D] = []
@@ -68,6 +69,7 @@ func aim_point() -> Vector3:
 
 func navigate(delta: float, target: Vector3, speed: float) -> Dictionary:
 	acceleration_vector = Vector3.ZERO
+	proper_acceleration_vector = Vector3.ZERO
 	thrust_g = 0.0
 	aerodynamic_g = 0.0
 	aerodynamic_heat_w = 0.0
@@ -105,10 +107,12 @@ func navigate(delta: float, target: Vector3, speed: float) -> Dictionary:
 	if provisional_arrival and velocity.is_zero_approx() and gravity_velocity.is_zero_approx():
 		thrust_g = commanded_g
 		acceleration_vector = commanded_acceleration
+		proper_acceleration_vector = commanded_acceleration
 		result.arrived = true
 		return result
 	var movement := advance(delta)
 	acceleration_vector += commanded_acceleration
+	proper_acceleration_vector += commanded_acceleration
 	thrust_g = commanded_g
 	result.arrived = provisional_arrival and velocity.is_zero_approx()
 	result.displacement = movement.displacement
@@ -155,6 +159,7 @@ func _rotation_clear() -> bool:
 
 func advance(delta: float) -> Dictionary:
 	acceleration_vector = Vector3.ZERO
+	proper_acceleration_vector = Vector3.ZERO
 	thrust_g = 0.0
 	aerodynamic_g = 0.0
 	aerodynamic_heat_w = 0.0
@@ -177,6 +182,7 @@ func advance(delta: float) -> Dictionary:
 	velocity = AtmosphericFlight.drag_velocity(velocity, density, drag_dimensions, global_basis, drag_mass_kg, delta)
 	aerodynamic_g = FlightDynamics.thrust_load(before_drag, velocity, delta)
 	acceleration_vector = FlightDynamics.acceleration_vector(before_forces, velocity, delta)
+	proper_acceleration_vector = FlightDynamics.acceleration_vector(before_forces + gravity_velocity, velocity, delta)
 	var heat_j := AtmosphericFlight.drag_heat_j(before_drag, velocity, drag_mass_kg)
 	aerodynamic_heat_w = heat_j / delta if delta > 0.0 else 0.0
 	if heat_j > 0.0: aerodynamic_heat.emit(heat_j)
