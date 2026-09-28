@@ -43,7 +43,8 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Replace `scripts/owned_station.gd` hull, industrial bays, radiator panels and communications mast with authored modular station assets.
 - [ ] Replace dock markings, guide lights, canopy, service terminal and signs; retain the 76 x 80 metre collision-supported apron and unobstructed positive-Z approach.
 - [ ] Preserve `dock_position`, `stand_position` and `launch_position` when swapping assets; rerun the station gameplay test to check standing collision, docking and departure.
-- [ ] Add inhabited interiors beyond the current open docking deck; the present outpost is not a complete city or station interior.
+- [ ] Expand the docking aprons and service concourse into inhabited station districts; the orbital rings are exterior structure with collision, not walkable habitat interiors.
+- [ ] Replace the paired orbital hoops, radial supports, hub, rear spine and sealed freight-door placeholders with authored industrial station assemblies. Keep the ring openings physically open, collision aligned with the visible structure, and small/large docking approaches unobstructed. Current rings do not rotate or simulate artificial gravity.
 
 ## Local crew patrols
 

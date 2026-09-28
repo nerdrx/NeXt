@@ -27,6 +27,8 @@ func build(station: Dictionary) -> void:
 	var light := _material(Color("61e3d8"), 0.0, 3.0)
 	var amber := _material(Color("ffb65c"), 0.0, 2.0)
 	var blue := _material(Color("1e3a50"), 0.7)
+	var structure := _material(Color("52636b"), 0.75)
+	var signal_material := _material(Color("60bac8"), 0.25, 1.1)
 	var glass := _material(Color(0.28, 0.42, 0.48, 0.1), 0.0)
 	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	var level: int = clampi(int(station.get("level", 1)), 1, 100)
@@ -42,6 +44,13 @@ func build(station: Dictionary) -> void:
 			_box(Vector3(side * 52, 4.1, z), Vector3(23, 0.3, 12), trim)
 			for pane in 5:
 				_box(Vector3(side * 52 - 9 + pane * 4.5, 0, z + 7.6), Vector3(2.5, 1.2, 0.15), light)
+			# Recessed freight throat makes each repeated module read as a working dock.
+			_box(Vector3(side * 52, -4, z + 7.72), Vector3(13, 7.5, 0.3), dark)
+			for frame in [-1, 1]:
+				_box(Vector3(side * 52 + frame * 7, -4, z + 7.95), Vector3(0.65, 8.2, 0.35), structure)
+				_box(Vector3(side * 52, -4 + frame * 4.2, z + 7.95), Vector3(14.5, 0.65, 0.35), structure)
+			_box(Vector3(side * 52, -4, z + 8.16), Vector3(1.0, 5.8, 0.18), signal_material)
+			_box(Vector3(side * 52 + side * 9, 2.4, z + 8.0), Vector3(1.2, 0.5, 0.4), amber)
 			_box(Vector3(side * 89, -7, z), Vector3(37, 0.7, 14), blue)
 			for rib in 7:
 				_box(Vector3(side * 89 - 15 + rib * 5, -6.5, z), Vector3(0.25, 0.3, 14), trim)
@@ -50,6 +59,7 @@ func build(station: Dictionary) -> void:
 	_box(Vector3(0, 25, -18.8), Vector3(17, 2, 0.3), light)
 	_box(Vector3(0, 42, -32), Vector3(0.5, 25, 0.5), trim)
 	_box(Vector3(0, 55, -32), Vector3(1, 1, 1), amber)
+	_build_orbital_superstructure(structure, trim, signal_material, amber)
 	# Solid landing apron, open flight path to +Z and a sheltered service gallery.
 	_box(Vector3(0, -1, 68), Vector3(76, 2, 80), hull, true)
 	_add_walk_region(Vector3(-38, 0, 28), Vector3(76, 0, 80))
@@ -92,6 +102,68 @@ func build(station: Dictionary) -> void:
 		lamp.omni_range = 55
 		add_child(lamp)
 	_build_concourse(rooms, level, hull, trim, dark, light, amber, glass)
+
+func _build_orbital_superstructure(structure: Material, trim: Material, signal_material: Material, amber: Material) -> void:
+	# Two vertical orbital hoops frame the habitat spine while leaving the +Z docking corridor open.
+	_box(Vector3(0, 12, -54), Vector3(24, 24, 16), structure, true)
+	_box(Vector3(0, 12, -44), Vector3(12, 12, 8), structure, true)
+	for spec: Dictionary in [
+		{"center": Vector3(0, 12, -54), "radius": 112.0, "tube": 4.2},
+		{"center": Vector3(0, 12, -75), "radius": 76.0, "tube": 2.4},
+	]:
+		var hoop := TorusMesh.new()
+		hoop.inner_radius = float(spec.radius) - float(spec.tube)
+		hoop.outer_radius = float(spec.radius) + float(spec.tube)
+		var ring := MeshInstance3D.new()
+		ring.name = "OrbitalRing"
+		ring.mesh = hoop
+		ring.position = spec.center
+		ring.rotation.x = PI / 2.0
+		ring.material_override = structure
+		add_child(ring, true)
+		var body := StaticBody3D.new()
+		body.collision_layer = 1
+		body.collision_mask = 0
+		var collision := CollisionShape3D.new()
+		collision.shape = hoop.create_trimesh_shape()
+		body.add_child(collision)
+		ring.add_child(body)
+	# Radial girders share the hoops' XY plane; axial braces join the rear hoop.
+	for spoke in 8:
+		var angle := TAU * float(spoke) / 8.0
+		var direction := Vector3(sin(angle), cos(angle), 0)
+		var center := Vector3(0, 12, -54) + direction * 62.0
+		var girder := _visual_box(center, Vector3(3.0, 100.0, 4.0), structure, true)
+		girder.rotation.z = -angle
+		var inset := _visual_box(center + Vector3(0, 0, 2.1), Vector3(0.5, 90.0, 0.2), trim)
+		inset.rotation.z = -angle
+		_visual_box(Vector3(0, 12, -64.5) + direction * 76.0, Vector3(3.0, 3.0, 25.0), structure, true)
+	# A small cyan service beacon crowns the orbital frame; amber marks the freight axis.
+	for side in [-1, 1]:
+		var beacon := _visual_box(Vector3(side * 111, 12, -54), Vector3(2.0, 4.5, 3.5), signal_material)
+		beacon.rotation.y = float(side) * PI / 4.0
+	_visual_box(Vector3(0, -9, -135), Vector3(18, 15, 110), structure, true)
+	_visual_box(Vector3(0, -1, -135), Vector3(1.2, 0.8, 102), amber)
+
+func _visual_box(at: Vector3, size: Vector3, material: Material, solid: bool = false) -> MeshInstance3D:
+	var mesh := MeshInstance3D.new()
+	var shape := BoxMesh.new()
+	shape.size = size
+	mesh.mesh = shape
+	mesh.material_override = material
+	mesh.position = at
+	add_child(mesh)
+	if solid:
+		var body := StaticBody3D.new()
+		body.collision_layer = 1
+		body.collision_mask = 0
+		var collision := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = size
+		collision.shape = box
+		body.add_child(collision)
+		mesh.add_child(body)
+	return mesh
 
 func _build_large_berth(hull: Material, trim: Material, dark: Material, light: Material, amber: Material) -> void:
 	# Open 120 m apron supports a 92.4 m hull with clearance around its full span.

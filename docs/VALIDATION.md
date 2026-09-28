@@ -1449,3 +1449,11 @@ Every connected horizontal cabin doorway now carries a destination-room label on
 The new `test_ship_wayfinding.gd`, registered in Windows CI, passed exact directed-link coverage, destination names, orientation, header placement, transformed placement, refit updates and rebuild cleanup. Hidden Gamescope Ranger moving-interior checks passed; doorway text was visually inspected in the walking capture. Seven Texture RID shutdown warnings remain in that harness. These are local room identifiers, not a full deck map or route-to-destination navigation system.
 
 Clean Windows release export at `266ae8d` passed without script or parse errors. No new Proton runtime check was run for this cosmetic change.
+
+## Owned station orbital frame — 2026-09-28
+
+Integrated the unfinished station exterior draft with paired vertical hoops, freight-door detailing, a central hub and rear spine. Corrected the draft's horizontal spokes to match the hoops' vertical plane, added axial braces between hoops and connected the rear spine to the keel at low station levels. The hoops use static concave mesh collision, preserving their openings; major girders, braces and spine use aligned box collision. Dock, launch and service interfaces are unchanged.
+
+Station gameplay passed docking speed rejection, pad support, launch and faction/police interactions. Station interior checks passed physical walks to every service room and back, service use and saved-position recovery. The new superstructure test checks level 1 and 100 on a translated/rotated station: ring collision, a clear gap between supports, collision-free small/large +Z approach sweeps, initial-overlap rejection and rebuild cleanup. It is registered in Windows CI. Hidden Gamescope front/rear captures were generated and visually inspected; the replacement checklist was updated.
+
+This remains an exterior blockout: the hoops do not rotate, contain walkable districts or simulate artificial gravity. Collision and approach checks do not establish automatic routing from every direction, arbitrary vessel clearance or target performance. Existing station service interiors remain separate from the new exterior frame.
