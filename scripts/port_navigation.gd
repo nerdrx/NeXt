@@ -6,6 +6,7 @@ var source := NavigationMeshSourceGeometryData3D.new()
 var navigation_mesh: NavigationMesh
 var map := RID()
 var region := RID()
+var bake_bounds := AABB(Vector3(-90, -2, -100), Vector3(180, 5.8, 170))
 
 func add_box(mesh: BoxMesh, transform: Transform3D) -> void:
 	var h := mesh.size * 0.5
@@ -47,8 +48,7 @@ func _bake() -> void:
 	navigation_mesh.agent_radius = 0.5
 	navigation_mesh.agent_height = 1.8
 	navigation_mesh.agent_max_climb = 0.3
-	# Exclude roofs above the occupied ground floor. A shallow ramp lip remains.
-	navigation_mesh.filter_baking_aabb = AABB(Vector3(-90, -2, -100), Vector3(180, 5.8, 170))
+	navigation_mesh.filter_baking_aabb = bake_bounds
 	NavigationServer3D.bake_from_source_geometry_data(navigation_mesh, source)
 	map = NavigationServer3D.map_create()
 	NavigationServer3D.map_set_use_async_iterations(map, false)

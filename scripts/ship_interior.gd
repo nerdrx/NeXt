@@ -8,16 +8,27 @@ var decks: Array[int] = []
 var cockpit_position := Vector3.ZERO
 var lift_positions: Dictionary = {}
 var _layout: Dictionary = ShipLayout.empty_data()
+var _deck_navigation: Dictionary = {}
+var _building_deck: int = 0
 
 func build(blueprint: Array[Dictionary], layout: Dictionary = {}) -> void:
+	_dispose_navigation()
+	for child: Node in get_children():
+		remove_child(child)
+		child.free()
 	modules = blueprint.duplicate(true)
+	decks.clear()
+	lift_positions.clear()
+	cockpit_position = Vector3.ZERO
 	_layout = layout if ShipLayout.validate_data(layout, modules) else ShipLayout.empty_data()
 	for module: Dictionary in modules:
 		var deck: int = int(module.y)
 		if deck not in decks: decks.append(deck)
 	decks.sort()
+	_create_deck_navigation()
 	for module: Dictionary in modules:
 		var center := Vector3(module.x, module.y, module.z) * CELL
+		_building_deck = int(module.y)
 		var kind: String = str(module.kind)
 		var cell := Vector3i(int(module.x), int(module.y), int(module.z))
 		var cell_key := ShipLayout.cell_key(cell)
@@ -46,6 +57,41 @@ func build(blueprint: Array[Dictionary], layout: Dictionary = {}) -> void:
 		lamp.light_energy = 0.65
 		lamp.omni_range = 4.3
 		add_child(lamp)
+
+func crew_path(from_local: Vector3, to_local: Vector3) -> PackedVector3Array:
+	if not from_local.is_finite() or not to_local.is_finite(): return PackedVector3Array()
+	var from_deck: int = roundi(from_local.y / CELL.y)
+	var to_deck: int = roundi(to_local.y / CELL.y)
+	if from_deck != to_deck or not decks.has(from_deck) or absf(from_local.y - from_deck * CELL.y) > 0.65 or absf(to_local.y - to_deck * CELL.y) > 0.65:
+		return PackedVector3Array()
+	var navigation: PortNavigation = _deck_navigation.get(from_deck)
+	if navigation == null: return PackedVector3Array()
+	return navigation.path(from_local, to_local)
+
+func _create_deck_navigation() -> void:
+	for deck: int in decks:
+		var low_x := 999.0
+		var high_x := -999.0
+		var low_z := 999.0
+		var high_z := -999.0
+		for module: Dictionary in modules:
+			if int(module.y) != deck: continue
+			var x: float = float(module.x) * CELL.x
+			var z: float = float(module.z) * CELL.z
+			low_x = minf(low_x, x - CELL.x * 0.5 - 0.4)
+			high_x = maxf(high_x, x + CELL.x * 0.5 + 0.4)
+			low_z = minf(low_z, z - CELL.z * 0.5 - 0.4)
+			high_z = maxf(high_z, z + CELL.z * 0.5 + 0.4)
+		var navigation := PortNavigation.new()
+		navigation.bake_bounds = AABB(Vector3(low_x, float(deck) * CELL.y - 0.15, low_z), Vector3(high_x - low_x, 2.65, high_z - low_z))
+		_deck_navigation[deck] = navigation
+
+func _dispose_navigation() -> void:
+	for navigation: PortNavigation in _deck_navigation.values(): navigation.dispose()
+	_deck_navigation.clear()
+
+func _exit_tree() -> void:
+	_dispose_navigation()
 
 func _floor(center: Vector3, room_type: String, panels: Dictionary) -> void:
 	var floor_type: String = str(panels.get("-y", "standard"))
@@ -301,6 +347,8 @@ func _box(at: Vector3, size: Vector3, color: Color, collide: bool = false, emiss
 	add_child(instance)
 	instance.position = at
 	if collide:
+		var navigation: PortNavigation = _deck_navigation.get(_building_deck)
+		if navigation != null: navigation.add_box(mesh, Transform3D(Basis.IDENTITY, at))
 		var body := StaticBody3D.new()
 		var collision := CollisionShape3D.new()
 		var shape := BoxShape3D.new()

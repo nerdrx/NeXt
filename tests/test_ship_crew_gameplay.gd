@@ -32,6 +32,41 @@ func _run() -> void:
 	game.aboard_cruise_target = game.coasting_hull.position + Vector3(180, 70, -100)
 	await create_timer(0.8).timeout
 	assert(member.is_on_floor() and member.position.distance_to(local) < 0.06, "rotating deck carries stationed crew")
+	var engineer: ShipCrew = _crew_role("engineer")
+	var trader: ShipCrew = _crew_role("trader")
+	var engineer_target: Vector3 = _force_reachable_stop(engineer)
+	var trader_target: Vector3 = _force_reachable_stop(trader)
+	assert(engineer_target.is_finite() and trader_target.is_finite(), "engineer and trader have reachable local stops")
+	var engineer_start: Vector3 = engineer.position
+	var trader_start: Vector3 = trader.position
+	var heading_before: Vector3 = game.interior.global_basis.z
+	game.aboard_cruise = true
+	game.aboard_cruise_target = game.coasting_hull.position + Vector3(180, 70, -100)
+	var engineer_moved := false
+	var trader_moved := false
+	var cabin_turned := false
+	for _frame: int in 240:
+		game._process(1.0 / 60.0)
+		await physics_frame
+		engineer_moved = engineer_moved or engineer.position.distance_to(engineer_start) > 0.2
+		trader_moved = trader_moved or trader.position.distance_to(trader_start) > 0.2
+		cabin_turned = cabin_turned or game.interior.global_basis.z.dot(heading_before) < 0.999
+		if engineer_moved and trader_moved and cabin_turned: break
+	assert(engineer_moved and trader_moved, "engineer and trader follow reachable cabin paths while moving")
+	assert(cabin_turned and engineer.is_on_floor() and trader.is_on_floor(), "roaming crew stay supported through coasting and cabin turns")
+	for _frame: int in 18:
+		game._process(1.0 / 60.0)
+		await physics_frame
+	await _capture_walking_crew(engineer)
+	game.open_menu("overview")
+	game._process(1.0 / 60.0)
+	var engineer_paused: Vector3 = engineer.position
+	var trader_paused: Vector3 = trader.position
+	for _frame: int in 12: await physics_frame
+	assert(not engineer.active and not trader.active, "main process pauses crew with command menu open")
+	assert(engineer.position.distance_to(engineer_paused) < 0.03 and trader.position.distance_to(trader_paused) < 0.03, "paused crew hold local position while cabin coasts")
+	game.close_menu()
+	game._process(1.0 / 60.0)
 	game.stop_cruise()
 	game.pilot.teleport(member.global_position + game.interior.global_basis * Vector3(0.5, 0.1, 0.0))
 	game.pilot.set_walk_up(game.interior.global_basis.y)
@@ -76,5 +111,33 @@ func _run() -> void:
 	await process_frame
 	for filename in [path, path + ".bak"]:
 		if FileAccess.file_exists(filename): DirAccess.remove_absolute(ProjectSettings.globalize_path(filename))
-	print("SHIP_CREW_GAMEPLAY_OK: named bodies, coasting and turning floor support, interaction, duty label, saved casualty and exit cleanup")
+	print("SHIP_CREW_GAMEPLAY_OK: named bodies, engineer/trader roaming, cabin-turn support, menu pause, interaction, casualty save and exit cleanup")
 	quit()
+
+func _crew_role(role: String) -> ShipCrew:
+	for member: ShipCrew in game.ship_crew:
+		if member.role == role: return member
+	return null
+
+func _force_reachable_stop(member: ShipCrew) -> Vector3:
+	for index: int in member._stops.size():
+		var destination: Vector3 = member._stops[index]
+		if absf(destination.y - member.position.y) > 0.5 or destination.distance_to(member.position) < 1.0: continue
+		if game.interior.crew_path(member.position, destination).is_empty(): continue
+		member._next_stop = index
+		member._room_wait = 0.0
+		member._local_path.clear()
+		return destination
+	return Vector3.INF
+
+func _capture_walking_crew(member: ShipCrew) -> void:
+	if DisplayServer.get_name() == "headless": return
+	var capture_camera := Camera3D.new()
+	game.interior.add_child(capture_camera)
+	capture_camera.position = (member.position / ShipInterior.CELL).round() * ShipInterior.CELL + Vector3(0.6, 1.65, 0.9)
+	capture_camera.look_at(member.global_position + member.global_basis.y * 1.2, game.interior.global_basis.y)
+	capture_camera.make_current()
+	await RenderingServer.frame_post_draw
+	root.get_texture().get_image().save_png("res://build/ship-crew-walking.png")
+	game.pilot.camera.make_current()
+	capture_camera.queue_free()

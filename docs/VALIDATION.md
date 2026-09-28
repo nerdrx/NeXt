@@ -1128,3 +1128,11 @@ The active ship's recharge delay now belongs to GameState, is saved as an option
 Recharge subtracts the delay first and grants 5 shield units per second only for the remaining elapsed time, rather than granting a full frame when the delay crosses zero. Delay stays nonnegative, shield charge is capped, invalid elapsed values are ignored, and destroyed hulls do not recharge. Existing menu/jump pause conditions remain.
 
 Native tests passed split-step timing equivalence, recharge boundaries, invalid elapsed input, shield-delay save/reload and malformed/legacy saves. Main-scene tests verified a real damage call sets the stored timer, active delay survives a helm-exchange save, and visitor arrival retains it. Recovery, existing GameState checks and Windows export passed. This change has no new Proton runtime result; the clean ZIP described above still contains commit `9b84799`.
+
+## Crew walking aboard ships — 2026-09-28
+
+Unassigned engineers and traders walk between clear stops on their current deck, with staggered pauses. Gunners remain stationed. Private cabin-local navigation maps are baked lazily from the same colliding boxes used for floors, walls and furniture, so ship rotation and sector rebasing do not require rebaking. Rebuilding or leaving an interior disposes its maps. Unreachable destinations are retried on a bounded schedule; stalled walking stops and retries later. Menus and jump charging pause crew movement.
+
+This is local room circulation, not a full work schedule: crew do not traverse lifts or avoid each other yet. Animation remains a replaceable procedural walk cycle.
+
+Native checks passed cabin-local routing, deck/disconnected rejection, pitch/yaw/roll support, raised capsule wall-clearance probes, pause/resume, arrival and rebuild invalidation. Existing standing crew, placement, port navigation and glass collision regressions passed. The actual-main test passed headlessly and in hidden Gamescope at default walking speed, checking engineers/traders move while the cabin turns and remain stationary locally during a menu pause. The capture was inspected: crew are visible inside the cabin, but oversized labels overlap the HUD and the models remain rough placeholders. Windows export passed; this increment has no fresh Proton runtime result.

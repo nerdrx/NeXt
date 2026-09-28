@@ -1579,7 +1579,9 @@ func _process(delta: float) -> void:
 	for member: ShipCrew in ship_crew:
 		if is_instance_valid(member):
 			var order: Dictionary = state.crew_orders.get(member.actor_id, {})
-			member.update_duty("Awaiting wages" if bool(order.get("paused", false)) else ("Defending ship" if order.get("kind", "") == "defend" else "Ship crew"))
+			member.active = not ui_open and jump_charge <= 0
+			member.roaming_enabled = order.is_empty() and member.role != "gunner"
+			member.update_duty("Awaiting wages" if bool(order.get("paused", false)) else ("Defending ship" if order.get("kind", "") == "defend" else member.activity()))
 	if jump_charge > 0:
 		jump_charge = maxf(0, jump_charge - delta)
 		if jump_charge == 0: _complete_jump()
@@ -2410,6 +2412,7 @@ func _populate_ship_crew() -> void:
 	var roles: Array[String] = []
 	for record: Dictionary in available: roles.append(str(record.role))
 	var berths: Array[Vector3] = cabin.crew_positions(available.size(), roles)
+	var room_stops: Array[Vector3] = cabin.crew_positions(12)
 	for index in mini(available.size(), berths.size()):
 		var record: Dictionary = available[index]
 		var member := ShipCrew.new()
@@ -2422,6 +2425,8 @@ func _populate_ship_crew() -> void:
 		facing.y = 0
 		if facing.length_squared() > 0.01: member.rotation.y = atan2(-facing.x, -facing.z)
 		cabin.add_child(member)
+		member.configure_roaming(cabin, room_stops)
+		member.roaming_enabled = str(record.role) != "gunner"
 		member.destroyed.connect(_ship_crew_lost)
 		ship_crew.append(member)
 

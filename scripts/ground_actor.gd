@@ -302,7 +302,7 @@ func _add_child_capsule(parent: Node3D, pos: Vector3, radius: float, height: flo
 
 
 func _animate() -> void:
-	var amount := clampf(Vector2(velocity.x, velocity.z).length() / maxf(speed, 0.1), 0.0, 1.0)
+	var amount := clampf(velocity.slide(up_direction).length() / maxf(speed, 0.1), 0.0, 1.0)
 	var swing := sin(_gait) * 0.62 * amount
 	_left_leg.rotation.x = swing
 	_right_leg.rotation.x = -swing
