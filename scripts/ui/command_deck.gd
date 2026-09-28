@@ -590,6 +590,9 @@ func _station_rooms(index: int, station: Dictionary) -> void:
 
 func _settings() -> void:
 	heading.text = "FLIGHT SETTINGS"
+	_button("SHUT DOWN MAIN SYSTEMS" if game.state.systems_online else "RESTART MAIN SYSTEMS", _act.bind(game.set_ship_systems_online.bind(not game.state.systems_online), "Ship power mode updated."), game.jump_charge > 0 or not game.aboard_fleet_id.is_empty()).name = "ShipPowerToggle"
+	_text("Shutdown preserves momentum and stops powered-system heat, thrust, ship weapons, hyperdrive and shield recharge. Stored heat still radiates; existing shield charge remains. Walking, suit weapons and emergency controls stay available.", 15, InterfaceTheme.MUTED)
+
 	var assist := CheckButton.new()
 	assist.text = "Flight assist — match speed and brake when controls are released"
 	assist.button_pressed = game.pilot.flight_assist_enabled

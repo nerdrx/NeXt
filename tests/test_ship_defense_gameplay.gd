@@ -47,6 +47,13 @@ func _run() -> void:
 	var health: float = pirate.hp + pirate.shields
 	await create_timer(1).timeout
 	assert(game.aboard and pirate.hp + pirate.shields < health, "gunner fires real mounted weapon while commander is aboard")
+	assert(game.set_ship_systems_online(false).is_empty())
+	health = pirate.hp + pirate.shields
+	await create_timer(1).timeout
+	assert(pirate.hp + pirate.shields == health, "powered-down ship cannot fire crew weapons")
+	assert(game.set_ship_systems_online(true).is_empty())
+	await create_timer(1).timeout
+	assert(pirate.hp + pirate.shields < health, "restarting systems restores crew defense")
 	game.state.credits = 0
 	game.crew_operations().tick(CrewOrders.TRIP_SECONDS)
 	assert(game.state.crew_orders[crew_id].paused)

@@ -54,6 +54,7 @@ var shield: float = 100.0
 var shield_delay: float = 0.0
 var fuel: float = 100.0
 var drive_temperature_k: float = 300.0
+var systems_online: bool = true
 var kills: int = 0
 var day: int = 0
 var day_progress: float = 0.0
@@ -112,6 +113,9 @@ func ship_stats() -> Dictionary:
 	result.thermal_emission_w = ThermalSignature.emitted_power_w(drive_temperature_k, result.radiator_area_m2)
 	result.thermal_detection_range_m = ThermalSignature.detection_range_m(result.thermal_emission_w)
 	result.drive_thrust_factor = clampf((700.0 - drive_temperature_k) / 200.0, 0.0, 1.0)
+	if not systems_online:
+		result.drive_thrust_factor = 0.0
+		result.systems_heat_w = 0.0
 	result.loaded_mass_kg = int(result.dry_mass_kg) + cargo_total() * 1000
 	result.acceleration_mps2 = minf(3.0 * 9.80665, float(result.thrust_newtons) * float(result.drive_thrust_factor) / maxf(float(result.loaded_mass_kg), 1.0))
 	result.boost_acceleration_mps2 = minf(6.0 * 9.80665, float(result.thrust_newtons) * float(result.drive_thrust_factor) * float(result.boost_multiplier) / maxf(float(result.loaded_mass_kg), 1.0))
@@ -121,7 +125,7 @@ func recharge_shields(delta: float) -> void:
 	if not is_finite(delta) or delta <= 0.0: return
 	var recharge_time: float = maxf(0.0, delta - maxf(0.0, shield_delay))
 	shield_delay = maxf(0.0, shield_delay - delta)
-	if hull <= 0.0: return
+	if hull <= 0.0 or not systems_online: return
 	shield = minf(float(ship_stats().max_shield), shield + recharge_time * 5.0)
 
 func radiator_area_m2() -> float:
@@ -140,11 +144,12 @@ func radiator_area_m2() -> float:
 func cool_drive(delta: float) -> void:
 	if not is_finite(delta) or delta <= 0.0 or delta > 1.0: return
 	var stats := _stats_for(ship_modules)
-	var heat_w := float(stats.systems_heat_w) if hull > 0.0 else 0.0
+	var heat_w := float(stats.systems_heat_w) if hull > 0.0 and systems_online else 0.0
 	drive_temperature_k = ThermalSignature.step_temperature(drive_temperature_k, radiator_area_m2(), heat_w, delta)
 
 func consume_propulsion(before: Vector3, commanded: Vector3) -> Vector3:
 	if not before.is_finite(): return Vector3.ZERO
+	if not systems_online: return before
 	if not commanded.is_finite() or not is_finite(fuel) or fuel <= 0.0: return before
 	var delta_velocity := commanded - before
 	var speed_change := delta_velocity.length()
@@ -356,6 +361,7 @@ func remove_module(cell: Vector3i) -> String:
 	return ""
 
 func jump(destination: int) -> String:
+	if not systems_online: return "Ship systems are offline."
 	if destination < 0 or destination >= SYSTEM_LIMIT: return "Destination is out of range."
 	if destination == system_index: return "Already in that system."
 	if fuel < 10.0: return "Insufficient fuel."
@@ -711,6 +717,12 @@ func _load_v2(data: Dictionary) -> String:
 	if has_drive_temperature:
 		if not _is_number(data.drive_temperature_k) or not is_finite(float(data.drive_temperature_k)) or float(data.drive_temperature_k) < 300.0 or float(data.drive_temperature_k) > 700.0: return "Invalid drive temperature."
 		loaded_drive_temperature = float(data.drive_temperature_k)
+	var has_systems_online: bool = data.has("systems_online")
+	var loaded_systems_online: bool = true
+	if has_systems_online:
+		expected.append("systems_online")
+		if not data.systems_online is bool: return "Invalid ship systems status."
+		loaded_systems_online = data.systems_online
 	var has_ephemeris: bool = data.has("ephemeris_seconds")
 	var has_day_progress: bool = data.has("day_progress")
 	if data.size() != expected.size() - (1 if missing_world_id else 0) + (1 if has_day_progress else 0) + (1 if has_ephemeris else 0) + (1 if has_drive_temperature else 0) + (1 if has_market_stocks else 0): return "Save fields do not match schema."
@@ -964,6 +976,7 @@ func _load_v2(data: Dictionary) -> String:
 	shield_delay = loaded_shield_delay
 	fuel = float(data.fuel)
 	drive_temperature_k = loaded_drive_temperature
+	systems_online = loaded_systems_online
 	kills = int(data.kills)
 	day = int(data.day)
 	day_progress = loaded_day_progress
@@ -1096,10 +1109,10 @@ func _normalize_location(value: Dictionary) -> Dictionary:
 	return result
 
 func _save_data() -> Dictionary:
-	return {"version": SAVE_VERSION, "system_index": system_index, "world_id": world_id, "ship_identity": ship_identity, "location": location, "credits": credits, "cargo": cargo, "hull": hull, "shield": shield, "shield_delay": shield_delay, "fuel": fuel, "drive_temperature_k": drive_temperature_k, "kills": kills, "day": day, "day_progress": day_progress, "ephemeris_seconds": ephemeris_seconds, "visited": visited, "reputation": reputation, "wanted": wanted, "ship_modules": ship_modules, "stations": stations, "shares": shares, "crew": crew, "world_flags": world_flags, "company_name": company_name, "company_balance": company_balance, "crew_paid": crew_paid, "field_repairs_enabled": field_repairs_enabled, "contracts": contracts, "fleet_ships": fleet_ships, "crew_orders": crew_orders, "recovery": recovery, "ship_layout": ship_layout, "faction": faction, "market_stocks": market_stocks}
+	return {"version": SAVE_VERSION, "system_index": system_index, "world_id": world_id, "ship_identity": ship_identity, "location": location, "credits": credits, "cargo": cargo, "hull": hull, "shield": shield, "shield_delay": shield_delay, "fuel": fuel, "drive_temperature_k": drive_temperature_k, "systems_online": systems_online, "kills": kills, "day": day, "day_progress": day_progress, "ephemeris_seconds": ephemeris_seconds, "visited": visited, "reputation": reputation, "wanted": wanted, "ship_modules": ship_modules, "stations": stations, "shares": shares, "crew": crew, "world_flags": world_flags, "company_name": company_name, "company_balance": company_balance, "crew_paid": crew_paid, "field_repairs_enabled": field_repairs_enabled, "contracts": contracts, "fleet_ships": fleet_ships, "crew_orders": crew_orders, "recovery": recovery, "ship_layout": ship_layout, "faction": faction, "market_stocks": market_stocks}
 
 func _copy_from(other: GameState) -> void:
-	for key: String in ["system_index", "world_id", "ship_identity", "location", "credits", "cargo", "hull", "shield", "shield_delay", "fuel", "drive_temperature_k", "kills", "day", "day_progress", "ephemeris_seconds", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "field_repairs_enabled", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout", "faction", "market_stocks"]:
+	for key: String in ["system_index", "world_id", "ship_identity", "location", "credits", "cargo", "hull", "shield", "shield_delay", "fuel", "drive_temperature_k", "systems_online", "kills", "day", "day_progress", "ephemeris_seconds", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "field_repairs_enabled", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout", "faction", "market_stocks"]:
 		set(key, other.get(key).duplicate(true) if other.get(key) is Array or other.get(key) is Dictionary else other.get(key))
 
 func _pay_crew_and_company() -> void:

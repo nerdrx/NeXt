@@ -1187,7 +1187,7 @@ func _ray(origin: Vector3, direction: Vector3, distance: float, exclude: Array[R
 	return get_world_3d().direct_space_state.intersect_ray(query)
 
 func _player_fire(origin: Vector3, direction: Vector3) -> void:
-	if ui_open or jump_charge > 0: return
+	if ui_open or jump_charge > 0 or (pilot.flying and not state.systems_online): return
 	if session.connected and pilot.flying: session.request_pvp_shot(direction)
 	sound.play_sound("shot")
 	var distance: float = 2200 if pilot.flying else 150
@@ -1239,7 +1239,7 @@ func _enemy_fire(actor: Node3D, origin: Vector3, direction: Vector3) -> void:
 
 func _tick_ship_defense(delta: float) -> void:
 	_defense_cooldown = maxf(0.0, _defense_cooldown - delta)
-	if _defense_cooldown > 0 or ui_open or jump_charge > 0 or state.hull <= 0: return
+	if _defense_cooldown > 0 or ui_open or jump_charge > 0 or state.hull <= 0 or not state.systems_online: return
 	if not pilot.flying and not (aboard and is_instance_valid(coasting_hull)): return
 	var gunner: Dictionary = {}
 	for order: Dictionary in state.crew_orders.values():
@@ -1407,6 +1407,9 @@ func _interact() -> void:
 	notify("Docking clamps released. Flight assist online.")
 
 func request_jump(destination: int) -> void:
+	if not state.systems_online:
+		notify("Restart main systems before engaging hyperdrive.")
+		return
 	if aboard:
 		notify("Return to the helm before engaging hyperdrive.")
 		return
@@ -1535,6 +1538,14 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_J: open_menu("navigation")
 		KEY_F5: save_commander(true)
 		KEY_F9: load_commander()
+
+func set_ship_systems_online(enabled: bool) -> String:
+	if jump_charge > 0: return "Wait for hyperdrive charging to finish before switching main systems."
+	if not aboard_fleet_id.is_empty(): return "Return to your own ship to switch its main systems."
+	state.systems_online = enabled
+	_refresh_propulsion_limits()
+	return ""
+
 
 func _change_interior_deck(direction: int) -> bool:
 	if not aboard or ui_open or jump_charge > 0 or not is_instance_valid(interior): return false
@@ -2350,6 +2361,8 @@ func exchange_fleet_helm(ship_id: String) -> String:
 	if pilot.flying or aboard or surface_index >= 0 or manual_planet >= 0: return "Return to an orbital concourse before changing ships."
 	var error: String = crew_operations().exchange_helm(ship_id, shield_delay)
 	if not error.is_empty(): return error
+	# Taking command includes starting the replacement vessel at its service berth.
+	state.systems_online = true
 	pilot.cancel_autopilot()
 	apply_ship_stats()
 	rebuild_player_ship()
@@ -2558,6 +2571,7 @@ func _copy_carried_ship(source: GameState, destination: GameState) -> void:
 	destination.shield_delay = source.shield_delay
 	destination.fuel = source.fuel
 	destination.drive_temperature_k = source.drive_temperature_k
+	destination.systems_online = source.systems_online
 
 func leave_visit() -> void:
 	session.leave()
