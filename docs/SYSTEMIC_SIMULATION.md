@@ -463,3 +463,11 @@ Local pickup and delivery require physical arrival, preserving flight position
 between legs. Distant and inter-system travel uses the existing strategic
 approximation. Both station references persist and must match the saved route
 systems; malformed references reject the save transactionally.
+
+Station deliveries now unload as much as fits. A partly unloaded freighter stays
+inbound with its remaining cargo and invoice, allowing production to clear space
+for later delivery cycles. Partial unloads and full-storage waits require no
+return-leg fuel; wages still apply. The existing combined final unload/return
+step still requires return fuel. Invoice rounding remains in the hold until the
+last delivery, so partial reports conserve the original purchase cost. Cargo
+produced at stations retains its unknown cost basis.

@@ -495,9 +495,13 @@ func tick(elapsed_seconds: float, local_patrol_ship_ids: Array[String] = [], loc
 					if str(order.phase) == "outbound" and int(vessel.system) == int(order.origin):
 						target_system = int(order.destination)
 					var represented_same_system_trade := local_trade and int(vessel.system) == target_system
-					var partial_market_sale := str(order.phase) == "inbound" and not order.has("delivery_station") and int(vessel.cargo.get(str(order.good), 0)) > GameState.MARKET_CAPACITY - state.market_stock(str(order.good), int(order.destination))
+					var receiving_space := GameState.MARKET_CAPACITY - state.market_stock(str(order.good), int(order.destination))
+					if order.has("delivery_station"):
+						var station_index := int(order.delivery_station)
+						receiving_space = MAX_STOCK - int(state.stations[station_index].get("stock", {}).get(str(order.good), 0)) if station_index >= 0 and station_index < state.stations.size() else 0
+					var partial_unload := str(order.phase) == "inbound" and int(vessel.cargo.get(str(order.good), 0)) > receiving_space
 					# A partial unloading stays at the berth and needs no return-jump fuel.
-					if not partial_market_sale:
+					if not partial_unload:
 						if int(vessel.system) != target_system:
 							fuel_cost = 10.0
 						elif not represented_same_system_trade:
@@ -663,16 +667,22 @@ func _trade_leg(order: Dictionary) -> Dictionary:
 		var station: Dictionary = state.stations[station_index]
 		if int(station.system) != int(order.destination): return {"kind": "trade", "status": "station destination changed", "crew_id": order.crew_id, "ship_id": ship.id}
 		var stock: Dictionary = station.get("stock", {})
-		if sold > MAX_STOCK - int(stock.get(good, 0)): return {"kind": "trade", "status": "waiting: station storage full", "crew_id": order.crew_id, "ship_id": ship.id, "station": station.name}
-		var purchase_cost: int = int(order.get("purchase_cost", -1))
+		var held := sold
+		sold = mini(held, MAX_STOCK - int(stock.get(good, 0)))
+		if sold <= 0: return {"kind": "trade", "status": "waiting: station storage full", "crew_id": order.crew_id, "ship_id": ship.id, "station": station.name}
+		var total_cost: int = int(order.get("purchase_cost", -1))
+		var purchase_cost: int = int(total_cost * sold / held) if total_cost >= 0 else -1
 		stock[good] = int(stock.get(good, 0)) + sold
 		station.stock = stock
-		ship.cargo[good] = 0
-		ship.erase("flight")
-		ship.system = int(order.origin)
-		order.phase = "outbound"
-		order.purchase_cost = 0
-		return {"kind": "trade", "status": "cargo delivered", "crew_id": order.crew_id, "ship_id": ship.id, "good": good, "quantity": sold, "station": station.name, "station_index": station_index, "cost": purchase_cost if purchase_cost >= 0 else null, "system": ship.system}
+		var remaining := held - sold
+		ship.cargo[good] = remaining
+		order.purchase_cost = total_cost - purchase_cost if total_cost >= 0 else -1
+		if remaining == 0:
+			ship.erase("flight")
+			ship.system = int(order.origin)
+			order.phase = "outbound"
+			order.purchase_cost = 0
+		return {"kind": "trade", "status": "cargo delivered" if remaining == 0 else "cargo partially delivered", "crew_id": order.crew_id, "ship_id": ship.id, "good": good, "quantity": sold, "remaining": remaining, "station": station.name, "station_index": station_index, "cost": purchase_cost if purchase_cost >= 0 else null, "system": ship.system}
 	var held := sold
 	sold = mini(held, GameState.MARKET_CAPACITY - state.market_stock(good, int(order.destination)))
 	if sold <= 0: return {"kind": "trade", "status": "waiting: destination market full", "crew_id": order.crew_id}

@@ -2157,3 +2157,12 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `372b5c7`:
 `build/windows-validation-dd5c267/build/proton-smoke.Ya4itK`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Dedicated transfer/persistence assertions ran natively;
 the packaged smoke checks general gameplay.
+
+### Partial station deliveries (2026-09-28)
+
+`test_partial_station_delivery.gd` verifies physical arrival gating, unloading
+only available storage, zero-fuel partial delivery and full-storage waiting,
+exact invoice conservation, saved remainder, return fuel gating, unknown
+production cost and cancellation retaining cargo. It is registered in CI.
+Existing partial market trade, station supply, station transfer and export
+regressions pass, together with the headless editor import.
