@@ -445,13 +445,39 @@ func refuel() -> String:
 	fuel = minf(100.0, fuel + float(units) * 10.0)
 	return ""
 
+func hull_repair_quote(points: float, system: int = -1) -> Dictionary:
+	var index := system_index if system == -1 else system
+	if not is_finite(points) or points < 0.0 or points > 1000000.0 or index < 0 or index >= SYSTEM_LIMIT:
+		return {"error": "Invalid repair request."}
+	if points == 0.0: return {"error": "Hull is already at maximum."}
+	var supplies := {"alloys": ceili(points / 50.0), "electronics": ceili(points / 200.0)}
+	var cost := ceili(points * 4.0)
+	for good: String in supplies:
+		var price := market_total(good, index, int(supplies[good]), true)
+		if price < 0: return {"error": "Repair market lacks %s (%d required)." % [good, supplies[good]]}
+		cost += price
+	return {"error": "", "price": cost, "supplies": supplies, "system": index}
+
+
+func purchase_hull_repair(points: float, system: int = -1) -> String:
+	var quote := hull_repair_quote(points, system)
+	if not str(quote.error).is_empty(): return str(quote.error)
+	if credits < int(quote.price): return "Hull repair costs %d credits." % int(quote.price)
+	var previous_stocks := market_stocks.duplicate(true)
+	for good: String in quote.supplies:
+		var error := market_transfer(good, int(quote.system), int(quote.supplies[good]), true)
+		if not error.is_empty():
+			market_stocks = previous_stocks
+			return error
+	credits -= int(quote.price)
+	return ""
+
+
 func repair() -> String:
-	var deficit: float = maxf(0, float(ship_stats().max_hull) - hull)
-	var cost: int = ceili(deficit * 4.0)
-	if cost == 0: return "Hull is already at maximum."
-	if credits < cost: return "Insufficient credits."
-	credits -= cost
-	hull = float(ship_stats().max_hull)
+	var maximum := float(ship_stats().max_hull)
+	var error := purchase_hull_repair(maxf(0.0, maximum - hull))
+	if not error.is_empty(): return error
+	hull = maximum
 	return ""
 
 func stock_price(ticker: String) -> int:

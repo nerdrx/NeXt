@@ -2372,3 +2372,17 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `1776ed4`:
 `build/windows-validation-dd5c267/build/proton-smoke.71tB5B`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Dedicated layout round-trip assertions ran natively;
 packaged smoke covers general gameplay, not complete co-op or performance.
+
+### Repair supply chains (2026-09-28)
+
+Native repair-supply tests pass for exact marginal pricing, finite component
+consumption, resupply enabling repair, atomic stock/funds/record-limit failures,
+actual fleet hull scaling, remote-system inventory and save/load. The live
+Exchange repair button restores hull and consumes the quoted alloys. State,
+crew orders, fleet cargo recovery, wreck reclamation and hull-family refit
+regressions pass. Initial checks caught legacy fleet stats without max_hull and
+a UI type-inference error; both were fixed before publication. Parallel review
+found no remaining transaction or system-market issue.
+Hidden-Gamescope repair-menu execution passes and its quote was visually inspected.
+Shutdown reported seven texture RID leaks; no script error occurred. Editor import
+passes after the explicit UI Dictionary annotation.

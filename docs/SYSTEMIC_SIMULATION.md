@@ -583,3 +583,19 @@ New structural wrecks snapshot room and hull-panel refits independently of the
 replacement ship. Scanned derelicts retain their family room layout. Saved wreck
 layouts are validated against the recorded modules before loading; cargo-only
 caches cannot carry layouts. Layout-free legacy wrecks remain recoverable.
+
+## Market-backed hull repairs
+
+Paid player and fleet repairs consume one alloy unit per 50 missing hull points
+and one electronics unit per 200, rounding each up. The service quote adds the
+market's marginal component prices to four credits per hull point of labor.
+Fleet damage percentages convert to the vessel design's actual hull capacity;
+legacy unmodeled vessels retain a 100-point reference. Components come from the
+player's current market or the fleet vessel's recorded system, never the cargo
+hold. Supplying a depleted market enables repairs again.
+
+Payment, market stock and hull restoration are transactional. Insufficient
+components, funds or market-record capacity leave them unchanged. The service
+currently offers full repair only; remote fleet delivery and labor remain
+abstract. Existing engineer field repairs and rescue replacement rules are
+separate and unchanged. UI quotes include required components before purchase.

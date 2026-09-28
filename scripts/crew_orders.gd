@@ -307,14 +307,19 @@ func set_fuel_allowance(ship_id: String, amount: int) -> String:
 	return ""
 
 
+func fleet_repair_quote(ship_id: String) -> Dictionary:
+	var ship := _ship(ship_id)
+	if ship.is_empty(): return {"error": "Fleet ship does not exist."}
+	var missing := maxf(0.0, 100.0 - float(ship.hull)) * float(vessel_combat_stats(ship).get("max_hull", 100.0)) / 100.0
+	return state.hull_repair_quote(missing, int(ship.system))
+
+
 func repair_fleet_ship(ship_id: String) -> String:
-	var ship: Dictionary = _ship(ship_id)
+	var ship := _ship(ship_id)
 	if ship.is_empty(): return "Fleet ship does not exist."
-	var missing: float = 100.0 - float(ship.hull)
-	if missing <= 0.0: return "Fleet ship is already at full hull."
-	var cost: int = ceili(missing * 4.0)
-	if state.credits < cost: return "Fleet repairs cost %d credits." % cost
-	state.credits -= cost
+	var missing := maxf(0.0, 100.0 - float(ship.hull)) * float(vessel_combat_stats(ship).get("max_hull", 100.0)) / 100.0
+	var error := state.purchase_hull_repair(missing, int(ship.system))
+	if not error.is_empty(): return error
 	ship.hull = 100.0
 	return ""
 

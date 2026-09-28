@@ -358,8 +358,12 @@ func _market() -> void:
 		row.add_child(sell)
 	var services := _row()
 	services.add_child(InterfaceTheme.button("REFUEL", _act.bind(s.refuel, "Fuel tanks replenished.")))
-	services.add_child(InterfaceTheme.button("REPAIR", _act.bind(s.repair, "Hull restored.")))
+	var repair_quote := s.hull_repair_quote(maxf(0.0, float(s.ship_stats().max_hull) - s.hull))
+	var repair_button := InterfaceTheme.button("REPAIR / %d CR" % int(repair_quote.price) if str(repair_quote.error).is_empty() else "REPAIR UNAVAILABLE", _act.bind(s.repair, "Hull restored."))
+	services.add_child(repair_button)
 	for child in services.get_children(): child.disabled = game.pilot.flying or game.aboard
+	repair_button.disabled = repair_button.disabled or not str(repair_quote.error).is_empty()
+	_text("Repair supplies: %d alloys + %d electronics from local market (included in price)." % [repair_quote.supplies.alloys, repair_quote.supplies.electronics] if str(repair_quote.error).is_empty() else str(repair_quote.error), 14, InterfaceTheme.MUTED)
 	_button("INSURANCE & WRECK RECOVERY", show_page.bind("recovery"))
 
 func _ship_stats_line(state: GameState) -> String:
@@ -895,7 +899,9 @@ func _fleet() -> void:
 			_button("INSPECT DOCKED INTERIOR", game.enter_interior.bind(str(vessel.id)), not boarding_issue.is_empty()).tooltip_text = boarding_issue
 		if game.fleet_actors.has(str(vessel.id)):
 			_button("APPROACH LOCAL VESSEL", game.approach_fleet_ship.bind(str(vessel.id)), not game.pilot.flying or game.aboard)
-		_button("REPAIR / %d CR" % ceili((100.0 - float(vessel.hull)) * 4.0), _act.bind(game.crew_operations().repair_fleet_ship.bind(str(vessel.id)), "Fleet repairs arranged."), float(vessel.hull) >= 100)
+		var repair_quote: Dictionary = game.crew_operations().fleet_repair_quote(str(vessel.id))
+		_button("REPAIR / %d CR" % int(repair_quote.price) if str(repair_quote.error).is_empty() else "REPAIR UNAVAILABLE", _act.bind(game.crew_operations().repair_fleet_ship.bind(str(vessel.id)), "Fleet repairs arranged."), not str(repair_quote.error).is_empty())
+		_text("Repair supplies: %d alloys + %d electronics from vessel's market (included)." % [repair_quote.supplies.alloys, repair_quote.supplies.electronics] if str(repair_quote.error).is_empty() else str(repair_quote.error), 14, InterfaceTheme.MUTED)
 		for good: String in vessel.cargo:
 			var amount: int = int(vessel.cargo[good])
 			if amount <= 0: continue
