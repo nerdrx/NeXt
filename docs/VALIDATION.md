@@ -2391,3 +2391,27 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `53fe6eb`:
 `build/windows-validation-dd5c267/build/proton-smoke.mMXYGw`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Dedicated repair-supply assertions ran natively and under
 hidden Gamescope; packaged smoke covers general gameplay, not co-op or FPS.
+
+
+### Host NPC ship replication (2026-09-28)
+
+Protocol snapshots pass native ENet loopback checks for host-only publication,
+10 Hz rate limiting, travel epochs, full-batch validation and empty snapshots.
+Protocol compatibility, host controls and PvP transport regressions pass.
+PvP gameplay passes both headless and hidden Gamescope. Its old cube-dimension
+assertion also failed on published `53fe6eb`; the fixture now checks the actual
+legacy hull collision dimensions (3.0 x 2.8 x 3.0 metres).
+
+These checks do not establish shared NPC attacks, visitor PvE damage, shared
+rewards or Steam interoperability. Those remain unfinished.
+
+Clean Windows export and hidden-Gamescope Proton smoke pass at `83bd733`:
+`build/windows-validation-dd5c267/build/proton-smoke.bgBGhX`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`, without logged script errors. The packaged smoke covers
+general gameplay; the dedicated replication protocol assertions ran natively.
+
+The scene fixture passes headless and hidden Gamescope: exactly seven host IDs,
+no duplicate guest patrols, inactive replicas after a real Main update, direct
+and ray-hit damage suppression, an 8192-metre origin shift, distance culling and
+empty-snapshot removal. Hidden Gamescope reported texture RID leaks during
+shutdown after the success marker; no script error was reported.
