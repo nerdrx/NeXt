@@ -1349,8 +1349,9 @@ func _rescue() -> void:
 	_rescuing = true
 	if aboard and return_flying and state.hull <= 0: exit_interior()
 	var message: String
-	if pilot.flying and state.hull <= 0:
-		var report: Dictionary = ShipRecovery.destroy_ship(state, pilot.position, surface_index, flight_origin.to_save())
+	if state.hull <= 0:
+		var wreck_position: Vector3 = pilot.position if pilot.flying else ship_display.position
+		var report: Dictionary = ShipRecovery.destroy_ship(state, wreck_position, surface_index, flight_origin.to_save())
 		if not bool(report.get("ok", false)):
 			_rescuing = false
 			open_menu("recovery")
@@ -1615,7 +1616,13 @@ func _sample_stellar_heat() -> float:
 
 func _physics_process(delta: float) -> void:
 	stellar_heat_w = _sample_stellar_heat()
+	var hull_before := state.hull
 	state.cool_drive(delta, stellar_heat_w)
+	if state.hull < hull_before:
+		hud.flash = maxf(hud.flash, 0.2)
+		if state.hull <= 0.0:
+			_rescue()
+			return
 	_refresh_propulsion_limits()
 	if not aboard or not is_instance_valid(coasting_hull):
 		_tick_ship_defense(delta)

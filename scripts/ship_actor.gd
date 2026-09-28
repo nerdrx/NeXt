@@ -150,7 +150,12 @@ func _physics_process(delta: float) -> void:
 	var distance := offset.length()
 	var desired_speed := speed * (0.55 if attacking and hp < 30.0 else 1.0)
 	stellar_heat_w = stellar_heat_source.call(global_position, global_basis, _thermal_dimensions) if stellar_heat_source.is_valid() else 0.0
-	drive_temperature_k = ThermalSignature.step_temperature(drive_temperature_k, radiator_area_m2, (systems_heat_w if hp > 0.0 else 0.0) + stellar_heat_w, delta)
+	var total_heat := (systems_heat_w if hp > 0.0 else 0.0) + stellar_heat_w
+	var heat_damage := ThermalSignature.overflow_damage(drive_temperature_k, radiator_area_m2, total_heat, delta)
+	drive_temperature_k = ThermalSignature.step_temperature(drive_temperature_k, radiator_area_m2, total_heat, delta)
+	if heat_damage > 0.0:
+		take_damage(heat_damage, true)
+		if _destroyed: return
 	var heat_factor := clampf((700.0 - drive_temperature_k) / 200.0, 0.0, 1.0)
 	var mass := maxf(1.0, dry_mass_kg + cargo_mass_kg)
 	var acceleration := minf(acceleration_limit_mps2, thrust_newtons * heat_factor / mass)
@@ -223,11 +228,11 @@ func _tick_shields(delta: float) -> void:
 	shields = minf(max_shields, shields + recharge_time * 5.0)
 
 
-func take_damage(amount: float) -> void:
+func take_damage(amount: float, bypass_shields: bool = false) -> void:
 	if not active or _destroyed or not is_finite(amount) or amount <= 0.0:
 		return
-	if max_shields > 0.0: shield_delay = 6.0
-	var absorbed := minf(shields, amount)
+	if max_shields > 0.0 and not bypass_shields: shield_delay = 6.0
+	var absorbed := 0.0 if bypass_shields else minf(shields, amount)
 	shields -= absorbed
 	hp = maxf(0.0, hp - (amount - absorbed) * 100.0 / maxf(1.0, max_hull))
 	damaged.emit(self)

@@ -34,3 +34,14 @@ static func detection_range_m(power_w: float) -> float:
 	if not is_finite(power_w) or power_w <= 0.0:
 		return 0.0
 	return clampf(BASELINE_RANGE_M * sqrt(power_w / BASELINE_POWER_W), 0.0, MAX_RANGE_M)
+
+
+static func overflow_damage(temperature_k: float, area_m2: float, heat_w: float, delta: float) -> float:
+	if not is_finite(temperature_k) or temperature_k < 300.0 or temperature_k > 700.0: return 0.0
+	if not is_finite(area_m2) or area_m2 < 0.0 or area_m2 > 3040.0: return 0.0
+	if not is_finite(heat_w) or heat_w < 0.0 or not is_finite(delta) or delta <= 0.0 or delta > 1.0: return 0.0
+	var cooling := emitted_power_w(temperature_k, area_m2) - emitted_power_w(300.0, area_m2)
+	var storage := (700.0 - temperature_k) * 2500000.0
+	# Gameplay abstraction: energy beyond the capped thermal loop damages structure.
+	# 25 MJ per hull point is tuning, not a material failure model.
+	return maxf(0.0, (heat_w - cooling) * delta - storage) / 25000000.0

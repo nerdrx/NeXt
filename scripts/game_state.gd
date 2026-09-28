@@ -154,7 +154,9 @@ func cool_drive(delta: float, external_heat_w: float = 0.0) -> void:
 	if not is_finite(external_heat_w) or external_heat_w < 0.0: return
 	var stats := _stats_for(ship_modules)
 	var heat_w := float(stats.systems_heat_w) if hull > 0.0 and systems_online else 0.0
-	drive_temperature_k = ThermalSignature.step_temperature(drive_temperature_k, radiator_area_m2(), heat_w + external_heat_w, delta)
+	var area := radiator_area_m2()
+	hull = maxf(0.0, hull - ThermalSignature.overflow_damage(drive_temperature_k, area, heat_w + external_heat_w, delta))
+	drive_temperature_k = ThermalSignature.step_temperature(drive_temperature_k, area, heat_w + external_heat_w, delta)
 
 func consume_propulsion(before: Vector3, commanded: Vector3) -> Vector3:
 	if not before.is_finite(): return Vector3.ZERO

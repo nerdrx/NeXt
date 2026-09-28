@@ -1529,3 +1529,9 @@ Generated geology now shares one shader material across its rock variants. Each 
 The new geology check passed per-instance custom coordinates, shared material, globe-aligned light/shadow uniforms and translated-world invariance. It is registered in Windows CI. Existing geology collision/placement and large-radius placement checks passed. Hidden Gamescope rock captures passed eclipse, restored sunlight and opposite-primary brightness checks; clear/shadow captures were inspected, with no script/shader errors logged. The capture hides ground and the globe to isolate rock rendering; it does not validate building or vessel lighting or target frame rate.
 
 Clean Windows release export at `e3ca1f6` passed with no script, parse or shader errors. Native graphical validation used hidden Gamescope; the last full Proton integration smoke remains `e4134e9`.
+
+## Thermal overflow consequences — 2026-09-28
+
+Excess thermal energy above the regulated loop ceiling now damages player/NPC hull without consuming shields. Energy first fills available temperature storage, then uses an explicit 25 MJ per hull-point gameplay conversion. Fatal exposure follows existing rescue, saved wreck, NPC debris and fleet damage paths. Recovery now also handles a destroyed parked hull using ship position when the commander is on foot. The HUD warns at the thermal ceiling.
+
+Pure checks passed normal loads, cooling, radiator scaling, time-step composition at the ceiling, invalid values, shield bypass and nonnegative hull. Gameplay passed offline stellar damage, NPC damage/debris with no unassisted kill credit, player rescue/cooling, saved wrecks and parked-hull recovery coordinates. The gameplay test also passed in hidden Gamescope. Existing stellar heating, drive heat and NPC thermal suites passed. New checks are registered in Windows CI. This is local gameplay thermal failure, not component/material simulation or authoritative remote visitor damage.

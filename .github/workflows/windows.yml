@@ -98,6 +98,8 @@ jobs:
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_hull_family_refit.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_contact_search.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_thermal_signature.gd
+          timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_thermal_overflow.gd
+          timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_thermal_overflow_gameplay.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_thermal_detection.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_radiators.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_drive_heat.gd
