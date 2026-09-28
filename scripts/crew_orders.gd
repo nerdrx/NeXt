@@ -217,6 +217,30 @@ func unload_fleet_cargo(ship_id: String, good: String, quantity: int) -> String:
 	state.credits += revenue
 	return ""
 
+# The scene must enforce docking/visiting before cargo transfer.
+func transfer_fleet_cargo(ship_id: String, good: String, quantity: int, to_fleet: bool) -> String:
+	var ship: Dictionary = _ship(ship_id)
+	var key: String = good.to_lower()
+	if ship.is_empty(): return "Fleet ship does not exist."
+	if not GameState.GOODS.has(key) or quantity <= 0: return "Invalid cargo transfer."
+	if int(ship.system) != state.system_index: return "Fleet ship must be in the current system."
+	if float(ship.hull) <= 0.0: return "Disabled fleet ship cannot transfer cargo."
+	if _ship_busy(ship_id): return "Cancel the fleet ship's current order first."
+	if ship.has("flight"): return "Fleet ship must be landed before transferring cargo."
+	var fleet_cargo: Dictionary = ship.get("cargo", {})
+	if to_fleet:
+		if quantity > int(state.cargo.get(key, 0)): return "Insufficient personal cargo."
+		if _cargo_total(ship) + quantity > int(ship.capacity): return "Insufficient fleet cargo capacity."
+		state.cargo[key] = int(state.cargo.get(key, 0)) - quantity
+		fleet_cargo[key] = int(fleet_cargo.get(key, 0)) + quantity
+	else:
+		if quantity > int(fleet_cargo.get(key, 0)): return "Insufficient fleet cargo."
+		if state.cargo_total() + quantity > int(state.ship_stats().cargo_capacity): return "Insufficient personal cargo capacity."
+		fleet_cargo[key] = int(fleet_cargo.get(key, 0)) - quantity
+		state.cargo[key] = int(state.cargo.get(key, 0)) + quantity
+	ship.cargo = fleet_cargo
+	return ""
+
 # The scene must enforce docking at this station before cargo transfer.
 func deposit_station_stock(station_index: int, good: String, quantity: int) -> String:
 	if station_index < 0 or station_index >= state.stations.size(): return "Owned station does not exist."

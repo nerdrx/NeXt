@@ -698,6 +698,39 @@ func _fleet() -> void:
 		hull_choice.set_item_metadata(hull_choice.item_count - 1, family_id)
 	purchase.add_child(hull_choice)
 	purchase.add_child(InterfaceTheme.button("COMMISSION", func(): _act(game.crew_operations().purchase_ship.bind(ship_name.text, str(hull_choice.get_item_metadata(hull_choice.selected))), "Fleet vessel commissioned.")))
+	if not s.fleet_ships.is_empty():
+		_text("DOCKSIDE CARGO TRANSFER", 13, InterfaceTheme.CYAN)
+		var transfer_row := _row()
+		var transfer_ship := _choice(transfer_row, s.fleet_ships, "name", "id")
+		transfer_ship.set_meta("fleet_cargo_ship", true)
+		var transfer_good := OptionButton.new()
+		for good: String in GameState.GOODS:
+			transfer_good.add_item(good.capitalize())
+			transfer_good.set_item_metadata(transfer_good.item_count - 1, good)
+		transfer_good.set_meta("fleet_cargo_good", true)
+		transfer_row.add_child(transfer_good)
+		var transfer_quantity := SpinBox.new()
+		transfer_quantity.min_value = 1
+		transfer_quantity.max_value = 10000
+		transfer_quantity.value = 1
+		transfer_quantity.prefix = "Units "
+		transfer_quantity.set_meta("fleet_cargo_quantity", true)
+		transfer_row.add_child(transfer_quantity)
+		var hold_summary := _text("", 14, InterfaceTheme.MUTED)
+		var update_holds := func(_index: int):
+			var vessel: Dictionary = game.crew_operations()._ship(str(transfer_ship.get_selected_metadata()))
+			var good := str(transfer_good.get_selected_metadata())
+			hold_summary.text = "%s: your hold %d / fleet hold %d. Docked, idle vessels only; no sale or fee." % [good.capitalize(), int(s.cargo.get(good, 0)), int(vessel.cargo.get(good, 0))]
+		transfer_ship.item_selected.connect(update_holds)
+		transfer_good.item_selected.connect(update_holds)
+		update_holds.call(0)
+		var transfer_actions := _row()
+		for to_fleet: bool in [true, false]:
+			var transfer_button := InterfaceTheme.button("LOAD FLEET HOLD" if to_fleet else "COLLECT TO MY HOLD", func():
+				_act(game.transfer_fleet_cargo.bind(str(transfer_ship.get_selected_metadata()), str(transfer_good.get_selected_metadata()), int(transfer_quantity.value), to_fleet), "Cargo transferred."))
+			transfer_button.set_meta("fleet_cargo_direction", to_fleet)
+			transfer_button.disabled = game.session.connected or game.pilot.flying or game.aboard or game.surface_index >= 0 or game.manual_planet >= 0
+			transfer_actions.add_child(transfer_button)
 	for vessel: Dictionary in s.fleet_ships:
 		_text("%s / %s / system %d / hull %.0f%% / drive %.0f K" % [vessel.name, str(vessel.get("hull_family", "utility")).capitalize(), vessel.system, vessel.hull, float(vessel.get("drive_temperature_k", 450.0))], 17)
 		if str(vessel.get("hull_family", "")) in ShipBlueprint.FAMILIES:

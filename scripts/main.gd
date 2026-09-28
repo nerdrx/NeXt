@@ -2583,6 +2583,12 @@ func sell_fleet_cargo(ship_id: String, good: String, amount: int) -> String:
 	if pilot.flying or aboard: return "Dock to arrange fleet cargo clearance."
 	return crew_operations().unload_fleet_cargo(ship_id, good, amount)
 
+func transfer_fleet_cargo(ship_id: String, good: String, amount: int, to_fleet: bool) -> String:
+	if session.connected: return "Leave the world visit before transferring fleet cargo."
+	if pilot.flying or aboard or surface_index >= 0 or manual_planet >= 0:
+		return "Dock at an orbital concourse to transfer fleet cargo."
+	return crew_operations().transfer_fleet_cargo(ship_id, good, amount, to_fleet)
+
 func supply_station_stock(station_index: int, good: String, amount: int) -> String:
 	if pilot.flying or aboard or docked_station != station_index: return "Dock at this station to deliver supplies."
 	return crew_operations().deposit_station_stock(station_index, good, amount)
