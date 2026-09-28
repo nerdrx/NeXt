@@ -1701,3 +1701,23 @@ Pathfinder, Merchant and Ranger. The Pathfinder arrival render was inspected.
 The hidden-Gamescope run exits 0 but reports seven leaked Texture RIDs at renderer
 shutdown; this cleanup warning is unresolved. Anchored and coasting interior
 regressions pass headless. No seamless door traversal is claimed.
+
+
+### Automatic interior bulkheads (2026-09-28)
+
+- Four telescoping panels form one door at each shared boundary between different
+  room roles. Collision follows the panels, opening takes 0.4 s, and departure
+  starts a 0.8 s hold before closing. Occupants keep it open from either side.
+- `test_ship_bulkhead.gd` verifies closed collision, capsule passage, occupancy
+  hold, two-sided triggering, exactly one door per boundary and a crew route
+  through the closed automatic door. A layer-2 enclosing ship cannot trigger it;
+  only crew and aboard-player layers are sensed. Registered in Windows CI.
+- Blueprint containment, crew roaming and coasting-interior regressions pass.
+  Parked boarding passes under hidden Gamescope; the cabin render was inspected.
+- These are automatic physical doors, not pressure compartments. Power failure,
+  locking/access permissions, atmosphere exchange and breach damage remain absent.
+- Final Windows export and hidden-Gamescope Proton integration pass at `070a303`:
+  `build/windows-validation-dd5c267/build/proton-smoke.QKnjQG`, wrapper exit 0,
+  `NEXT_INTEGRATION_OK`. Dedicated door assertions run natively; packaged smoke
+  is general integration coverage. Earlier `6dcbfaf` also passed before the
+  enclosing-hull sensor correction (`proton-smoke.9Pfngb`).
