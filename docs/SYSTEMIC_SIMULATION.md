@@ -520,3 +520,15 @@ trajectories. This is explicitly a constant-velocity estimate, not a prediction
 of a gravity-curved trajectory or braking distance. It does not take control.
 Docked/on-foot and menu views suppress the warning; aboard warnings use the
 ship's position and velocity rather than the passenger's.
+
+### Local NPC primary detours
+
+Locally simulated ships route their current destination around the primary core
+using the same spherical detour planner as player cruise. The obstacle includes
+the hull sphere and current stopping distance. Routes refresh once per hosted
+second; floating-origin shifts move cached waypoints and force a refresh.
+Patrol, combat, thermal retreat and crew travel retain their original destination,
+while waypoints feed existing thrust, fuel, gravity and local obstacle avoidance.
+An unsafe destination requests braking until a valid route is available. Hidden
+or surface worlds clear the detour. This is local steering, not strategic remote
+pathfinding or a guarantee against extreme gravity, depleted fuel or collisions.

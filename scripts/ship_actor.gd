@@ -38,6 +38,10 @@ var gravity_source: Callable
 var atmospheric_density_source: Callable
 var aerodynamic_g: float = 0.0
 var aerodynamic_heat_w: float = 0.0
+var primary_obstacle_source: Callable
+var _primary_waypoints: Array[Vector3] = []
+var _primary_route_cooldown: float = 0.0
+var _primary_route_blocked: bool = false
 var primary_contact_source: Callable
 var stellar_heat_source: Callable
 var stellar_heat_w: float = 0.0
@@ -171,12 +175,13 @@ func _physics_process(delta: float) -> void:
 				fired.emit(self, origin, fire_direction.normalized())
 	if thermal_retreat:
 		destination = global_position + _thermal_escape_direction * 1000.0
-	var offset := destination - global_position
-	var distance := offset.length()
 	var desired_speed := speed * (0.55 if attacking and hp < 30.0 else 1.0)
 	var heat_factor := clampf((700.0 - drive_temperature_k) / 200.0, 0.0, 1.0)
 	var mass := maxf(1.0, dry_mass_kg + cargo_mass_kg)
 	var acceleration := minf(acceleration_limit_mps2, thrust_newtons * heat_factor / mass)
+	destination = _primary_destination(destination, delta, acceleration)
+	var offset := destination - global_position
+	var distance := offset.length()
 	var command := _avoid_obstacles(offset.normalized() * FlightDynamics.approach_speed(distance, desired_speed, acceleration), acceleration)
 	var gravity_velocity := FlightDynamics.gravity_step(gravity_source, global_position, delta)
 	var requested_dv := command - velocity - gravity_velocity
@@ -208,6 +213,28 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_desired_velocity = velocity
 	_visual.set_thrust(clampf(actual_dv.length() / maxf(acceleration * delta, 0.000001), 0.0, 1.0))
+
+
+func _primary_destination(destination: Vector3, delta: float, acceleration: float) -> Vector3:
+	if not primary_obstacle_source.is_valid(): return destination
+	var obstacle: Dictionary = primary_obstacle_source.call()
+	if obstacle.is_empty():
+		_primary_waypoints.clear()
+		_primary_route_cooldown = 0.0
+		_primary_route_blocked = false
+		return destination
+	_primary_route_cooldown = maxf(0.0, _primary_route_cooldown - delta)
+	if _primary_route_cooldown <= 0.0:
+		_primary_route_cooldown = 1.0
+		obstacle = obstacle.duplicate()
+		obstacle.radius = float(obstacle.radius) + _avoidance_shape.radius + FlightDynamics.braking_distance(velocity.length(), acceleration)
+		var route := CruiseRoute.plan(global_position, destination, [obstacle])
+		_primary_route_blocked = not bool(route.ok)
+		_primary_waypoints.assign(route.points)
+	if _primary_route_blocked: return global_position
+	while not _primary_waypoints.is_empty() and global_position.distance_to(_primary_waypoints[0]) < 10.0:
+		_primary_waypoints.pop_front()
+	return _primary_waypoints[0] if not _primary_waypoints.is_empty() else destination
 
 
 func _avoid_obstacles(desired_velocity: Vector3, acceleration: float = 30.0) -> Vector3:
@@ -345,6 +372,8 @@ func apply_origin_shift(delta: Vector3) -> void:
 	_home -= delta
 	last_contact_position -= delta
 	travel_target -= delta
+	for i in _primary_waypoints.size(): _primary_waypoints[i] -= delta
+	_primary_route_cooldown = 0.0
 	reset_physics_interpolation()
 
 

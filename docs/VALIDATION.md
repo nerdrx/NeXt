@@ -2268,3 +2268,15 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `d10ac65`:
 `build/windows-validation-dd5c267/build/proton-smoke.KRT76z`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Art comparisons used native hidden-Gamescope captures;
 the packaged smoke checks general gameplay, not rendering performance.
+
+### NPC primary navigation (2026-09-28)
+
+Native and hidden-Gamescope navigation tests pass: cached routes, safe chords,
+floating-origin rebasing, actual CharacterBody arrival around a 245 m core,
+preserved crew destination, unsafe-goal braking and hidden-world bypass.
+The physical fixture reached its destination with minimum center clearance
+radius 328.884 m; it isolates steering without a gravity field. Primary-contact
+and thermal-retreat regression checks pass. Parallel review found no blocker
+in coordinate frames, rebasing or integration with existing propulsion; changed
+goals and speeds can remain cached for up to one second.
+Station-transfer regression, live NPC callback binding and editor import also pass.

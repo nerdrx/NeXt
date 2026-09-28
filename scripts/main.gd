@@ -327,8 +327,9 @@ func _plan_cruise_leg() -> bool:
 	cruise_waypoints.clear()
 	if cruise_address == null: return false
 	var obstacles: Array[Dictionary] = []
-	if world.is_visible_in_tree() and not world._surface_mode and not world.stellar_profile.is_empty():
-		obstacles.append({"center": to_local(world.to_global(SpaceWorld.PRIMARY_POSITION)), "radius": world.primary_radius() + pilot.hull_radius})
+	var primary := world.primary_obstacle()
+	if not primary.is_empty():
+		obstacles.append({"center": to_local(primary.center), "radius": float(primary.radius) + pilot.hull_radius})
 	for index in world.planets.size():
 		var center: Variant = _planet_center(index)
 		if center != null: obstacles.append({"center": center, "radius": float(world.planets[index].visual_radius) + pilot.hull_radius})
@@ -678,6 +679,7 @@ func _spawn_actors() -> void:
 			var actor := ShipActor.new()
 			actor.stellar_heat_source = world.stellar_heat
 			actor.primary_contact_source = world.primary_contact
+			actor.primary_obstacle_source = world.primary_obstacle
 			actor.atmospheric_density_source = world.atmospheric_density
 			actor.gravity_source = world.gravity_acceleration
 			actor.actor_id = id
@@ -692,6 +694,7 @@ func _spawn_actors() -> void:
 			var actor := ShipActor.new()
 			actor.stellar_heat_source = world.stellar_heat
 			actor.primary_contact_source = world.primary_contact
+			actor.primary_obstacle_source = world.primary_obstacle
 			actor.atmospheric_density_source = world.atmospheric_density
 			actor.gravity_source = world.gravity_acceleration
 			actor.actor_id = "security_%d" % i
@@ -894,6 +897,7 @@ func _sync_fleet_actors() -> Array[String]:
 				var actor := ShipActor.new()
 				actor.stellar_heat_source = world.stellar_heat
 				actor.primary_contact_source = world.primary_contact
+				actor.primary_obstacle_source = world.primary_obstacle
 				actor.atmospheric_density_source = world.atmospheric_density
 				actor.gravity_source = world.gravity_acceleration
 				actor.actor_id = id
