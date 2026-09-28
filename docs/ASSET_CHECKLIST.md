@@ -146,3 +146,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Give NPC combat alloy debris a distinct damaged-material cache visual. It currently reuses the freight-cache placeholder and beacon; preserve saved recovery records, collision, range and one-time collection.
 
 - [ ] Author abandoned Pathfinder/Merchant damage variants for procedural salvage surveys. Preserve the shared module collision envelope and deterministic discovery record; current derelicts use tilted, unpowered intact placeholder hulls.
+
+- [ ] Replace helmeted crew placeholder suits and armor with authored human characters. Preserve identity-derived suit/armor colors across saved crew reloads, role patches, gait pivots and the 0.42 m radius / 1.75 m height movement capsule. Review variations with `tests/capture_crew_palettes.gd`; player character creation and face/body customization remain unfinished.

@@ -1459,3 +1459,9 @@ Station gameplay passed docking speed rejection, pad support, launch and faction
 This remains an exterior blockout: the hoops do not rotate, contain walkable districts or simulate artificial gravity. Collision and approach checks do not establish automatic routing from every direction, arbitrary vessel clearance or target performance. Existing station service interiors remain separate from the new exterior frame.
 
 Clean Windows release export at `89fec51` passed without script or parse errors. A new Proton runtime smoke was not run for this increment.
+
+## Crew identity finishes — 2026-09-28
+
+Helmeted actors now derive suit and armor colors from their actor identity while retaining faction tints and role patches. Named hired crew already save their identity, so this adds appearance continuity without changing the save format. Actors without persistent IDs use their existing instance-ID fallback; their colors are not guaranteed across sessions.
+
+`test_crew_appearance.gd` passed a hired-crew save/reload round trip, palette variation, live rig material checks and unchanged movement capsule dimensions. It is registered in Windows CI. `capture_crew_palettes.gd` rendered four crew roles under hidden Gamescope and the image was inspected. The existing faction model capture remains available. These are color variations on the current placeholder rig, not human face/body customization or a player character creator.

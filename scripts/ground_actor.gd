@@ -156,7 +156,8 @@ func _path_blocked(direction: Vector3) -> bool:
 func _build_humanoid() -> void:
 	_visual = Node3D.new()
 	add_child(_visual)
-	var suit_color := Color("51433c") if faction == "pirate" else (Color("344958") if faction == "police" else Color("46504e"))
+	var appearance := CrewAppearance.palette(actor_id, faction, hostile)
+	var suit_color: Color = appearance.suit
 	var patch_color := Color("bd8052") if faction == "pirate" else (Color("7796a0") if faction == "police" else Color("a28c65"))
 	match role.to_lower():
 		"medic": patch_color = Color("a65d58")
@@ -176,7 +177,7 @@ func _build_humanoid() -> void:
 	fabric.normal_texture = _fabric_normal
 	fabric.normal_scale = 0.18
 	fabric.uv1_scale = Vector3(4, 4, 4)
-	var ceramic := _mat(Color("79878a") if not hostile else Color("626b6b"), 0.56, 0.0, 0.12)
+	var ceramic := _mat(appearance.armor, 0.56, 0.0, 0.12)
 	var dark_ceramic := _mat(Color("293438"), 0.48, 0.0, 0.2)
 	var patch := _mat(patch_color, 0.68, 0.0, 0.05)
 	var visor := _mat(Color("26383a"), 0.16, 0.0, 0.58)
