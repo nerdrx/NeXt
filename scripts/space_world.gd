@@ -346,6 +346,7 @@ func _build_planets() -> void:
 				cloud_material.set_shader_parameter("seed", float(i * 41 + int(data.station_seed % 997)))
 				cloud_material.set_shader_parameter("sun_direction", sun_direction)
 				cloud_material.set_shader_parameter("light_strength", light_strength)
+				configure_planet_eclipse(cloud_material, i)
 				var cloud_shell := _sphere(str(planet.name) + " clouds", float(planet.visual_radius) * 1.01 + PlanetHeightField.HEIGHT_SCALE, planet.position, Color.WHITE, 0.0, 1.0, cloud_material, false)
 				cloud_shell.mesh.radial_segments = 128
 				cloud_shell.mesh.rings = 64
@@ -356,10 +357,25 @@ func _build_planets() -> void:
 			halo_mat.set_shader_parameter("atmosphere_color", Color("75a8d6") if planet.has_ocean else Color("b6a18a"))
 			halo_mat.set_shader_parameter("sun_direction", sun_direction)
 			halo_mat.set_shader_parameter("light_strength", light_strength)
+			configure_planet_eclipse(halo_mat, i)
 			var halo := _sphere(str(planet.name) + " atmosphere", float(planet.visual_radius) * 1.025 + PlanetHeightField.HEIGHT_SCALE, planet.position, Color.WHITE, 0.0, 1.0, halo_mat, false)
 			halo.mesh.radial_segments = 128
 			halo.mesh.rings = 64
 			halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+func configure_planet_eclipse(material: ShaderMaterial, index: int) -> void:
+	if material == null or index < 0 or index >= planets.size(): return
+	var origin := Vector3(planets[index].position)
+	var bodies := PackedVector4Array()
+	for other in planets.size():
+		if other == index: continue
+		if bodies.size() == 8: break
+		var offset := Vector3(planets[other].position) - origin
+		bodies.append(Vector4(offset.x, offset.y, offset.z, float(planets[other].visual_radius)))
+	material.set_shader_parameter("eclipse_count", bodies.size())
+	bodies.resize(8)
+	material.set_shader_parameter("eclipse_bodies", bodies)
+	material.set_shader_parameter("planet_sun_position", PRIMARY_POSITION - origin)
 
 func planet_sun_direction(index: int) -> Vector3:
 	if index < 0 or index >= planets.size(): return Vector3.ZERO
@@ -373,7 +389,7 @@ func configure_planet_weather(material: ShaderMaterial, index: int) -> void:
 	material.set_shader_parameter("weather_shell_radius", float(planet.visual_radius) * 1.01 + PlanetHeightField.HEIGHT_SCALE)
 	material.set_shader_parameter("weather_sun_direction", planet_sun_direction(index))
 	if material.shader == PLANET_SHADER:
-		material.set_shader_parameter("planet_sun_position", PRIMARY_POSITION - Vector3(planet.position))
+		configure_planet_eclipse(material, index)
 
 func set_fine_terrain_patch(index: int, normal: Vector3, radius: float, extent: float) -> void:
 	if index < 0 or index >= _planet_materials.size(): return

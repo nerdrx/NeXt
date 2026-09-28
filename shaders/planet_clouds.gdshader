@@ -8,9 +8,13 @@ uniform float light_strength = 1.0;
 
 #include "planet_weather.gdshaderinc"
 
+#include "res://shaders/planet_eclipse.gdshaderinc"
+
 varying vec3 radial_world;
+varying vec3 eclipse_position;
 
 void vertex() {
+	eclipse_position = VERTEX;
 	radial_world = normalize(MODEL_NORMAL_MATRIX * NORMAL);
 }
 
@@ -18,6 +22,6 @@ void fragment() {
 	vec3 direction = normalize(radial_world);
 	float coverage = weather_coverage(normalize(radial_world), seed, TIME);
 	float day = smoothstep(-0.18, 0.28, dot(direction, normalize(sun_direction)));
-	ALBEDO = cloud_color.rgb * mix(0.55, 1.0, coverage) * (0.012 + day * clamp(light_strength, 0.0, 1.5));
+	ALBEDO = cloud_color.rgb * mix(0.55, 1.0, coverage) * (0.012 + day * primary_visibility(eclipse_position) * clamp(light_strength, 0.0, 1.5));
 	ALPHA = coverage * cloud_color.a * 0.88;
 }
