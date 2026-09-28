@@ -7,7 +7,7 @@ const PRESSURE_SIZE := Vector3(3.0, 2.66, 3.0)
 const COLLISION_SIZE := Vector3(3.0, 2.8, 3.0)
 const FLOOR_OFFSET := 1.23
 const CLEAR_HEIGHT := 2.45
-const FAMILIES := ["pathfinder", "merchant"]
+const FAMILIES := ["pathfinder", "merchant", "ranger"]
 const FLEET_EQUIPMENT := ["cargo", "weapon", "shield", "habitat", "radiator", "reactor"]
 
 
@@ -28,18 +28,32 @@ static func interior_offset(cells: Array[Vector3i]) -> Vector3:
 static func family(id: String) -> Dictionary:
 	if id not in FAMILIES: return {}
 	# Curated occupied volumes; room roles can change only within compatible bays.
-	var modules: Array[Dictionary] = [{"kind":"cockpit", "x":0, "y":0, "z":-2}]
-	for z in range(-1, 2 if id == "pathfinder" else 4):
+	var last_row: int = {"pathfinder": 1, "merchant": 3, "ranger": 4}[id]
+	var modules: Array[Dictionary] = [{"kind":"cockpit", "x":0, "y":0, "z":-4 if id == "ranger" else -2}]
+	if id == "ranger":
+		modules.append({"kind":"habitat", "x":0, "y":0, "z":-3})
+		modules.append({"kind":"radiator", "x":0, "y":0, "z":-2})
+	for z in range(-1, last_row + 1):
 		for x in range(-1, 2):
 			var kind := "cargo"
 			if z == -1 and x == 0: kind = "core"
 			elif z == -1 and x == -1: kind = "habitat"
 			elif z == 0 and x == 0: kind = "reactor"
 			elif z == 0 and x == 1: kind = "shield"
-			elif z == (1 if id == "pathfinder" else 3) and x != 0: kind = "engine"
+			elif z == last_row and x != 0: kind = "engine"
+			elif id == "ranger" and z == 0 and x == -1: kind = "habitat"
+			elif id == "ranger" and z == 1 and x != 0: kind = "radiator"
 			modules.append({"kind":kind, "x":x, "y":0, "z":z})
+	if id == "ranger":
+		for z in [2, 3]:
+			for x in [-2, 2]:
+				modules.append({"kind":"radiator" if z == 2 else "cargo", "x":x, "y":0, "z":z})
 	var layout := ShipLayout.empty_data()
 	if id == "merchant": layout.rooms["-1,0,-1"] = "lounge"
+	if id == "ranger":
+		layout.rooms["0,0,-3"] = "lounge"
+		layout.rooms["-1,0,0"] = "medical"
+		layout.rooms["0,0,1"] = "workshop"
 	return {"family":id, "modules":modules, "layout":layout}
 
 
@@ -127,6 +141,9 @@ static func outer_hull(cells: Array[Vector3i]) -> ArrayMesh:
 	if outline.is_empty(): return null
 	# Sloped armor wraps the pressure volume without reducing room clearances.
 	var family_id := family_for_cells(cells)
+	if family_id == "ranger":
+		# Origin scaling cuts into concave shoulder rooms; retain the full pressure outline.
+		return HullGeometry.profile(outline, [Vector3(1.0, -1.48, 1.0), Vector3(1.0, -0.25, 1.0), Vector3(1.0, PRESSURE_SIZE.y * 0.5, 1.0)])
 	var beam_scale := 1.2 if family_id == "pathfinder" else 1.16
 	var length_scale := 1.06 if family_id == "pathfinder" else 1.035
 	return HullGeometry.profile(outline, [Vector3(1.02, -1.48, 1.01), Vector3(beam_scale, -0.25, length_scale), Vector3(1.0, PRESSURE_SIZE.y * 0.5, 1.0)])

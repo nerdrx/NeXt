@@ -1413,3 +1413,11 @@ Actual-main hidden Gamescope tests passed the real tracking button, no-autopilot
 Screen-marker labels now use measured text bounds and bounded vertical placement to avoid each other, remain inside the flight HUD area and leave the radar clear. Displaced labels draw a guide line to their original brackets. When all nearby label slots are occupied, the bracket remains but its text is omitted. Tracked recovery contacts are processed first, and their offscreen annotation reserves space for following labels.
 
 The existing actual-main recovery/tracking harness passed under hidden Gamescope, and a capture with three tightly grouped recovery beacons was visually inspected: previously overlapping labels became separate readable rows. This is simple per-frame placement; camera-motion stability and large mixed-contact stress testing remain open.
+
+## Ranger walkable hull family — 2026-09-28
+
+Added a third commissioned/refittable family: Ranger, a 25-cell single-deck exploration layout with a long bow, broad aft bays, five radiator modules and three habitat modules. Default fittings include quarters, lounge, medical and a cargo-bay workshop. It uses the existing equipment, cargo, crew, power and saved-family contracts, with silver/copper placeholder paint. Hull selection now describes each family's role.
+
+Headless blueprint checks passed connected rooms, closed pressure skin, interior-corner containment and flight/coasting collision bounds for all three families. Initial origin-scaled Ranger profiles cut into concave room corners; its current pressure skin uses an unscaled extrusion. Fleet commission, save roundtrip and actor materialization checks passed. The real shipyard selector/refit action and saved Ranger assembly passed under hidden Gamescope. Seven Texture RID shutdown warnings remain in that harness.
+
+Exterior, rear and interior-cutaway captures were generated; exterior and cutaway were visually inspected. The longer bow and wider aft plan distinguish Ranger, but the repeated fittings, blocky shell and materials remain far below the intended art target. Medical/workshop room fittings do not establish new medical or crafting gameplay. Ranger-specific moving boarding, berth clearance and target performance remain unverified.

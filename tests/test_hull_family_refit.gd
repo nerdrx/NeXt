@@ -91,6 +91,28 @@ func _run() -> void:
 	var expected := ShipBlueprint.family("pathfinder")
 	assert(game.state.ship_modules == expected.modules and game.state.ship_layout == expected.layout)
 	assert(restored.load_save(path).is_empty() and restored.ship_modules == game.state.ship_modules)
+	game.open_menu("hulls")
+	var family_choice: OptionButton
+	for child in game.deck.content.get_children():
+		if child is OptionButton: family_choice = child
+	assert(family_choice != null)
+	var ranger_index := -1
+	for index in family_choice.item_count:
+		if str(family_choice.get_item_metadata(index)) == "ranger": ranger_index = index
+	assert(ranger_index >= 0, "Ranger is available in the real shipyard selector")
+	family_choice.select(ranger_index)
+	family_choice.item_selected.emit(ranger_index)
+	await process_frame
+	button = null
+	for child in game.deck.content.get_children():
+		if child is Button and child.get_meta("hull_family_refit", "") == "ranger": button = child
+	assert(button != null and not button.disabled)
+	button.pressed.emit()
+	await process_frame
+	var ranger := ShipBlueprint.family("ranger")
+	assert(game.state.ship_modules == ranger.modules and game.state.ship_stats().walkable)
+	assert(restored.load_save(path).is_empty() and restored.ship_modules == ranger.modules,
+		"Ranger shipyard action persists the walkable assembly")
 	game.sound.shutdown()
 	game.session.leave()
 	game.queue_free()

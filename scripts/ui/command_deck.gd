@@ -319,6 +319,12 @@ func _hull_families() -> void:
 		show_page("hulls"))
 	content.add_child(choice)
 	var blueprint := ShipBlueprint.family(hull_family)
+	var description: String = {
+		"pathfinder": "Compact starter hull with a walkable cabin and cargo bays.",
+		"merchant": "Extended cargo hull with a crew lounge and larger hold.",
+		"ranger": "Long-bow exploration hull with broad aft bays, extra radiators and crew facilities."
+	}.get(hull_family, "")
+	_text(description, 16, InterfaceTheme.MUTED)
 	var preview := ShipDesigner.new()
 	preview.read_only = true
 	preview.modules = blueprint.modules.duplicate(true)
