@@ -4,6 +4,10 @@ extends RefCounted
 # Identity-derived finishes keep legacy crew saves stable without new save fields.
 const SUITS: Array[Color] = [Color("52615e"), Color("485b70"), Color("756650"), Color("6c4d50"), Color("747c80"), Color("496766")]
 
+const ARMORS: Array[Color] = [Color("79878a"), Color("3e494e"), Color("a7a294"), Color("655750")]
+const SUIT_NAMES: Array[String] = ["Sage", "Navy", "Sand", "Oxide", "Slate", "Teal"]
+const ARMOR_NAMES: Array[String] = ["Ceramic", "Graphite", "Ivory", "Bronze"]
+
 static func palette(identity: String, faction: String, hostile: bool) -> Dictionary:
 	var seed := identity.hash()
 	var suit: Color = SUITS[posmod(seed, SUITS.size())]

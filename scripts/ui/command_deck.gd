@@ -107,6 +107,7 @@ func show_page(value: String = "overview") -> void:
 	_update_clock()
 	match page:
 		"overview": _overview()
+		"wardrobe": _wardrobe()
 		"navigation": _navigation()
 		"survey": _survey()
 		"market": _market()
@@ -185,6 +186,7 @@ func _overview() -> void:
 	var stats: Dictionary = s.ship_stats()
 	_text("COMMANDER'S LOG", 13, InterfaceTheme.CYAN)
 	_text("%s credits    •    %d systems visited    •    %d hostiles defeated" % [s.credits, s.visited.size(), s.kills])
+	_button("SUIT LOCKER", show_page.bind("wardrobe")).name = "OpenSuitLocker"
 	_text("SHIP MANIFEST", 13, InterfaceTheme.CYAN)
 	_text("%d modules  /  %d cargo capacity  /  %d m/s cruise\nPower balance: %s  •  Hull: %d / %d  •  Fuel: %d%%" % [s.ship_modules.size(), stats.cargo_capacity, stats.speed, stats.power_balance, s.hull, stats.max_hull, s.fuel])
 	var row := _row()
@@ -201,6 +203,16 @@ func _overview() -> void:
 	actions.add_child(InterfaceTheme.button("SAVE COMMANDER", func(): game.save_commander(true)))
 	actions.add_child(InterfaceTheme.button("LOAD COMMANDER", game.load_commander))
 	actions.add_child(InterfaceTheme.button("SAVE & EXIT", game.quit_game))
+
+func _wardrobe() -> void:
+	heading.text = "SUIT LOCKER"
+	_text("Choose your suit fabric and armor finish. Preview changes, then apply to your commander.", 18)
+	var wardrobe := CommanderWardrobe.new()
+	wardrobe.selection = game.state.commander_appearance.duplicate()
+	content.add_child(wardrobe)
+	wardrobe.applied.connect(func(suit: int, armor: int):
+		_act(game.state.set_commander_appearance.bind(suit, armor), "Suit finish applied."))
+	_button("BACK TO COMMANDER", show_page.bind("overview"))
 
 func _navigation() -> void:
 	heading.text = "STELLAR CARTOGRAPHY"

@@ -12,6 +12,8 @@ var hp: float = 100.0
 var speed: float = 3.4
 var actor_id: String = ""
 var role: String = "guard"
+var suit_index: int = -1
+var armor_index: int = -1
 var display_name: String = ""
 var hold_position: bool = false
 var follow_when_friendly: bool = true
@@ -157,6 +159,8 @@ func _build_humanoid() -> void:
 	_visual = Node3D.new()
 	add_child(_visual)
 	var appearance := CrewAppearance.palette(actor_id, faction, hostile)
+	if suit_index >= 0 and suit_index < CrewAppearance.SUITS.size(): appearance.suit = CrewAppearance.SUITS[suit_index]
+	if armor_index >= 0 and armor_index < CrewAppearance.ARMORS.size(): appearance.armor = CrewAppearance.ARMORS[armor_index]
 	var suit_color: Color = appearance.suit
 	var patch_color := Color("bd8052") if faction == "pirate" else (Color("7796a0") if faction == "police" else Color("a28c65"))
 	match role.to_lower():

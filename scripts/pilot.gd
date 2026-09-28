@@ -28,6 +28,8 @@ var _pitch: float = 0.0
 var _fire_cooldown: float = 0.0
 var _cockpit: Node3D
 var _gun: Node3D
+var _sleeve_material: StandardMaterial3D
+var _cuff_material: StandardMaterial3D
 var _flight_velocity: Vector3 = Vector3.ZERO
 var _walk_velocity: Vector3 = Vector3.ZERO
 var _recoil: float = 0.0
@@ -440,6 +442,11 @@ func _make_cockpit() -> Node3D:
 	return cockpit
 
 
+func set_suit_finish(suit: Color, armor: Color) -> void:
+	if _sleeve_material != null: _sleeve_material.albedo_color = suit
+	if _cuff_material != null: _cuff_material.albedo_color = armor
+
+
 func _make_gun() -> Node3D:
 	var gun := Node3D.new()
 	gun.scale = Vector3.ONE * 0.68
@@ -450,6 +457,10 @@ func _make_gun() -> Node3D:
 	var amber := _mat(Color("ffb45e"), 0.22, 2.1)
 	var glove := _mat(Color("202b34"), 0.62, 0.0)
 	var sleeve := _mat(Color("34414c"), 0.72, 0.0)
+	sleeve.metallic = 0.0
+	_sleeve_material = sleeve
+	_cuff_material = _mat(Color("79878a"), 0.56, 0.0)
+	_cuff_material.metallic = 0.12
 	# Slim receiver, twin barrel rails, iron sights, trigger and angled grip.
 	_add_box(gun, Vector3(0, 0, -0.02), Vector3(0.15, 0.13, 0.42), dark)
 	_add_box(gun, Vector3(0, 0.075, -0.075), Vector3(0.12, 0.025, 0.36), trim)
@@ -467,7 +478,7 @@ func _make_gun() -> Node3D:
 	_add_box(gun, Vector3(0.015, -0.09, 0.19), Vector3(0.11, 0.08, 0.1), glove)
 	var forearm := _gun_cylinder(gun, Vector3(0.18, -0.24, 0.16), 0.06, 0.25, sleeve)
 	forearm.rotation.z = PI * 0.22
-	_add_box(gun, Vector3(0.12, -0.12, 0.17), Vector3(0.14, 0.07, 0.06), trim)
+	_add_box(gun, Vector3(0.12, -0.12, 0.17), Vector3(0.14, 0.07, 0.06), _cuff_material)
 	_add_box(gun, Vector3(0.015, -0.025, 0.095), Vector3(0.028, 0.045, 0.035), amber)
 	_add_box(gun, Vector3(0, -0.075, 0.05), Vector3(0.1, 0.012, 0.11), metal)
 	var muzzle := _gun_cylinder(gun, Vector3(0, 0, -0.35), 0.068, 0.12, trim)

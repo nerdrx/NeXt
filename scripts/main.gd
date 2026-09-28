@@ -1038,6 +1038,7 @@ func _consume_ship_propulsion(before: Vector3, commanded: Vector3) -> Vector3:
 	return result
 
 func apply_ship_stats() -> void:
+	pilot.set_suit_finish(CrewAppearance.SUITS[int(state.commander_appearance.suit)], CrewAppearance.ARMORS[int(state.commander_appearance.armor)])
 	pilot.propulsion_limiter = _consume_ship_propulsion
 	pilot.configure_ship_collision(state.ship_modules)
 	_refresh_propulsion_limits()
@@ -2590,6 +2591,7 @@ func exit_interior() -> void:
 	close_menu()
 
 func _copy_carried_ship(source: GameState, destination: GameState) -> void:
+	destination.commander_appearance = source.commander_appearance.duplicate()
 	destination.ship_identity = source.ship_identity.duplicate(true)
 	destination.ship_modules = source.ship_modules.duplicate(true)
 	destination.ship_layout = source.ship_layout.duplicate(true)
