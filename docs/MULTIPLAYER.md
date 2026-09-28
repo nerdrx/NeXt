@@ -156,3 +156,21 @@ through commander reload. This protects against interrupted application writes;
 it does not establish power-loss durability on every filesystem, cross-process
 locking, host authority or tamper-proof ship ownership. Steam credentials and native
 transport configuration remain separate unfinished requirements.
+
+
+## Protocol compatibility and admission deadlines
+
+Join requests and welcomes carry `NetworkSession.PROTOCOL_VERSION` (currently 1).
+A missing or different version is rejected before world identity, presence or
+visitor profile adoption. Increment this version whenever wire formats or shared
+simulation contracts become incompatible; matching version numbers alone do not
+prove arbitrary old builds interoperable.
+
+Clients allow 20 seconds for a compatible welcome. Hosts also remove transports
+that remain unadmitted after 20 seconds, and disconnect rejected transports after
+allowing 0.2 seconds for the explanation to flush. The timer retains the original
+transport identity and does not remove admitted visitors or a replacement session.
+Older engines may reject an RPC signature before application-level validation;
+the deadline bounds that failure rather than promising a friendly version message
+from every historical binary. This applies to ENet and the shared Steam protocol;
+real Steam compatibility is still untested.

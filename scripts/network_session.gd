@@ -9,6 +9,9 @@ signal steam_invitation_ready(lobby_id: int)
 signal pvp_damage_received(attacker: int, damage: float)
 signal pvp_hit_confirmed(attacker: int, target: int, origin_data: Dictionary, end_data: Dictionary)
 
+# Increment when wire payloads or shared simulation contracts become incompatible.
+const PROTOCOL_VERSION: int = 1
+const JOIN_TIMEOUT: float = 20.0
 const DEFAULT_PORT: int = 27840
 const MAX_PLAYERS: int = 8
 const MAX_MODULES: int = 100
@@ -32,6 +35,7 @@ var visitors_open: bool = true
 var _peer: MultiplayerPeer
 var _steam_session: SteamSession
 var _join_sent: bool = false
+var _join_remaining: float = 0.0
 var _last_pose_msec: int = 0
 var _last_clock_sent_msec: int = -1000
 var _last_remote_pose_msec: Dictionary = {}
@@ -161,6 +165,7 @@ func _start_client(peer: MultiplayerPeer, status: String) -> void:
 	is_host = false
 	connected = false
 	_join_sent = false
+	_join_remaining = JOIN_TIMEOUT
 	presence.clear()
 	_pending_systems_online.clear()
 	_last_remote_pose_msec.clear()
@@ -214,6 +219,7 @@ func leave() -> void:
 	is_host = false
 	visitors_open = true
 	_join_sent = false
+	_join_remaining = 0.0
 	presence.clear()
 	_pending_systems_online.clear()
 	_last_remote_pose_msec.clear()
@@ -302,9 +308,30 @@ func publish_clock(seconds: float) -> void:
 	_rpc_clock.rpc(seconds)
 
 
-func _on_peer_connected(_peer_id: int) -> void:
-	# Presence is admitted only after the peer's validated join request.
-	pass
+func _on_peer_connected(peer_id: int) -> void:
+	# An unadmitted transport must not hold a host slot indefinitely.
+	if is_host: _disconnect_unadmitted(peer_id, JOIN_TIMEOUT)
+
+
+func _process(delta: float) -> void:
+	if is_host or connected or _peer == null: return
+	_join_remaining = maxf(0.0, _join_remaining - delta)
+	if _join_remaining == 0.0:
+		session_message.emit("Host did not complete a compatible join handshake.")
+		leave()
+
+
+func _disconnect_unadmitted(peer_id: int, delay: float) -> void:
+	var transport := _peer
+	get_tree().create_timer(delay).timeout.connect(func():
+		if _peer == transport and _peer != null and is_host and not presence.has(peer_id) and peer_id in multiplayer.get_peers():
+			_peer.disconnect_peer(peer_id))
+
+
+func _reject_join(peer_id: int, reason: String) -> void:
+	_rpc_reject.rpc_id(peer_id, reason)
+	# Give the reliable explanation time to flush before transport removal.
+	_disconnect_unadmitted(peer_id, 0.2)
 
 
 func _on_peer_disconnected(peer_id: int) -> void:
@@ -325,7 +352,7 @@ func _on_connected_to_server() -> void:
 	if _join_sent or _peer == null:
 		return
 	_join_sent = true
-	_rpc_join_request.rpc_id(1, _sanitize_name(display_name), ship_modules.duplicate(true), ship_layout.duplicate(true))
+	_rpc_join_request.rpc_id(1, _sanitize_name(display_name), ship_modules.duplicate(true), ship_layout.duplicate(true), PROTOCOL_VERSION)
 
 
 func _on_connection_failed() -> void:
@@ -344,35 +371,33 @@ func _on_server_disconnected() -> void:
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _rpc_join_request(raw_name: String, raw_modules: Array, raw_layout: Variant) -> void:
+func _rpc_join_request(raw_name: String, raw_modules: Array, raw_layout: Variant, protocol: int = 0) -> void:
 	if not is_host or not connected:
 		return
 	var sender := multiplayer.get_remote_sender_id()
 	if sender <= 1 or sender > 0x7fffffff or presence.has(sender) or presence.size() >= MAX_PLAYERS:
 		return
+	if protocol != PROTOCOL_VERSION:
+		_reject_join(sender, "Incompatible NeXt multiplayer protocol. Update both games to matching versions.")
+		return
 	if not visitors_open:
-		_rpc_reject.rpc_id(sender, "The host has closed this world to new visitors.")
-		# Allow the reliable rejection to flush before removing an uncooperative transport.
-		var rejected_transport := _peer
-		get_tree().create_timer(0.2).timeout.connect(func():
-			if _peer == rejected_transport and is_host and not presence.has(sender) and sender in multiplayer.get_peers():
-				_peer.disconnect_peer(sender))
+		_reject_join(sender, "The host has closed this world to new visitors.")
 		return
 	if raw_name.length() > 64 or raw_modules.size() > MAX_MODULES or not raw_layout is Dictionary or raw_layout.size() > 3:
-		_rpc_reject.rpc_id(sender, "Join data is too large.")
+		_reject_join(sender, "Join data is too large.")
 		return
 	var normalized := _normalize_modules(raw_modules)
 	if not normalized.ok:
-		_rpc_reject.rpc_id(sender, "Invalid ship design: %s" % normalized.error)
+		_reject_join(sender, "Invalid ship design: %s" % normalized.error)
 		return
 	var normalized_layout := _normalize_layout(raw_layout, normalized.modules)
 	if not normalized_layout.ok:
-		_rpc_reject.rpc_id(sender, "Invalid ship layout: %s" % normalized_layout.error)
+		_reject_join(sender, "Invalid ship layout: %s" % normalized_layout.error)
 		return
 	var safe_name := _sanitize_name(raw_name)
 	var profile := _make_presence(Vector3.ZERO, Vector3.ZERO, normalized.modules, normalized_layout.layout, safe_name)
 	presence[sender] = profile
-	_rpc_welcome.rpc_id(sender, system_index, world_seed, world_id, presence.duplicate(true), _pvp_epoch, ephemeris_seconds)
+	_rpc_welcome.rpc_id(sender, system_index, world_seed, world_id, presence.duplicate(true), _pvp_epoch, ephemeris_seconds, PROTOCOL_VERSION)
 	_broadcast_presence(sender, profile)
 	peers_changed.emit()
 	session_message.emit("%s joined." % safe_name)
@@ -421,7 +446,11 @@ func _same_loadout(profile: Dictionary, modules: Array, layout: Dictionary) -> b
 
 
 @rpc("authority", "call_remote", "reliable")
-func _rpc_welcome(index: int, seed: int, incoming_world_id: String, players: Dictionary, epoch: int = 0, seconds: float = 0.0) -> void:
+func _rpc_welcome(index: int, seed: int, incoming_world_id: String, players: Dictionary, epoch: int = 0, seconds: float = 0.0, protocol: int = 0) -> void:
+	if not is_host and protocol != PROTOCOL_VERSION:
+		session_message.emit("Incompatible NeXt multiplayer protocol. Update both games to matching versions.")
+		leave()
+		return
 	if is_host or index < 0 or index > MAX_SYSTEM_INDEX or players.size() > MAX_PLAYERS or not _valid_world_id(incoming_world_id) or not _valid_ephemeris(seconds):
 		return
 	var validated: Dictionary = {}
@@ -438,6 +467,7 @@ func _rpc_welcome(index: int, seed: int, incoming_world_id: String, players: Dic
 	ephemeris_seconds = seconds
 	_pvp_epoch = epoch
 	presence = validated
+	_join_remaining = 0.0
 	connected = true
 	var local_id := multiplayer.get_unique_id()
 	presence[local_id] = _make_presence(Vector3.ZERO, Vector3.ZERO, ship_modules, ship_layout, display_name)
