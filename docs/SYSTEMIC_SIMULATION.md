@@ -236,3 +236,8 @@ At remote order events, intersystem transfers cost 10 units for hyperdrive, matc
 Materialized owned patrol ships retain position, velocity, patrol center and course clock in local saves. The center is stored in system coordinates independently of the vessel position, including when a distant actor is culled or the player changes the floating origin. Restoring an empty tank preserves coasting momentum. Cancelling or replacing an order discards its saved flight; changing patrol systems discards the previous system's flight.
 
 Remote patrols still use strategic encounter events. Saved local flight is the last materialized state, not a continuously integrated remote trajectory. Patrol course persistence does not preserve a combat target, contact-search timer or weapon cooldown.
+
+
+### Partial fleet fuel deliveries
+
+Fleet services can sell a single commodity unit (10 tank fuel) as well as filling the tank. A full refill may be unavailable while a small delivery remains affordable and in stock. The domain operation accepts up to ten commodity units and caps the purchase at the remaining tank capacity; credits and market inventory are charged only for units supplied. The command menu exposes a ten-fuel delivery when more than one unit is needed. Delivery travel remains abstract.

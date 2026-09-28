@@ -257,12 +257,14 @@ func consume_propulsion(ship_id: String, before: Vector3, commanded: Vector3, ma
 	return before + change * (used / required)
 
 
-func refuel_fleet_ship(ship_id: String) -> String:
+func refuel_fleet_ship(ship_id: String, requested_units: int = 0) -> String:
+	if requested_units < 0 or requested_units > 10: return "Fuel delivery quantity must be between 1 and 10 units, or zero to fill the tank."
 	var ship := _ship(ship_id)
 	if ship.is_empty(): return "Fleet ship does not exist."
 	if float(ship.hull) <= 0.0: return "Repair the disabled vessel before requesting fuel."
 	var units := ceili((100.0 - float(ship.get("fuel", 100.0))) / 10.0)
 	if units <= 0: return "Fleet fuel tank is full."
+	if requested_units > 0: units = mini(units, requested_units)
 	var cost := state.market_total("fuel", int(ship.system), units, true)
 	if cost < 0: return "The vessel's market cannot supply enough fuel."
 	if state.credits < cost: return "Fleet fuel service costs %d credits." % cost

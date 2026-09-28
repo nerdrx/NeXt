@@ -755,6 +755,13 @@ func _fleet() -> void:
 		var fuel_button := _button(fuel_label, _act.bind(game.crew_operations().refuel_fleet_ship.bind(str(vessel.id)), "Fleet fuel supplied."), fuel_units <= 0 or fuel_cost < 0 or float(vessel.hull) <= 0.0)
 		fuel_button.set_meta("fleet_refuel", str(vessel.id))
 		fuel_button.tooltip_text = "Uses fuel stock at the vessel's market. Service arrival is currently abstracted."
+		if fuel_units > 1:
+			var small_cost := s.market_total("fuel", int(vessel.system), 1, true)
+			var small_label := "SMALL FUEL DELIVERY / NO STOCK" if small_cost < 0 else "DELIVER 10 FUEL / %d CR" % small_cost
+			var small_button := _button(small_label, _act.bind(game.crew_operations().refuel_fleet_ship.bind(str(vessel.id), 1), "Ten fuel supplied to fleet vessel."), small_cost < 0 or float(vessel.hull) <= 0.0)
+			small_button.set_meta("fleet_refuel_small", str(vessel.id))
+			small_button.tooltip_text = "Buy one commodity unit for 10 tank fuel. Uses the vessel's market; delivery arrival is abstracted."
+
 		if not ShipBlueprint.for_vessel(vessel).is_empty():
 			var command_button := _button("TAKE COMMAND", _act.bind(game.exchange_fleet_helm.bind(str(vessel.id)), "Ship exchanged. Previous vessel stored in your fleet."), game.session.connected or game.pilot.flying or game.aboard or game.surface_index >= 0 or game.manual_planet >= 0)
 			command_button.set_meta("fleet_take_command", str(vessel.id))

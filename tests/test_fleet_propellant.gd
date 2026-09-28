@@ -47,6 +47,21 @@ func _run() -> void:
 	assert(speed_before > 0.1)
 	await create_timer(0.2).timeout
 	assert(is_equal_approx(actor.velocity.length(), speed_before), "empty actor coasts without powered braking")
+	game.state.market_stocks[str(ship.system)].fuel = 1
+	game.open_menu("fleet")
+	var small_found := false
+	var full_disabled := false
+	for node: Node in game.deck.find_children("*", "Button", true, false):
+		if str(node.get_meta("fleet_refuel", "")) == str(ship.id): full_disabled = node.disabled
+		if str(node.get_meta("fleet_refuel_small", "")) != str(ship.id): continue
+		assert(not node.disabled, "small delivery available when full refill cannot be stocked")
+		node.pressed.emit()
+		small_found = true
+		break
+	assert(small_found and full_disabled and ship.fuel == 10.0, "fleet menu buys one available unit")
+	var partial_save := GameState.new()
+	assert(partial_save.load_save(game.save_path).is_empty() and partial_save.fleet_ships[0].fuel == 10.0)
+	game.state.market_stocks[str(ship.system)].fuel = stock
 	game.open_menu("fleet")
 	var found := false
 	for node: Node in game.deck.find_children("*", "Button", true, false):
