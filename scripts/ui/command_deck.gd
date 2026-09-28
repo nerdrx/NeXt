@@ -823,9 +823,18 @@ func _fleet() -> void:
 	quantity.value = 5
 	settings.add_child(quantity)
 	var quote_label := _text("Select a vessel, commodity and destination to quote the route.", 15, InterfaceTheme.GOLD)
+	quote_label.name = "RouteQuote"
 	_button("QUOTE ROUTE", func():
 		var quote: Dictionary = game.crew_operations().route_quote(str(goods_choice.get_selected_metadata()), int(destination_field.value), int(quantity.value), str(ship_choice.get_selected_metadata()) if not s.fleet_ships.is_empty() else "")
-		quote_label.text = ("Reserve %d CR / Estimated gross trading margin %d CR, before wages. Market prices can change." % [quote.escrow, quote.expected_profit]) if quote.ok else str(quote.message))
+		if not quote.ok:
+			quote_label.text = str(quote.message)
+			return
+		quote_label.text = "Reserve %d CR / Gross cargo margin %+d CR. Round-trip trader wages: %d CR. Two jumps: %.0f fuel." % [quote.escrow, quote.expected_profit, quote.round_trip_wages, quote.round_trip_fuel]
+		if quote.fuel_replacement_cost == null:
+			quote_label.text += " Origin market cannot quote replacement fuel; operating margin unavailable."
+		else:
+			quote_label.text += " Replacing that fuel at origin: %d CR. Estimated margin after wages and jump fuel: %+d CR." % [quote.fuel_replacement_cost, quote.estimated_operating_margin]
+		quote_label.text += " Current prices only; local thrust, waiting wages and repairs cost extra.")
 	var orders := _row()
 	var trade := InterfaceTheme.button("TRADE ROUTE", func():
 		_act(game.crew_operations().assign_trade_route.bind(str(crew_choice.get_selected_metadata()), str(ship_choice.get_selected_metadata()), str(goods_choice.get_selected_metadata()), int(destination_field.value), int(quantity.value)), "Trade route ordered."))

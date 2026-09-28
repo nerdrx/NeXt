@@ -295,7 +295,12 @@ func route_quote(good: String, destination: int, quantity: int, ship_id: String 
 	var purchase: int = state.market_total(key, origin, quantity, true)
 	var sale: int = state.market_total(key, destination, quantity, false, 0.85)
 	if purchase < 0 or sale < 0: return {"ok": false, "message": "Market stock or receiving capacity cannot fill this quantity."}
-	return {"ok": true, "good": key, "origin": origin, "destination": destination, "quantity": quantity, "buy_unit": buy_unit, "sale_unit": sale_unit, "escrow": purchase, "expected_profit": sale - purchase}
+	# Two jump legs and two trader wages. Local thrust and delayed attempts cost extra.
+	var wages: int = int(GameState.CREW_ROLES.trader.salary) * 2
+	var fuel_cost: int = state.market_total("fuel", origin, 2, true)
+	return {"ok": true, "good": key, "origin": origin, "destination": destination, "quantity": quantity, "buy_unit": buy_unit, "sale_unit": sale_unit, "escrow": purchase, "expected_profit": sale - purchase,
+		"round_trip_wages": wages, "round_trip_fuel": 20.0, "fuel_replacement_cost": fuel_cost if fuel_cost >= 0 else null,
+		"estimated_operating_margin": sale - purchase - wages - fuel_cost if fuel_cost >= 0 else null}
 
 # Fleet menu calls this only when the ship is at the player's current dock.
 func unload_fleet_cargo(ship_id: String, good: String, quantity: int) -> String:
