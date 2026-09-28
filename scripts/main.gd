@@ -814,6 +814,7 @@ func _sync_fleet_actors() -> Array[String]:
 				actor.hull_modules = ship.get("modules", []).duplicate(true)
 				actor.cargo_mass_kg = state._fleet_cargo_total(ship) * 1000.0
 				actor.set_meta("fleet_ship_id", id)
+				actor.propulsion_limiter = _consume_fleet_propulsion.bind(id, actor)
 				actor.set_meta("fleet_order_kind", desired_kind)
 				actor.set_meta("contact_name", str(ship.name))
 				actor.hp = float(ship.hull)
@@ -866,6 +867,10 @@ func _sync_fleet_actors() -> Array[String]:
 	for id: String in local_patrol_ids:
 		if fleet_actors.has(id) and not bool(fleet_actors[id].get_meta("spatial_culled", false)): simulated_patrols.append(id)
 	return simulated_patrols
+
+func _consume_fleet_propulsion(before: Vector3, commanded: Vector3, ship_id: String, actor: ShipActor) -> Vector3:
+	return crew_operations().consume_propulsion(ship_id, before, commanded, actor.dry_mass_kg + actor.cargo_mass_kg)
+
 
 func _local_trade_status() -> Dictionary:
 	var status: Dictionary = {}

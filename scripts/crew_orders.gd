@@ -242,6 +242,37 @@ func cancel(crew_id: String) -> String:
 	state.crew_orders.erase(crew_id)
 	return ""
 
+func consume_propulsion(ship_id: String, before: Vector3, commanded: Vector3, mass_kg: float) -> Vector3:
+	if not before.is_finite(): return Vector3.ZERO
+	if not commanded.is_finite() or not is_finite(mass_kg) or mass_kg <= 0.0: return before
+	var ship := _ship(ship_id)
+	if ship.is_empty() or float(ship.hull) <= 0.0: return before
+	var change := commanded - before
+	var required := mass_kg * change.length() / GameState.IMPULSE_PER_FUEL
+	if not is_finite(required): return before
+	if required <= 0.0: return before
+	var available := clampf(float(ship.get("fuel", 100.0)), 0.0, 100.0)
+	var used := minf(required, available)
+	ship.fuel = maxf(0.0, available - used)
+	return before + change * (used / required)
+
+
+func refuel_fleet_ship(ship_id: String) -> String:
+	var ship := _ship(ship_id)
+	if ship.is_empty(): return "Fleet ship does not exist."
+	if float(ship.hull) <= 0.0: return "Repair the disabled vessel before requesting fuel."
+	var units := ceili((100.0 - float(ship.get("fuel", 100.0))) / 10.0)
+	if units <= 0: return "Fleet fuel tank is full."
+	var cost := state.market_total("fuel", int(ship.system), units, true)
+	if cost < 0: return "The vessel's market cannot supply enough fuel."
+	if state.credits < cost: return "Fleet fuel service costs %d credits." % cost
+	var issue := state.market_transfer("fuel", int(ship.system), units, true)
+	if not issue.is_empty(): return issue
+	state.credits -= cost
+	ship.fuel = minf(100.0, float(ship.get("fuel", 100.0)) + float(units) * 10.0)
+	return ""
+
+
 func repair_fleet_ship(ship_id: String) -> String:
 	var ship: Dictionary = _ship(ship_id)
 	if ship.is_empty(): return "Fleet ship does not exist."
@@ -361,6 +392,7 @@ func tick(elapsed_seconds: float, local_patrol_ship_ids: Array[String] = [], loc
 		while float(order.progress) >= interval:
 			# A represented trader must actually reach its departure/berth point.
 			if local_trade and not bool(local_trade_status[str(order.ship_id)]): break
+			var fuel_cost := 0.0
 			if order.has("ship_id"):
 				var vessel := _ship(str(order.ship_id))
 				if float(vessel.hull) <= 0.0:
@@ -369,6 +401,26 @@ func tick(elapsed_seconds: float, local_patrol_ship_ids: Array[String] = [], loc
 				var until_event := clampf(event_time, 0.0, elapsed_seconds)
 				_recharge_shields(vessel, maxf(0.0, until_event - float(shield_elapsed.get(str(vessel.id), 0.0))))
 				shield_elapsed[str(vessel.id)] = until_event
+				if str(order.kind) == "patrol":
+					var local_patrol := str(order.ship_id) in local_patrol_ship_ids and int(vessel.system) == int(order.system) and int(order.system) == state.system_index
+					if not local_patrol:
+						fuel_cost = 10.0 if int(vessel.system) != int(order.system) else 2.0
+				elif str(order.kind) == "trade":
+					var target_system := int(order.origin)
+					if str(order.phase) == "outbound" and int(vessel.system) == int(order.origin):
+						target_system = int(order.destination)
+					var represented_same_system_trade := local_trade and int(vessel.system) == target_system
+					if int(vessel.system) != target_system:
+						fuel_cost = 10.0
+					elif not represented_same_system_trade:
+						fuel_cost = 2.0
+				if float(vessel.get("fuel", 100.0)) < fuel_cost:
+					order.progress = interval
+					var was_paused := bool(order.paused)
+					order.paused = true
+					if not was_paused:
+						reports.append({"kind": str(order.kind), "status": "paused: fuel insufficient", "crew_id": crew_id, "ship_id": str(vessel.id), "fuel_required": fuel_cost})
+					break
 			event_time += interval
 			order.progress = float(order.progress) - interval
 			var member: Dictionary = _member(crew_id)
@@ -389,7 +441,7 @@ func tick(elapsed_seconds: float, local_patrol_ship_ids: Array[String] = [], loc
 				if not patrol_ship.is_empty() and int(patrol_ship.system) == int(order.system) and int(order.system) == state.system_index:
 					reports.append({"kind": "patrol", "status": "local patrol wages paid", "crew_id": crew_id, "ship_id": str(order.ship_id), "system": int(order.system), "wages": wage})
 					continue
-			var report: Dictionary = _complete_order(order)
+			var report: Dictionary = _complete_order(order, fuel_cost)
 			if not report.is_empty(): reports.append(report)
 			# The scene's readiness describes this leg only, never a second leg.
 			if local_trade: break
@@ -425,10 +477,22 @@ func _recharge_shields(vessel: Dictionary, elapsed_seconds: float) -> void:
 	defense.charge = minf(float(stats.max_shield), float(defense.charge) + recharge_time * 5.0)
 	vessel.defense = defense
 
-func _complete_order(order: Dictionary) -> Dictionary:
+func _complete_order(order: Dictionary, fuel_cost: float = 0.0) -> Dictionary:
 	match str(order.kind):
-		"trade": return _trade_leg(order)
-		"patrol": return _patrol_leg(order)
+		"trade":
+			var ship := _ship(str(order.ship_id))
+			var previous_phase := str(order.phase)
+			var previous_system := int(ship.get("system", -1)) if not ship.is_empty() else -1
+			var report := _trade_leg(order)
+			if not ship.is_empty() and (str(order.get("phase", "")) != previous_phase or int(ship.get("system", -1)) != previous_system):
+				ship.fuel = maxf(0.0, float(ship.get("fuel", 100.0)) - fuel_cost)
+			return report
+		"patrol":
+			var ship := _ship(str(order.ship_id))
+			var report := _patrol_leg(order)
+			if not ship.is_empty() and (str(report.get("status", "")) == "quiet patrol" or str(report.get("status", "")) == "hostile intercepted"):
+				ship.fuel = maxf(0.0, float(ship.get("fuel", 100.0)) - fuel_cost)
+			return report
 		"station": return _station_leg(order)
 	return {}
 

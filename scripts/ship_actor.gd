@@ -29,6 +29,7 @@ var last_contact_position := Vector3.ZERO
 var search_seconds_remaining: float = 0.0
 var travel_active: bool = false
 var travel_target := Vector3.ZERO
+var propulsion_limiter: Callable
 
 var hull_family: String = ""
 var hull_layout: Dictionary = {}
@@ -148,6 +149,8 @@ func _physics_process(delta: float) -> void:
 	var requested_dv := command - velocity
 	var dv_limit := minf(acceleration * delta, maxf(0.0, 700.0 - drive_temperature_k) / 20.0 * 5000000.0 / mass)
 	var actual_dv := requested_dv.limit_length(dv_limit)
+	if propulsion_limiter.is_valid():
+		actual_dv = propulsion_limiter.call(velocity, velocity + actual_dv) - velocity
 	velocity += actual_dv
 	var fuel_equivalent := mass * actual_dv.length() / 5000000.0
 	drive_temperature_k = minf(700.0, drive_temperature_k + fuel_equivalent * 20.0)

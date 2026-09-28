@@ -749,6 +749,12 @@ func _fleet() -> void:
 			transfer_actions.add_child(transfer_button)
 	for vessel: Dictionary in s.fleet_ships:
 		_text("%s / %s / system %d / hull %.0f%% / fuel %.0f%% / drive %.0f K" % [vessel.name, str(vessel.get("hull_family", "utility")).capitalize(), vessel.system, vessel.hull, float(vessel.get("fuel", 100.0)), float(vessel.get("drive_temperature_k", 450.0))], 17)
+		var fuel_units := ceili((100.0 - float(vessel.get("fuel", 100.0))) / 10.0)
+		var fuel_cost := s.market_total("fuel", int(vessel.system), fuel_units, true) if fuel_units > 0 else 0
+		var fuel_label := "FUEL SERVICE / NO STOCK" if fuel_cost < 0 else ("FUEL TANK FULL" if fuel_units <= 0 else "DISPATCH FUEL SERVICE / %d CR" % fuel_cost)
+		var fuel_button := _button(fuel_label, _act.bind(game.crew_operations().refuel_fleet_ship.bind(str(vessel.id)), "Fleet fuel supplied."), fuel_units <= 0 or fuel_cost < 0 or float(vessel.hull) <= 0.0)
+		fuel_button.set_meta("fleet_refuel", str(vessel.id))
+		fuel_button.tooltip_text = "Uses fuel stock at the vessel's market. Service arrival is currently abstracted."
 		if not ShipBlueprint.for_vessel(vessel).is_empty():
 			var command_button := _button("TAKE COMMAND", _act.bind(game.exchange_fleet_helm.bind(str(vessel.id)), "Ship exchanged. Previous vessel stored in your fleet."), game.session.connected or game.pilot.flying or game.aboard or game.surface_index >= 0 or game.manual_planet >= 0)
 			command_button.set_meta("fleet_take_command", str(vessel.id))

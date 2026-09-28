@@ -68,6 +68,8 @@ jobs:
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_reactor_boost.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_local_trade.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_fleet_flight_save.gd -- --capture-only
+          timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_fleet_propellant.gd -- --capture-only
+          timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_fleet_order_fuel.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_fleet_cargo_transfer.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_fleet_cargo_ui.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_fleet_families.gd -- --capture-only

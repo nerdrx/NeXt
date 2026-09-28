@@ -223,3 +223,9 @@ Local AI obstacle sweeps now extend to the greater of the existing two-second ho
 ## Resource-backed field repairs
 
 Passive engineer payroll no longer generates free hull points. An explicit, saved Enterprise policy permits paid, unassigned engineers to consume cargo alloys: at most one unit per engineer per day, up to eight hull points per unit, bounded by missing hull and available stock. A partial final repair consumes a whole unit. Full or destroyed hulls, unpaid crews and assigned engineers do not consume supplies. This is a daily material/labour approximation, not localized damage, animated repair work or component replacement. The policy defaults off, including older saves, so trade cargo is not silently allocated to maintenance.
+
+## Fleet propellant
+
+Materialized owned fleet actors use the player propulsion impulse conversion (5,000,000 N s per fuel unit), with actual dry plus cargo mass. A propulsion callback debits the authoritative vessel record and limits velocity change to available fuel; heating uses the resulting impulse. Empty ships coast rather than receiving free braking. Saves and refuelling use the same record, avoiding actor/record tank divergence. Unowned NPC fuel inventories remain unmodelled.
+
+At remote order events, intersystem transfers cost 10 units for hyperdrive, matching player jumps. That jump cost also applies after represented local departure/berth flight; it is separate from thruster propellant. Remote same-system patrol/trade legs cost two units as a gameplay approximation; materialized same-system legs pay only actual thrust. Insufficient reserves pause before wages and market mutations. Failed stock/storage attempts do not debit travel fuel. Paid fleet fuel service consumes finite market stock at the vessel's system; delivery vehicles and arrival delay remain abstract.
