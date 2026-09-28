@@ -46,6 +46,7 @@ var save_path: String = "user://commander.json"
 var enemy_clock: float = 0.0
 var _last_stats: Dictionary = {}
 var _network_clock: float = 0.0
+var _wreck_route_signature: int = 0
 var wreck_root: Node3D
 var _rescuing: bool = false
 var pending_steam_lobby: int = 0
@@ -327,7 +328,9 @@ func _plan_cruise_leg() -> bool:
 		pilot.cancel_autopilot()
 		aboard_cruise = false
 		cruise_address = null
-		notify("Cruise cannot find a clear route around nearby obstacles. Reposition manually and retry.")
+		if aboard and is_instance_valid(coasting_hull): coasting_hull.request_brake()
+		elif pilot.flying: pilot.request_brake()
+		notify("Cruise route obstructed; braking requested. Reposition and retry.")
 		return false
 	for point: Vector3 in route.points:
 		var waypoint := flight_origin.clone()
@@ -2626,6 +2629,7 @@ func rebuild_wrecks() -> void:
 		wreck_root.queue_free()
 	wreck_root = Node3D.new()
 	add_child(wreck_root)
+	var route_obstacles: Array = []
 	for wreck: Dictionary in state.recovery.get("wrecks", []):
 		if int(wreck.system) != state.system_index or int(wreck.surface) != surface_index: continue
 		if bool(wreck.get("salvaged", false)) and bool(wreck.get("cargo_recovered", false)): continue
@@ -2633,6 +2637,7 @@ func rebuild_wrecks() -> void:
 		if position == null: continue
 		var cargo_only: bool = wreck.modules.is_empty() or bool(wreck.get("salvaged", false))
 		var geometry := ShipRecovery.wreck_geometry(wreck)
+		route_obstacles.append([wreck.id, wreck.get("address", wreck.position), geometry])
 		if cargo_only:
 			var cache := Node3D.new()
 			wreck_root.add_child(cache)
@@ -2661,6 +2666,11 @@ func rebuild_wrecks() -> void:
 		beacon.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		beacon.modulate = Color("e0b96e")
 		wreck_root.add_child(beacon)
+	# Stable absolute records avoid replanning just because the origin rebased.
+	var signature := hash(route_obstacles)
+	if signature != _wreck_route_signature:
+		_wreck_route_signature = signature
+		if cruise_address != null: _plan_cruise_leg()
 
 func _add_wreck_collision(parent: Node3D, center: Vector3, size: Vector3) -> void:
 	var body := parent.get_node_or_null("WreckCollision") as StaticBody3D

@@ -68,6 +68,21 @@ func _run() -> void:
 	game.pilot.teleport(point + Vector3(0, 0, 100))
 	game._start_address_cruise(far_goal)
 	assert(game.cruise_waypoints.size() == 1, "fully recovered wreck no longer blocks route")
+	# A new combat wreck appears while the direct cruise is already engaged.
+	game.state.hull = 0.0
+	assert(ShipRecovery.destroy_ship(game.state, point, game.surface_index, game.flight_origin.to_save()).ok)
+	game.rebuild_wrecks()
+	assert(game.cruise_waypoints.size() > 1 and game.pilot.autopilot_active, "new wreck replans an active route")
+	var route_before: Array = game.cruise_waypoints.duplicate()
+	game.rebuild_wrecks()
+	assert(game.cruise_waypoints == route_before, "unchanged rebuild preserves route objects")
+	# An obstruction at the destination makes the route impossible.
+	game.pilot.restore_flight_velocity(Vector3(0, 0, -20))
+	game.state.hull = 0.0
+	assert(ShipRecovery.destroy_ship(game.state, point - Vector3(0, 0, 100), game.surface_index, game.flight_origin.to_save()).ok)
+	game.rebuild_wrecks()
+	assert(game.cruise_address == null and game.cruise_waypoints.is_empty())
+	assert(not game.pilot.autopilot_active and game.pilot.braking, "blocked destination cancels cruise and requests braking")
 	game.sound.shutdown()
 	game.session.leave()
 	game.queue_free()

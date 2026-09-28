@@ -1348,3 +1348,10 @@ Recovery tests passed the 7.9 m/8.1 m walking boundary beside a large tilted Mer
 Cruise route planning includes active local wrecks and freight caches as conservative spheres expanded by the player hull radius. Completed recovery records and other locations are excluded. Recovery approach destinations now include the planner clearance plus 5 m, avoiding a destination inside the safety margin. Failed-route feedback refers to nearby obstacles instead of only planets.
 
 Actual-main checks passed headlessly and in hidden Gamescope: a direct course through a wreck produces a detour, every generated segment clears the expanded obstacle, a destination inside the wreck is refused, the dedicated recovery approach retains clearance, and complete recovery restores the direct route. Existing route geometry and cruise gameplay regressions passed. This verifies route construction and existing cruise behavior, not dynamic replanning for newly created wrecks during a leg or complete avoidance of stations and moving ships.
+
+
+## Replan cruise after recovery obstacles change — 2026-09-28
+
+Rebuilding wrecks now compares their active absolute records and collision geometry. A change replans an active cruise from its current helm position; an unchanged rebuild preserves the route. If a new obstacle makes the destination unsafe, the route is cleared and braking is requested on the piloted or aboard hull. Braking still requires available thrust and propellant.
+
+Actual-main tests passed headlessly and in hidden Gamescope for a newly created wreck interrupting a direct route, preservation of route objects on an unchanged rebuild, and cancellation/brake request when another wreck appears at the destination. Existing physical wreck/recovery assertions and the aboard-cruise regression passed. This is event-driven recovery-obstacle replanning, not continuous avoidance of all moving actors.
