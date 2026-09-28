@@ -1889,3 +1889,11 @@ airless expectations including gravity but no drag. Its HUD capture was inspecte
 gravity and net acceleration are readable and separate. Coasting-interior and
 inertial-control regressions pass. NET ACCEL now includes gravity, superseding
 the earlier thrust/drag-only telemetry scope; it is not physiological g-load.
+
+Packaged smoke initially exposed two obsolete constant-velocity assertions. It
+now checks actual gravity-modified helm/save momentum and the predicted gravity
+step during unpowered inertial flight. Clean Windows export and hidden-Gamescope
+Proton integration pass at `9b32428`: `build/windows-validation-dd5c267/build/proton-smoke.lRuzyW`,
+wrapper exit 0 and `NEXT_INTEGRATION_OK`. This verifies the packaged gameplay
+loop with local gravity, not astronomical accuracy, long-term orbital stability
+or performance targets.
