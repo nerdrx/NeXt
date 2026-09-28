@@ -1493,3 +1493,5 @@ Replaced the large purple noise patches with finer filtered granulation, restrai
 Primary and direct-light colors follow a small artistic temperature ramp. Nebula systems use their physical catalog's Yellow Star kind rather than the purple nebula category for the primary. Universe seeds, generated data, black-hole disk/horizon and heat calculations are unchanged. The ramp is not spectral rendering; the global directional light is still approximate.
 
 `test_stellar_appearance.gd` passed finite/bounded ramp, warm/cool colors and actual nebula material/light integration, and is registered in Windows CI. Hidden Gamescope near, distant and fully eclipsed captures were inspected; the opaque planet hides the star and corona. No shader/script errors were logged. Shader filtering fades unresolved granules, but temporal shimmer and target performance have not been benchmarked.
+
+Clean Windows release export at `852f639` passed without script or parse errors. Shader rendering was checked natively under hidden Gamescope; the last full Proton smoke remains `559c087`.
