@@ -12,6 +12,8 @@ func _initialize() -> void:
 	state.market_stocks[str(origin)] = {"luxuries": 5000}
 	for address in range(17,49): state.market_stocks[str(address)] = {"luxuries": GameState.MARKET_CAPACITY}
 	state.market_stocks["17"].luxuries = 0
+	var starting_quote := orders.route_quote("luxuries", 17, 20, ship.id)
+	state.credits = int(starting_quote.escrow) + int(starting_quote.round_trip_wages) + int(starting_quote.fuel_replacement_cost)
 	assert(orders.assign_adaptive_trade(crew_id, ship.id, "luxuries", 17, 20).is_empty())
 	var order: Dictionary = state.crew_orders[crew_id]
 	assert(order.destination == 17 and order.search_start == 17)

@@ -341,7 +341,9 @@ func _route_candidates(ship_id: String, quantity: int, first_destination: int, g
 			if not quote.ok or quote.estimated_operating_margin == null: continue
 			if int(quote.estimated_operating_margin) <= 0: continue
 			if reserved_capital >= 0 and int(quote.escrow) > reserved_capital: continue
-			if int(quote.escrow) + int(quote.round_trip_wages) + int(quote.fuel_replacement_cost) > state.credits + maxi(0, reserved_capital): continue
+			# Adaptive selection runs after tick has already paid this departure wage.
+			var wages_due := int(quote.round_trip_wages) - (int(GameState.CREW_ROLES.trader.salary) if reserved_capital >= 0 else 0)
+			if int(quote.escrow) + wages_due + int(quote.fuel_replacement_cost) > state.credits + maxi(0, reserved_capital): continue
 			results.append(quote)
 	results.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		if a.estimated_operating_margin != b.estimated_operating_margin: return a.estimated_operating_margin > b.estimated_operating_margin
