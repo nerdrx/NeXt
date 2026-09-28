@@ -2152,3 +2152,8 @@ Hidden-Gamescope execution also passes; the transfer controls and assignment
 confirmation were visually inspected at 1440×900. No script errors were logged.
 Renderer shutdown reported seven leaked texture RIDs; this check does not
 establish leak-free rendering.
+
+Clean Windows export and hidden-Gamescope Proton integration pass at `372b5c7`:
+`build/windows-validation-dd5c267/build/proton-smoke.Ya4itK`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Dedicated transfer/persistence assertions ran natively;
+the packaged smoke checks general gameplay.
