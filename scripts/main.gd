@@ -1157,6 +1157,14 @@ func _near_ship_boarding() -> bool:
 		return pilot.position.distance_to(_public_berth_point("stand")) <= 8
 	return pilot.position.distance_to(_ship_pad()) <= 20
 
+# On-foot boarding keeps launch on E and offers the walkable cabin on F.
+func board_parked_interior() -> bool:
+	if aboard or pilot.flying or ui_open or jump_charge > 0 or session.connected: return false
+	if not _near_ship_boarding() or not bool(state.ship_stats().get("walkable", false)): return false
+	enter_interior()
+	return aboard
+
+
 func approach_public_station() -> void:
 	cruise_to(_public_berth_point("launch"))
 
@@ -1379,11 +1387,12 @@ func interaction_hint() -> String:
 	if not service.is_empty(): return str(service.label)
 	if aboard:
 		var member := _near_ship_crew()
-		return ("F: Talk to %s  /  " % member.display_name if member != null else "") + ("E: Return to concourse  /  PgUp/PgDn change deck" if not aboard_fleet_id.is_empty() else "E: Return to helm  /  PgUp/PgDn change deck") + (("  /  Braking %d m/s" if coasting_hull.braking else ("  /  Cruise %d m/s" if aboard_cruise else "  /  Ship coasting %d m/s")) % roundi(coasting_hull.velocity.length()) if is_instance_valid(coasting_hull) else "")
-	if surface_index >= 0: return "Board ship / return to orbit" if _near_person() == null else "Talk to " + _near_person().display_name
+		return ("F: Talk to %s  /  " % member.display_name if member != null else "") + ("E: Return to concourse  /  PgUp/PgDn change deck" if not aboard_fleet_id.is_empty() else (("E: Return to helm" if return_flying else "E: Return outside") + "  /  PgUp/PgDn change deck")) + (("  /  Braking %d m/s" if coasting_hull.braking else ("  /  Cruise %d m/s" if aboard_cruise else "  /  Ship coasting %d m/s")) % roundi(coasting_hull.velocity.length()) if is_instance_valid(coasting_hull) else "")
 	var person: Node3D = _near_person()
 	if person != null: return "Talk to " + person.display_name
-	return "Board ship" if _near_ship_boarding() else "Approach your ship or a service officer"
+	if _near_ship_boarding():
+		return "E: Launch ship  /  F: Walk aboard" if bool(state.ship_stats().get("walkable", false)) and not session.connected else "E: Launch ship"
+	return "Approach your ship or a service officer"
 
 func _near_person() -> Node3D:
 	for actor in actors:
@@ -1575,6 +1584,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 				if member != null:
 					crew_focus_id = member.actor_id
 					open_menu("fleet")
+			elif not ui_open:
+				board_parked_interior()
 		KEY_B:
 			if pilot.flying or aboard: stop_cruise()
 		KEY_J: open_menu("navigation")
@@ -2540,7 +2551,7 @@ func enter_interior(fleet_id: String = "") -> void:
 	if not fleet_id.is_empty():
 		notify("Inspecting %s. E returns to the concourse; PgUp/PgDn use the deck lift." % str(crew_operations()._ship(fleet_id).name))
 		return
-	notify("Aboard your ship. E returns to helm; PgUp/PgDn use the deck lift." + ((" Cruise continues at %d m/s." if aboard_cruise else " Ship coasting at %d m/s.") % roundi(coasting_hull.velocity.length()) if return_flying else ""))
+	notify(("Aboard your ship. E returns to helm; PgUp/PgDn use the deck lift." if return_flying else "Aboard your parked ship. E returns outside; PgUp/PgDn use the deck lift.") + ((" Cruise continues at %d m/s." if aboard_cruise else " Ship coasting at %d m/s.") % roundi(coasting_hull.velocity.length()) if return_flying else ""))
 
 func _populate_ship_crew() -> void:
 	_crew_spawn_serial += 1

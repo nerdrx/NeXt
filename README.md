@@ -22,7 +22,8 @@ For a hidden Linux validation of the Windows build, run `./tools/test-proton.sh`
 | Shift | Sprint or flight boost |
 | Space / Ctrl | Jump or vertical flight |
 | Q / R | Roll left / right |
-| E | Talk to nearby officer, board near ship, or dock near station |
+| E | Talk to nearby officer, launch near ship, dock near station, or leave interior |
+| F | Walk aboard a nearby parked walkable ship; talk to crew while inside |
 | Left click | Fire |
 | Tab / Escape | Command deck / return to world |
 | J | Navigation |
