@@ -11,6 +11,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Test isolated Proton cleanup
+        run: bash tests/test_proton_cleanup.sh
+
       - name: Download Godot 4.7.2 and export templates
         shell: bash
         run: |

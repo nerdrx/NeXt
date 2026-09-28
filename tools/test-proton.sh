@@ -13,6 +13,11 @@ proton_bin="${PROTON_BIN:-$steam_root/steamapps/common/Proton - Experimental/pro
 duration="${NEXT_SMOKE_TIMEOUT:-90}"
 [[ "$duration" =~ ^[1-9][0-9]*$ ]] || { echo 'NEXT_SMOKE_TIMEOUT must be positive seconds.' >&2; exit 1; }
 [[ -x "$proton_bin" ]] || { echo 'Set PROTON_BIN to an installed Proton launcher.' >&2; exit 1; }
+wineserver_bin="$(dirname -- "$proton_bin")/files/bin/wineserver"
+if [[ ! -x "$wineserver_bin" ]]; then
+    wineserver_bin="$(dirname -- "$proton_bin")/dist/bin/wineserver"
+fi
+[[ -x "$wineserver_bin" ]] || { echo 'Cannot locate the selected Proton wineserver for isolated cleanup.' >&2; exit 1; }
 command -v gamescope >/dev/null
 command -v timeout >/dev/null
 mkdir -p "$project_dir/build/windows"
@@ -47,7 +52,7 @@ fi
 status=0
 timeout -k 3 "$duration" gamescope --backend headless -W 1440 -H 900 -- \
     env STEAM_COMPAT_CLIENT_INSTALL_PATH="$steam_root" STEAM_COMPAT_DATA_PATH="$run_dir/prefix" \
-    "$proton_bin" run "$executable" "${godot_args[@]}" >"$run_dir/wrapper.log" 2>&1 || status=$?
+    "$project_dir/tools/run-proton-isolated.sh" "$proton_bin" "$wineserver_bin" "$executable" "${godot_args[@]}" >"$run_dir/wrapper.log" 2>&1 || status=$?
 printf 'Wrapper exit: %s\n' "$status"
 if [[ ! -f "$run_dir/godot.log" ]] || ! grep -q "$expected_marker" "$run_dir/godot.log"; then
     echo "$validation_name did not complete; inspect godot.log and wrapper.log." >&2
