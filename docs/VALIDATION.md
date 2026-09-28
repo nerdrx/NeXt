@@ -2351,3 +2351,8 @@ recovery, fleet cargo recovery and solid-wreck regression checks pass. Parallel
 review found no transaction or save-format blocker.
 A discovered procedural derelict also passes reclaim and save/load checks.
 Editor import passes.
+
+Clean Windows export and hidden-Gamescope Proton integration pass at `84be04d`:
+`build/windows-validation-dd5c267/build/proton-smoke.M98C7U`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Dedicated reclaim tests ran natively and under hidden
+Gamescope; packaged smoke covers general gameplay, not complete co-op or FPS.
