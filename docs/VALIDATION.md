@@ -1665,3 +1665,9 @@ Successful fine payment clears prior assault-report markers on surviving local a
 The hidden-Gamescope fixture used actual weapon rays against a surviving guard, paid and reloaded the fine result, then hit the same guard again. It passed immediate ground/ship police de-escalation, pursuit clearing, repeat-incident reporting, no double charge, insufficient-funds/flight/interior rejection and preserved diplomatic hostility. Menu amount/disabled states passed and the screenshot was inspected. The new fixture is registered in Windows CI.
 
 The same fine-settlement fixture also passed headless, as did the faction regression. Clean Windows release export at `cdf5e0b` passed without script/export errors (`build/fine-settlement-export.log` in the validation checkout). The last full Proton smoke remains `d1bb1a7`.
+
+### Peaceful patrol fine settlement
+
+Allegiances & Law now offers an in-flight payment through a living, unculled police ship within 350 m and an unobstructed physics ray. The player must be at the flight controls, below 5 m/s, not charging hyperdrive, have sufficient credits and have no hostile local diplomatic stance. Multiplayer visits reject this local-only action. The transaction shares normal fine settlement, stops autopilot, preserves cargo/position/ship and saves the cleared wanted status. This is a peaceful payment interaction, not arrest, impoundment or a modeled inspection sequence.
+
+The hidden-Gamescope test passed missing/distant/culled/destroyed patrols, speed, funds, charging and visit guards, diplomatic hostility, a real blocking StaticBody, actual menu activation, unchanged cargo/location, exact payment, saved state and repeat-charge rejection. Its menu screenshot was inspected. Native headless patrol checks and the prior fine-settlement regression also passed. The new test is registered in Windows CI.

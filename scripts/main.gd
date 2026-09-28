@@ -1544,6 +1544,35 @@ func pay_fines() -> void:
 	if not issue.is_empty():
 		notify(issue)
 		return
+	_settle_fines()
+
+
+func patrol_fine_issue() -> String:
+	if not pilot.flying or aboard: return "Return to the flight controls to contact a patrol."
+	if session.connected: return "Patrol settlement is unavailable during world visits."
+	if jump_charge > 0: return "Cancel hyperdrive charging before contacting police."
+	if state.wanted <= 0: return "No outstanding criminal fines."
+	if PlayerFaction.police_hostile(state.faction, str(world.data.faction), 0): return "Local faction hostility prevents a peaceful settlement."
+	if pilot.flight_velocity().length() > 5.0: return "Slow below 5 m/s for police settlement."
+	if state.credits < state.wanted * 750: return "Outstanding fine: %d CR." % (state.wanted * 750)
+	for actor in actors:
+		if not is_instance_valid(actor) or not actor is ShipActor or actor.faction != "police" or actor.hp <= 0 or actor._destroyed or actor.get_meta("spatial_culled", false): continue
+		if actor.global_position.distance_to(pilot.global_position) > 350.0: continue
+		var query := PhysicsRayQueryParameters3D.create(pilot.global_position, actor.global_position, 1, [pilot.get_rid(), actor.get_rid()])
+		if get_world_3d().direct_space_state.intersect_ray(query).is_empty(): return ""
+	return "Approach a visible police patrol within 350 m."
+
+
+func settle_patrol_fine() -> void:
+	var issue := patrol_fine_issue()
+	if not issue.is_empty():
+		notify(issue)
+		return
+	stop_cruise()
+	_settle_fines()
+
+
+func _settle_fines() -> void:
 	state.credits -= state.wanted * 750
 	state.wanted = 0
 	var diplomatic_hostility := PlayerFaction.police_hostile(state.faction, str(world.data.faction), 0)

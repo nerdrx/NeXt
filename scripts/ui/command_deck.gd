@@ -542,6 +542,11 @@ func _factions() -> void:
 	var fine_button := _button("PAY OUTSTANDING FINES / %d CR" % (s.wanted * 750), game.pay_fines, not fine_issue.is_empty())
 	fine_button.name = "PayFines"
 	fine_button.tooltip_text = fine_issue
+	var patrol_issue: String = game.patrol_fine_issue()
+	var patrol_button := _button("SETTLE WITH NEARBY PATROL / %d CR" % (s.wanted * 750), game.settle_patrol_fine, not patrol_issue.is_empty())
+	patrol_button.name = "PatrolSettlement"
+	patrol_button.tooltip_text = patrol_issue
+	_text("In flight, slow below 5 m/s within 350 m of a visible police ship to settle criminal fines. Hostile faction relations prevent peaceful settlement. Multiplayer visits do not support this interaction yet.", 14, InterfaceTheme.MUTED)
 
 	_text("YOUR FACTION", 13, InterfaceTheme.CYAN)
 	if str(s.faction.name).is_empty():
