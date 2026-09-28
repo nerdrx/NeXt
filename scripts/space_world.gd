@@ -388,8 +388,7 @@ func configure_planet_weather(material: ShaderMaterial, index: int) -> void:
 	material.set_shader_parameter("weather_seed", float(index * 41 + int(data.station_seed % 997)))
 	material.set_shader_parameter("weather_shell_radius", float(planet.visual_radius) * 1.01 + PlanetHeightField.HEIGHT_SCALE)
 	material.set_shader_parameter("weather_sun_direction", planet_sun_direction(index))
-	if material.shader == PLANET_SHADER:
-		configure_planet_eclipse(material, index)
+	configure_planet_eclipse(material, index)
 
 func set_fine_terrain_patch(index: int, normal: Vector3, radius: float, extent: float) -> void:
 	if index < 0 or index >= _planet_materials.size(): return

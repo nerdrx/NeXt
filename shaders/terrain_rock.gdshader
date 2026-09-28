@@ -2,6 +2,9 @@ shader_type spatial;
 render_mode diffuse_burley;
 
 #include "res://shaders/planet_weather.gdshaderinc"
+#include "res://shaders/planet_eclipse.gdshaderinc"
+varying vec3 stellar_direction_view;
+varying float eclipse_visibility;
 
 uniform bool weather_enabled = false;
 uniform float weather_seed = 0.0;
@@ -34,9 +37,11 @@ float detail_fade(float scale) {
 
 void vertex() {
 	rock_position = VERTEX;
+	stellar_direction_view = (MODELVIEW_MATRIX * vec4(planet_sun_position - (VERTEX + planet_anchor), 0.0)).xyz;
 }
 
 void fragment() {
+	eclipse_visibility = primary_visibility(rock_position + planet_anchor);
 	// Broad mineral clouds, warped bedding, and chipped stone planes.
 	float macro = noise(rock_position * 0.035 + noise_origins[0]);
 	float warp = noise(rock_position * 0.11 + noise_origins[1] + vec3(7.1, 2.4, 9.3));
@@ -62,7 +67,7 @@ void fragment() {
 
 	ALBEDO = COLOR.rgb * mineral * plates * chips * (0.94 + grain * 0.12 + grit * 0.08);
 	if (weather_enabled) {
-		ALBEDO *= 1.0 - 0.4 * weather_shadow(rock_position + planet_anchor, weather_sun_direction, weather_shell_radius, weather_seed, TIME);
+		ALBEDO *= 1.0 - 0.4 * weather_shadow(rock_position + planet_anchor, normalize(planet_sun_position - rock_position - planet_anchor), weather_shell_radius, weather_seed, TIME);
 	}
 	ROUGHNESS = roughness;
 	SPECULAR = 0.18;
@@ -77,3 +82,5 @@ void fragment() {
 	vec3 grad = sign(det) * (dFdx(bump_height) * rx + dFdy(bump_height) * ry);
 	NORMAL = normalize(abs(det) * n - grad * 0.7);
 }
+
+#include "res://shaders/planet_light.gdshaderinc"
