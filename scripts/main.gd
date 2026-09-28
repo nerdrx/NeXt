@@ -2515,8 +2515,9 @@ func _integration_check() -> void:
 	pilot.enabled = false
 	pilot.teleport(Vector3(10000, 5000, 0))
 	pilot.restore_flight_velocity(Vector3(20, 0, 0))
+	var expected_coast := Vector3(20, 0, 0) + world.gravity_acceleration(pilot.global_position) * 0.01
 	pilot._fly(0.01)
-	if not _check(pilot.flight_velocity().is_equal_approx(Vector3(20, 0, 0)) and state.fuel == fuel_before_coast, "inertial flight coasts without fuel in release build"): return
+	if not _check(pilot.flight_velocity().is_equal_approx(expected_coast) and state.fuel == fuel_before_coast, "inertial flight follows gravity without fuel in release build"): return
 	pilot.flight_assist_enabled = assist_before
 	pilot.enabled = input_before
 	pilot.teleport(position_before)
