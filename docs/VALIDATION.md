@@ -2297,3 +2297,8 @@ navigation, primary-contact/rescue and physical station-transfer checks pass,
 as does editor import.
 Hidden-Gamescope planetary navigation also passes. Parallel review confirmed
 coordinate frames, terrain bounds and obstacle immutability.
+
+Clean Windows export and hidden-Gamescope Proton integration pass at `f8a52cd`:
+`build/windows-validation-dd5c267/build/proton-smoke.37rMau`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Dedicated detour checks ran natively and under hidden
+Gamescope; the packaged smoke covers general gameplay, not FPS or co-op.
