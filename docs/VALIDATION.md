@@ -2317,3 +2317,8 @@ that isolated final check. The published baseline also failed its fixed-time
 rebase assertion. Parallel review found no actionable cabin-load defect.
 Hidden-Gamescope aboard-cruise also passes. The captured cabin HUD was inspected
 with 3 g maneuver load and bracing status visible. Editor import passes.
+
+Clean Windows export and hidden-Gamescope Proton integration pass at `23e0649`:
+`build/windows-validation-dd5c267/build/proton-smoke.tHyVSB`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Cabin-load assertions and the HUD capture ran natively
+under hidden Gamescope; packaged smoke covers general gameplay, not FPS or co-op.
