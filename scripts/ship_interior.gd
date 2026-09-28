@@ -57,6 +57,21 @@ func build(blueprint: Array[Dictionary], layout: Dictionary = {}) -> void:
 		lamp.light_energy = 0.65
 		lamp.omni_range = 4.3
 		add_child(lamp)
+	if decks.size() > 1:
+		for landing: Vector3 in lift_positions.values():
+			var floor_center := landing - Vector3(0, 0.075, 0)
+			for side: float in [-1.0, 1.0]:
+				_box(floor_center + Vector3(side * 0.55, 0, 0), Vector3(0.025, 0.005, 1.1), Color("8badae"))
+				_box(floor_center + Vector3(0, 0, side * 0.55), Vector3(1.1, 0.005, 0.025), Color("8badae"))
+			var sign := Label3D.new()
+			sign.text = "DECK\nTRANSFER"
+			sign.font_size = 32
+			sign.pixel_size = 0.003
+			sign.outline_size = 0
+			sign.position = floor_center + Vector3(0, 0.006, 0)
+			sign.rotation.x = -PI / 2.0
+			sign.modulate = Color("8badae")
+			add_child(sign)
 
 func crew_path(from_local: Vector3, to_local: Vector3) -> PackedVector3Array:
 	if not from_local.is_finite() or not to_local.is_finite(): return PackedVector3Array()
@@ -67,6 +82,43 @@ func crew_path(from_local: Vector3, to_local: Vector3) -> PackedVector3Array:
 	var navigation: PortNavigation = _deck_navigation.get(from_deck)
 	if navigation == null: return PackedVector3Array()
 	return navigation.path(from_local, to_local)
+
+func crew_lift_route(from_local: Vector3, to_local: Vector3) -> Dictionary:
+	if not from_local.is_finite() or not to_local.is_finite(): return {}
+	var from_deck := roundi(from_local.y / CELL.y)
+	var to_deck := roundi(to_local.y / CELL.y)
+	if from_deck == to_deck or not lift_positions.has(from_deck) or not lift_positions.has(to_deck): return {}
+	var entry: Vector3 = lift_positions[from_deck]
+	var exit: Vector3 = lift_positions[to_deck]
+	# Static clearance decides connectivity; temporary occupants are checked at arrival.
+	if not crew_lift_clear(entry, RID(), 1) or not crew_lift_clear(exit, RID(), 1): return {}
+	var approach := crew_path(from_local, entry)
+	var onward := crew_path(exit, to_local)
+	if approach.is_empty() or onward.is_empty(): return {}
+	return {"entry": entry, "exit": exit, "approach": approach, "onward": onward}
+
+
+func crew_lift_clear(foot: Vector3, exclude: RID = RID(), mask: int = 13) -> bool:
+	if not foot.is_finite() or not is_inside_tree(): return false
+	# Node positions update immediately, before physics broadphase synchronizes two arrivals.
+	if mask & 4:
+		for person: Node in get_tree().get_nodes_in_group("ship_crew"):
+			var body := person as PhysicsBody3D
+			if body == null or body.get_parent() != self or body.is_queued_for_deletion() or body.get_rid() == exclude: continue
+			var offset: Vector3 = body.position - foot
+			if absf(offset.y) < 1.75 and Vector2(offset.x, offset.z).length() < 0.84: return false
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = 0.42
+	capsule.height = 1.75
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = capsule
+	query.transform = global_transform * Transform3D(Basis.IDENTITY, foot + Vector3.UP * 0.875)
+	query.collision_mask = mask
+	query.collide_with_areas = false
+	query.margin = 0.0
+	if exclude.is_valid(): query.exclude = [exclude]
+	return get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
+
 
 func _create_deck_navigation() -> void:
 	for deck: int in decks:
@@ -193,9 +245,10 @@ func _equipment(center: Vector3, kind: String, room_type: String) -> void:
 			_box(center + Vector3(1.07, 0.8, 0.9), Vector3(0.4, 1.6, 0.5), Color("4b606a"), true)
 		"cargo":
 			if room_type != "cargo": return
-			for z in [-0.75, 0.75]:
-				_box(center + Vector3(-0.95, 0.5, z), Vector3(0.65, 1.0, 0.6), Color("807052"), true)
-				_box(center + Vector3(-0.95, 0.75, z - 0.31), Vector3(0.4, 0.04, 0.02), Color("e3bb75"), false, true)
+			# Leave a 1.48 m centre aisle through adjoining cargo rooms.
+			for z in [-0.98, 0.98]:
+				_box(center + Vector3(-0.95, 0.5, z), Vector3(0.65, 1.0, 0.48), Color("807052"), true)
+				_box(center + Vector3(-0.95, 0.75, z - 0.25), Vector3(0.4, 0.04, 0.02), Color("e3bb75"), false, true)
 		"reactor", "engine", "shield", "radiator":
 			_box(center + Vector3(0.99, 1.1, 0), Vector3(0.48, 2.2, 1.4), Color("2e4553"), true)
 			for y in [0.5, 1.0, 1.5]:

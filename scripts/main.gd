@@ -2422,6 +2422,9 @@ func _populate_ship_crew() -> void:
 	for record: Dictionary in available: roles.append(str(record.role))
 	var berths: Array[Vector3] = cabin.crew_positions(available.size(), roles)
 	var room_stops: Array[Vector3] = cabin.crew_positions(12)
+	# Include every deck even when the twelve room stops favour a larger lower deck.
+	for landing: Vector3 in cabin.lift_positions.values():
+		if cabin.crew_lift_clear(landing, RID(), 1): room_stops.append(landing)
 	for index in mini(available.size(), berths.size()):
 		var record: Dictionary = available[index]
 		var member := ShipCrew.new()

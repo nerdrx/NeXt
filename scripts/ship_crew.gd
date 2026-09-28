@@ -11,6 +11,8 @@ var _next_stop: int = 0
 var _stuck_time: float = 0.0
 var _occupant: Node3D
 var _yielding: bool = false
+var _lift_route: Dictionary = {}
+var _lift_wait: float = 0.0
 
 
 func configure_roaming(cabin: ShipInterior, stops: Array[Vector3], occupant: Node3D = null) -> void:
@@ -18,12 +20,14 @@ func configure_roaming(cabin: ShipInterior, stops: Array[Vector3], occupant: Nod
 	_occupant = occupant
 	_stops = stops.duplicate()
 	_local_path.clear()
+	_lift_route.clear()
 	_room_wait = 8.0 + float(posmod(actor_id.hash(), 7))
 	_next_stop = posmod(actor_id.hash(), maxi(1, _stops.size()))
 	hold_position = false
 
 
 func activity() -> String:
+	if not _lift_route.is_empty() and _local_path.is_empty() and roaming_enabled: return "Waiting for lift"
 	if _yielding and roaming_enabled: return "Giving way"
 	return "Checking rooms" if not _local_path.is_empty() and roaming_enabled else "On duty"
 
@@ -66,13 +70,33 @@ func _physics_process(delta: float) -> void:
 	var direction := Vector3.ZERO
 	if roaming_enabled and is_instance_valid(_cabin):
 		_room_wait = maxf(0.0, _room_wait - delta)
-		if _local_path.is_empty() and _room_wait <= 0.0:
+		if not _lift_route.is_empty() and _local_path.is_empty():
+			_lift_wait += delta
+			if position.distance_to(_lift_route.entry) > 0.4:
+				_lift_route.clear()
+				_room_wait = 3.0
+			elif _lift_wait >= 2.0 and _cabin.crew_lift_clear(_lift_route.exit, get_rid()):
+				position = _lift_route.exit
+				force_update_transform()
+				vertical = 0.0
+				_local_path = _lift_route.onward
+				_lift_route.clear()
+			elif _lift_wait >= 10.0:
+				_lift_route.clear()
+				_room_wait = 3.0
+		if _local_path.is_empty() and _lift_route.is_empty() and _room_wait <= 0.0:
 			# Bounded attempts: unreachable rooms do not generate a path request every frame.
 			for attempt in mini(3, _stops.size()):
 				var target_position := _stops[_next_stop % _stops.size()]
 				_next_stop += 1
-				if absf(target_position.y-position.y) > 0.5 or position.distance_to(target_position) < 1.0: continue
-				_local_path = _cabin.crew_path(position, target_position)
+				if position.distance_to(target_position) < 1.0: continue
+				if absf(target_position.y-position.y) > 0.5:
+					_lift_route = _cabin.crew_lift_route(position, target_position)
+					if _lift_route.is_empty(): continue
+					_local_path = _lift_route.approach
+					_lift_wait = 0.0
+				else:
+					_local_path = _cabin.crew_path(position, target_position)
 				if not _local_path.is_empty(): break
 			_room_wait = 8.0 + float(posmod(actor_id.hash(), 7))
 		var was_walking := not _local_path.is_empty()
@@ -86,6 +110,7 @@ func _physics_process(delta: float) -> void:
 		if was_walking and _local_path.is_empty(): _room_wait = 8.0 + float(posmod(actor_id.hash(), 7))
 	else:
 		_local_path.clear()
+		_lift_route.clear()
 	direction = _yield_to_people(direction)
 	if direction.length_squared() > 0.01:
 		rotation.y = lerp_angle(rotation.y, atan2(-direction.x, -direction.z), minf(1.0, delta * 5.0))
@@ -97,6 +122,7 @@ func _physics_process(delta: float) -> void:
 		_stuck_time += delta
 		if _stuck_time > 1.5:
 			_local_path.clear()
+			_lift_route.clear()
 			_room_wait = 3.0
 			_stuck_time = 0.0
 	else: _stuck_time = 0.0

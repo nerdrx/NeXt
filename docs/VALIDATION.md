@@ -1188,3 +1188,13 @@ Opaque ship interior boxes now reuse the existing fleet surface shader rather th
 The actual-main crew test passed in hidden Gamescope; its capture was inspected for the new joints and highlights. Cabin movement, turning, menu pause and exit checks passed, as did the headless interior-glass regression. No shader/script errors appeared; the existing seven-texture shutdown warning remains. The regular tile layout and primitive crew shapes are still placeholders, below the requested visual target.
 
 Clean detached Windows release export at `b4ea5dc` also passed without script/export errors. This material increment has no fresh Proton runtime result; the existing ZIP still contains the prior validated build.
+
+## Crew deck transfers — 2026-09-28
+
+Unassigned roaming crew can plan through the existing abstract deck-transfer landings. They walk the approach, wait two seconds at the landing, transfer only when the destination capsule is clear, then follow its deck-local onward route. Inactivity pauses the wait; disabling roaming cancels the route. Blocked arrivals retry for up to ten seconds before abandoning the trip. Immediate sibling positions supplement physics queries so simultaneous arrivals cannot share an exit before broadphase synchronization. Being pushed away from the departure landing cancels the transfer.
+
+Every clear deck landing is included in the main scene's roaming stops, even when the room-stop limit favours another deck. Floor markings identify multi-deck transfer points. This remains an assisted transfer, not a physical elevator shaft or animated elevator cabin. A first-module landing obstructed by furnishings is rejected; authored landing placement remains unfinished.
+
+The furnished cargo-corridor regression exposed crates leaving only a 0.9 m aisle, smaller than the navigation agent's clearance. Corner placement now leaves 1.48 m through adjoining cargo rooms.
+
+The new furnished two-deck cargo regression passed headlessly (16.9 s) and in hidden Gamescope: approach and onward travel, blocked exit, inactive/disabled pauses, immediate second-arrival rejection, transformed cabin and invalid/disconnected routes. The transfer marking capture was inspected. Same-deck roaming, crew placement and yielding regressions passed; actual-main crew gameplay passed in hidden Gamescope with the existing seven-texture teardown warning. The focused lift render had no script errors or teardown warnings.
