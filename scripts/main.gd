@@ -37,7 +37,10 @@ var ui_open: bool = true
 var surface_index: int = -1
 var jump_charge: float = 0.0
 var jump_destination: int = 0
-var suit_health: float = 100.0
+var suit_health: float:
+	get: return state.commander_health if state != null else 100.0
+	set(value):
+		if state != null and is_finite(value): state.commander_health = clampf(value, 0.0, 100.0)
 var autosave_clock: float = 0.0
 var shield_delay: float:
 	get: return state.shield_delay if state != null else 0.0
@@ -1531,7 +1534,6 @@ func land(planet_index: int) -> void:
 	pilot.set_flight(false)
 	pilot.teleport(_public_berth_point("stand"))
 	pilot.reset_view()
-	suit_health = 100
 	_spawn_actors()
 	rebuild_player_ship()
 	rebuild_owned_stations()
@@ -1757,6 +1759,9 @@ func _physics_process(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	if pilot == null or state == null: return
+	if suit_health <= 0:
+		_rescue()
+		return
 	if home_state != null and not session.connected and not _home_return_failed: _return_home()
 	_register_spatial_nodes()
 	_rebase_flight()
@@ -2746,6 +2751,7 @@ func exit_interior() -> void:
 	close_menu()
 
 func _copy_carried_ship(source: GameState, destination: GameState) -> void:
+	destination.commander_health = source.commander_health
 	destination.commander_appearance = source.commander_appearance.duplicate()
 	destination.ship_identity = source.ship_identity.duplicate(true)
 	destination.ship_modules = source.ship_modules.duplicate(true)

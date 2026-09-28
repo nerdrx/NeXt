@@ -174,3 +174,8 @@ Older engines may reject an RPC signature before application-level validation;
 the deadline bounds that failure rather than promising a friendly version message
 from every historical binary. This applies to ENet and the shared Steam protocol;
 real Steam compatibility is still untested.
+
+Commander health travels with the carried ship profile. Injuries sustained while
+visiting return home, and rejoining uses the commander's current health rather
+than the old visitor snapshot. Health is locally persisted; this does not add
+host-authoritative character combat or native Steam transport.

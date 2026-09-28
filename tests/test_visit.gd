@@ -30,6 +30,7 @@ func _run() -> void:
 	main.state.day_progress = 320.0
 	main.state.ephemeris_seconds = 123.0
 	main.state.credits = 30000
+	main.suit_health = 61.5
 	if not _check(main.state.found_faction("Home Cooperative") == "", "found home faction"): return
 	if not _check(main.state.faction_deposit(3000) == "", "fund home faction treasury"): return
 	main.state.shares = {"NOVA": 7}
@@ -61,6 +62,8 @@ func _run() -> void:
 	if not _check(main.state.ship_identity == original_identity, "vessel identity travels with incoming ship"): return
 	if not _check(main.shield_delay == 4.0 and main.state.shield_delay == 4.0, "shield recovery delay travels with incoming ship"): return
 	if not _check(main.state.day_progress == 0 and main.home_state.day_progress == 320.0, "new visit starts its own calendar and suspends home time"): return
+	if not _check(main.suit_health == 61.5, "commander injury follows arrival"): return
+	main.suit_health = 28.5
 	main.state.day_progress = 640.0
 	main.state.credits = 22222
 	if not _check(main.state.found_faction("Visiting Ventures") == "", "found visiting faction"): return
@@ -91,6 +94,7 @@ func _run() -> void:
 	main.home_save_path = good_home_path
 	main.leave_visit()
 	if not _check(main.state.ephemeris_seconds == 123.0, "return preserves home physical epoch"): return
+	if not _check(main.suit_health == 28.5, "visiting injury returns home"): return
 	if not _check(main.state.day_progress == 320.0, "return restores home calendar without importing visiting time"): return
 	if not _check(main.home_state == null and main.state.world_id == host_state_id, "leaving restores home identity"): return
 	if not _check(main.state.credits == home_credits and main.state.shares == {"NOVA": 7} and main.state.company_name == "Home Cooperative" and main.state.company_balance == 650 and main.state.wanted == 2 and main.state.faction == home_faction, "visitor economics and faction do not leak into home"): return
@@ -99,11 +103,13 @@ func _run() -> void:
 	if not _check(FileAccess.file_exists(visit_path) and FileAccess.file_exists(home_path), "home and visitor profiles are saved separately"): return
 	var persisted_home := GameStateScript.new()
 	if not _check(persisted_home.load_save(home_path).is_empty() and persisted_home.credits == home_credits and persisted_home.company_balance == 650 and persisted_home.world_id == host_state_id and persisted_home.faction == home_faction, "home commander save retains its separate economy and faction treasury"): return
+	main.suit_health = 45.0
 	main.session.connected = true
 	main.session.world_id = remote_id
 	main.session.ephemeris_seconds = 999.0
 	main._visit_host(7919)
 	if not _check(main.state.ephemeris_seconds == 999.0, "rejoining uses current host epoch rather than stale visit save"): return
+	if not _check(main.suit_health == 45.0, "rejoin carries latest home injury instead of stale visitor health"): return
 	if not _check(main.state.world_id == remote_id and main.state.credits == visitor_credits and main.state.shares == {"HELI": 3} and main.state.company_name == "Visiting Ventures" and main.state.company_balance == 987 and main.state.wanted == 9 and main.state.faction == visitor_faction, "rejoining restores visitor finances, faction treasury and reputation"): return
 	if not _check(main.state.day_progress == 640.0, "visitor calendar resumes saved progress"): return
 	if not _check(main.state.ship_modules == visiting_modules and main.state.cargo.alloys == 6, "rejoining carries the updated home ship"): return

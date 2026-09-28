@@ -62,6 +62,7 @@ func _run() -> void:
 	assert(not game.treat_in_medbay().is_empty() and game.state.cargo.medicine == 1, "full health consumes nothing")
 	var saved := GameState.new()
 	assert(saved.load_save(path).is_empty() and saved.cargo.medicine == 1, "cargo debit persists")
+	assert(saved.commander_health == 100, "treatment health persists with medicine debit")
 	game.suit_health = 50
 	game.open_menu()
 	var button: Button = game.deck.find_child("MedicalTreatment", true, false)

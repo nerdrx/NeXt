@@ -1800,3 +1800,21 @@ guards. Clean Windows export and hidden-Gamescope Proton integration pass at
 `07df9f8`: `build/windows-validation-dd5c267/build/proton-smoke.51qmpz`, wrapper
 exit 0 and `NEXT_INTEGRATION_OK`. Dedicated treatment assertions were native;
 the packaged smoke covers the general gameplay loop.
+
+
+### Persistent commander health (2026-09-28)
+
+Commander health is now a validated optional save field, defaulting to 100 for
+older saves. The existing suit-health property reads and writes that state,
+including clamping fatal damage to zero. Landing no longer restores health.
+Visits carry current commander health in both directions, including replacing
+stale visitor health on a later arrival. This supersedes the session-only health
+limitation in the preceding medical-bay entry; crew injuries remain unimplemented.
+
+`test_commander_health.gd` passes file roundtrip, missing-field compatibility,
+atomic rejection of invalid/nonfinite/type-confused values, real-scene reload,
+landing without healing, and loading a zero-health save through the existing
+250-credit medical rescue exactly once. `test_visit.gd` now checks incoming,
+returning and revisiting health. Medical-bay tests confirm restored health is
+saved together with the medicine debit. GameState and paired-visit journal
+regressions pass. The new fixture is registered in CI.

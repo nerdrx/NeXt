@@ -49,6 +49,7 @@ var location: Dictionary = {}
 var world_id: String = ""
 var ship_identity: Dictionary = {}
 var commander_appearance: Dictionary = {"suit": 0, "armor": 0}
+var commander_health: float = 100.0
 var credits: int = 18000
 var cargo: Dictionary = {}
 var hull: float = 100.0
@@ -702,6 +703,11 @@ func _load_v1(data: Dictionary) -> String:
 
 func _load_v2(data: Dictionary) -> String:
 	var expected: Array[String] = ["version", "system_index", "world_id", "location", "credits", "cargo", "hull", "shield", "fuel", "kills", "day", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout", "faction"]
+	var loaded_commander_health: float = 100.0
+	if data.has("commander_health"):
+		expected.append("commander_health")
+		if not _is_number(data.commander_health) or not is_finite(float(data.commander_health)) or float(data.commander_health) < 0.0 or float(data.commander_health) > 100.0: return "Invalid commander health."
+		loaded_commander_health = float(data.commander_health)
 	var loaded_field_repairs: bool = false
 	if data.has("field_repairs_enabled"):
 		expected.append("field_repairs_enabled")
@@ -1003,6 +1009,7 @@ func _load_v2(data: Dictionary) -> String:
 	location = {} if missing_location else _normalize_location(data.location)
 	world_id = _new_world_id() if missing_world_id else data.world_id
 	ship_identity = loaded_ship_identity
+	commander_health = loaded_commander_health
 	commander_appearance = loaded_commander_appearance
 	planet_surveys = loaded_planet_surveys
 	credits = int(data.credits)
@@ -1148,10 +1155,10 @@ func _normalize_location(value: Dictionary) -> Dictionary:
 	return result
 
 func _save_data() -> Dictionary:
-	return {"version": SAVE_VERSION, "system_index": system_index, "world_id": world_id, "ship_identity": ship_identity, "commander_appearance": commander_appearance, "location": location, "credits": credits, "cargo": cargo, "hull": hull, "shield": shield, "shield_delay": shield_delay, "fuel": fuel, "drive_temperature_k": drive_temperature_k, "systems_online": systems_online, "kills": kills, "day": day, "day_progress": day_progress, "ephemeris_seconds": ephemeris_seconds, "visited": visited, "reputation": reputation, "wanted": wanted, "ship_modules": ship_modules, "stations": stations, "shares": shares, "crew": crew, "world_flags": world_flags, "planet_surveys": planet_surveys, "company_name": company_name, "company_balance": company_balance, "crew_paid": crew_paid, "field_repairs_enabled": field_repairs_enabled, "contracts": contracts, "fleet_ships": fleet_ships, "crew_orders": crew_orders, "recovery": recovery, "ship_layout": ship_layout, "faction": faction, "market_stocks": market_stocks}
+	return {"version": SAVE_VERSION, "system_index": system_index, "world_id": world_id, "ship_identity": ship_identity, "commander_appearance": commander_appearance, "commander_health": commander_health, "location": location, "credits": credits, "cargo": cargo, "hull": hull, "shield": shield, "shield_delay": shield_delay, "fuel": fuel, "drive_temperature_k": drive_temperature_k, "systems_online": systems_online, "kills": kills, "day": day, "day_progress": day_progress, "ephemeris_seconds": ephemeris_seconds, "visited": visited, "reputation": reputation, "wanted": wanted, "ship_modules": ship_modules, "stations": stations, "shares": shares, "crew": crew, "world_flags": world_flags, "planet_surveys": planet_surveys, "company_name": company_name, "company_balance": company_balance, "crew_paid": crew_paid, "field_repairs_enabled": field_repairs_enabled, "contracts": contracts, "fleet_ships": fleet_ships, "crew_orders": crew_orders, "recovery": recovery, "ship_layout": ship_layout, "faction": faction, "market_stocks": market_stocks}
 
 func _copy_from(other: GameState) -> void:
-	for key: String in ["system_index", "world_id", "ship_identity", "commander_appearance", "location", "credits", "cargo", "hull", "shield", "shield_delay", "fuel", "drive_temperature_k", "systems_online", "kills", "day", "day_progress", "ephemeris_seconds", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "planet_surveys", "company_name", "company_balance", "crew_paid", "field_repairs_enabled", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout", "faction", "market_stocks"]:
+	for key: String in ["system_index", "world_id", "ship_identity", "commander_appearance", "commander_health", "location", "credits", "cargo", "hull", "shield", "shield_delay", "fuel", "drive_temperature_k", "systems_online", "kills", "day", "day_progress", "ephemeris_seconds", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "planet_surveys", "company_name", "company_balance", "crew_paid", "field_repairs_enabled", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout", "faction", "market_stocks"]:
 		set(key, other.get(key).duplicate(true) if other.get(key) is Array or other.get(key) is Dictionary else other.get(key))
 
 func _pay_crew_and_company() -> void:
