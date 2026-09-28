@@ -1032,6 +1032,7 @@ func rebuild_player_ship() -> void:
 	ship_display.position = _ship_pad() + pad_up * (bottom + 0.7)
 	ship_display.basis = Basis(Quaternion(Vector3.UP, pad_up))
 	ship_display.add_landing_gear(state.ship_modules)
+	ship_display.add_boarding_access(state.ship_modules)
 	ship_display.visible = not pilot.flying
 	flight_frame.track(ship_display, flight_origin)
 

@@ -176,3 +176,7 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Replace the family hull's repeating procedural panel finish with authored,
   construction-aware paint, roughness and normal maps. Preserve metre-scale seams
   and distance filtering; review close, distant and moving gameplay views.
+
+- [ ] Replace parked family crew-access hatch, ramp and handrails with authored
+  deployable access equipment; preserve walking collision and add opening/closing
+  animation when exterior and interior doors share a continuous passage.

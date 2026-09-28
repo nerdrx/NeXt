@@ -81,3 +81,11 @@ Cockpit glazing follows the resulting surface. This remains inside the existing
 flight collision and preserves all room clearances; blueprint containment and
 fleet-family checks pass, with hidden-Gamescope family captures inspected.
 This is a bow profile correction, not a completed silhouette redesign.
+
+
+Parked family ships now expose a marked crew hatch and a physical 1.5 m wide
+access ramp with handrails. Its 0.75 m rise matches the existing parked cabin floor;
+the assembly follows the ship's landing orientation and disables its collision
+when hidden. This is a replaceable service-access placeholder. F still transitions
+to the cabin, and the hatch does not open or simulate pressure cycling. Rough
+terrain fit, interior/exterior door continuity and retracting animations remain open.

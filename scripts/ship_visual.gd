@@ -266,6 +266,53 @@ func _fit_surface_fittings(first: int, center: Vector3, face: String, faces: Pac
 		fitting.transform = Transform3D(rotation_basis * fitting.basis, surface + rotation_basis * (fitting.position-previous_surface))
 
 
+# Parked service access: closed hatch plus a physical ramp. F still transitions
+# into the cabin; this is not yet an opening, pressure-cycling airlock.
+func add_boarding_access(modules: Array) -> void:
+	var cells: Array[Vector3i] = []
+	for module: Dictionary in modules:
+		cells.append(Vector3i(int(module.x), int(module.y), int(module.z)))
+	if ShipBlueprint.family_for_cells(cells).is_empty(): return
+	var existing := get_node_or_null("BoardingAccess")
+	if existing != null:
+		remove_child(existing)
+		existing.queue_free()
+	var selected := cells[0]
+	for cell in cells:
+		if cell.y < selected.y or (cell.y == selected.y and (cell.x > selected.x or (cell.x == selected.x and cell.z > selected.z))):
+			selected = cell
+	var center := Vector3(selected) * CELL_SIZE - ShipBlueprint.center(cells)
+	var threshold := center + Vector3(ShipBlueprint.collision_size(cells).x * 0.5 + 0.04, -ShipBlueprint.FLOOR_OFFSET, 0)
+	var access := BoardingAccess.new()
+	access.name = "BoardingAccess"
+	add_child(access)
+	access.position = threshold
+	# Parked hull floor is 0.75 m above the landing plane, including multi-deck hulls.
+	access.build(1.5, 0.75, 2.8)
+	var first := get_child_count()
+	var frame := _surface_material(Color("606b70"), 0.4, 0.5)
+	var door := _surface_material(Color("29353d"), 0.58, 0.04)
+	_add_box(threshold + Vector3(-0.18, 1.06, 0), Vector3(0.4, 2.12, 1.6), frame)
+	_add_box(threshold + Vector3(0.035, 1.03, 0), Vector3(0.035, 1.94, 1.34), door)
+	_add_box(threshold + Vector3(0.06, 1.03, 0), Vector3(0.02, 1.9, 0.025), frame)
+	for side in [-1.0, 1.0]:
+		_add_box(threshold + Vector3(0.07, 1.05, side * 0.53), Vector3(0.055, 0.28, 0.04), frame)
+	# Reparent parked-only fittings with the ramp so repeated builds replace them.
+	var fittings: Array[Node] = []
+	for index in range(first, get_child_count()): fittings.append(get_child(index))
+	for fitting: Node3D in fittings:
+		fitting.reparent(access)
+	var label := Label3D.new()
+	label.text = "CREW ACCESS / F"
+	label.font_size = 36
+	label.pixel_size = 0.002
+	label.outline_size = 0
+	label.position = Vector3(0.07, 1.73, 0)
+	label.rotation.y = PI * 0.5
+	label.modulate = Color("d5dccc")
+	access.add_child(label)
+
+
 func _add_flank_service_strip(center: Vector3, face: String, inset: Material, plate: Material, structure: Material) -> void:
 	var normal: Vector3 = Vector3(ShipLayout.FACE_STEPS[face])
 	var mount := center + normal * _surface_depth(normal, 0.035)

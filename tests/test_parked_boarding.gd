@@ -26,6 +26,28 @@ func _run() -> void:
 	game.apply_ship_stats()
 	game.rebuild_player_ship()
 	pad = game._ship_pad()
+	var access := game.ship_display.get_node_or_null("BoardingAccess") as Node3D
+	if not _check(access != null, "family has marked parked access"): return
+	var ramp_mesh := access.get_node("Ramp") as MeshInstance3D
+	var ramp_normals: PackedVector3Array = ramp_mesh.mesh.surface_get_arrays(0)[Mesh.ARRAY_NORMAL]
+	for index in range(6):
+		if not _check(ramp_normals[index].y > 0.9, "ramp walking surface renders outward"): return
+	game.pilot.teleport(access.to_global(Vector3(1.4, 0.6, 0)))
+	await create_timer(0.6).timeout
+	if not _check(game.pilot.is_on_floor(), "walking capsule is supported by the access ramp"): return
+	var ramp_point: Vector3 = access.to_local(game.pilot.global_position)
+	if not _check(ramp_point.x > 0 and ramp_point.x < 2.8 and absf(ramp_point.z) < 0.75 and ramp_point.y > -0.7,
+		"capsule rests above ground on ramp slope"): return
+	game.ship_display.hide()
+	await process_frame
+	await physics_frame
+	for shape: CollisionShape3D in access.find_children("*", "CollisionShape3D", true, false):
+		if not _check(shape.disabled, "hidden parked access cannot collide during flight or boarding"): return
+	game.ship_display.show()
+	await process_frame
+	await physics_frame
+	for shape: CollisionShape3D in access.find_children("*", "CollisionShape3D", true, false):
+		if not _check(not shape.disabled, "visible parked access restores collision"): return
 	game.pilot.teleport(pad)
 	await physics_frame
 	if not _check(game._near_ship_boarding(), "pilot stands near parked ship"): return
