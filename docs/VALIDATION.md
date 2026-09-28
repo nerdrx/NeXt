@@ -1477,3 +1477,9 @@ New persistence checks passed round-trip, missing-record defaults for current/ve
 The existing state regression suite also passed. The graphical harness reported seven Texture RID shutdown warnings, as in earlier main-scene captures; no script errors were logged.
 
 Clean Windows release export and full Proton integration smoke passed at `a1399fc` (`NEXT_INTEGRATION_OK`, wrapper exit 0). Evidence is in `build/windows-validation-dd5c267/build/proton-smoke.GXFd0m`. The smoke exercises existing integration flows and serialization; the new locker UI was exercised natively under hidden Gamescope. The known SDR white-level warning remains. This does not prove live Steam interoperability or the 1440p/60 performance target.
+
+## Local stellar heating — 2026-09-28
+
+Direct stellar exposure now feeds player and local NPC thermal loops, including powered-off player ships. A shared point-source helper uses catalog luminosity with an explicit compressed-distance mapping, hard planet shadows and orientation-dependent hull bounding-box absorption. Existing temperature derating and detection respond to this additional heat. The HUD reports absorbed stellar kW. The systemic-simulation document records the approximation and unimplemented surface, atmosphere, damage, remote-fleet and visitor behavior.
+
+Pure checks passed inverse-square falloff, solar reference, proximity/radius floors, planet segment/tangent/inside/beyond-source cases, projected orientation and area scaling, and invalid values. Gameplay passed unpowered absorption, sustained near-star thrust derating, retreat cooling, eclipse, NPC wiring/heat, moving-cabin passenger independence, floating-origin invariance and saved temperature. Existing drive-heat gameplay and NPC thermal suites passed. The gameplay check passed under hidden Gamescope and its HUD capture was inspected. Both new tests are registered in Windows CI.

@@ -31,6 +31,9 @@ var search_seconds_remaining: float = 0.0
 var travel_active: bool = false
 var travel_target := Vector3.ZERO
 var propulsion_limiter: Callable
+var stellar_heat_source: Callable
+var stellar_heat_w: float = 0.0
+var _thermal_dimensions := Vector3.ONE
 
 var hull_family: String = ""
 var hull_layout: Dictionary = {}
@@ -88,13 +91,18 @@ func _ready() -> void:
 	# Convex exterior proxy follows the model; cavities remain an approximation.
 	var hull_points := PackedVector3Array()
 	var radius := 0.0
+	var thermal_low := Vector3(INF, INF, INF)
+	var thermal_high := -thermal_low
 	for mesh: MeshInstance3D in _visual.find_children("*", "MeshInstance3D", true, false):
 		if mesh.mesh == null: continue
 		var relative := global_transform.affine_inverse() * mesh.global_transform
 		for vertex: Vector3 in mesh.mesh.get_faces():
 			var point := relative * vertex
+			thermal_low = thermal_low.min(point)
+			thermal_high = thermal_high.max(point)
 			hull_points.append(point)
 			radius = maxf(radius, point.length())
+	if not hull_points.is_empty(): _thermal_dimensions = thermal_high - thermal_low
 	var shape := ConvexPolygonShape3D.new()
 	shape.points = hull_points
 	collision.shape = shape
@@ -141,7 +149,8 @@ func _physics_process(delta: float) -> void:
 	var offset := destination - global_position
 	var distance := offset.length()
 	var desired_speed := speed * (0.55 if attacking and hp < 30.0 else 1.0)
-	drive_temperature_k = ThermalSignature.step_temperature(drive_temperature_k, radiator_area_m2, systems_heat_w if hp > 0.0 else 0.0, delta)
+	stellar_heat_w = stellar_heat_source.call(global_position, global_basis, _thermal_dimensions) if stellar_heat_source.is_valid() else 0.0
+	drive_temperature_k = ThermalSignature.step_temperature(drive_temperature_k, radiator_area_m2, (systems_heat_w if hp > 0.0 else 0.0) + stellar_heat_w, delta)
 	var heat_factor := clampf((700.0 - drive_temperature_k) / 200.0, 0.0, 1.0)
 	var mass := maxf(1.0, dry_mass_kg + cargo_mass_kg)
 	var acceleration := minf(acceleration_limit_mps2, thrust_newtons * heat_factor / mass)

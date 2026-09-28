@@ -62,7 +62,7 @@ func _draw() -> void:
 		_draw_meter(Vector2(35, h - 65), "FUEL", state.fuel / 100.0, Color("b9bbf5"))
 		_word(Vector2(35, h - 155), "DRIVE %d K  /  THRUST %d%%" % [roundi(state.drive_temperature_k), roundi(float(stats.drive_thrust_factor) * 100.0)], 13, InterfaceTheme.GOLD if state.drive_temperature_k > 500.0 else InterfaceTheme.MUTED)
 		if pilot.flying or game.aboard:
-			_word(Vector2(35, h - 176), "THERMAL VISIBILITY ~%.1f km" % (float(stats.thermal_detection_range_m) / 1000.0), 13, InterfaceTheme.MUTED)
+			_word(Vector2(35, h - 176), "VISIBILITY ~%.1f km / STELLAR %.1f kW" % [float(stats.thermal_detection_range_m) / 1000.0, game.stellar_heat_w / 1000.0], 13, InterfaceTheme.MUTED)
 			if not state.systems_online: _word(Vector2(35, h - 197), "MAIN SYSTEMS OFF / COASTING", 13, InterfaceTheme.GOLD)
 	else:
 		_draw_meter(Vector2(35, h - 98), "VESSEL", float(inspected.hull) / 100.0, InterfaceTheme.CYAN)

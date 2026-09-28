@@ -6,6 +6,9 @@ const PLANET_SHADER: Shader = preload("res://shaders/planet_surface.gdshader")
 const CLOUD_SHADER: Shader = preload("res://shaders/planet_clouds.gdshader")
 const STAR_SHADER: Shader = preload("res://shaders/star_surface.gdshader")
 
+const PRIMARY_POSITION := Vector3(-1700, 1150, -4100)
+var stellar_profile: Dictionary = {}
+
 var data: Dictionary = {}
 var planets: Array[Dictionary] = []
 var system_index: int = 0
@@ -27,6 +30,7 @@ func build(system_index: int) -> void:
 		child.queue_free()
 	self.system_index = clampi(system_index, 0, Universe.SYSTEM_LIMIT - 1)
 	data = Universe.system_data(self.system_index)
+	stellar_profile = CelestialSystem.generate(self.system_index).star
 	data["system_index"] = self.system_index
 	_rng.seed = int(data.station_seed)
 	planets.clear()
@@ -48,6 +52,15 @@ func build(system_index: int) -> void:
 	_build_star()
 	_build_planets()
 	_build_distant_stars()
+
+func stellar_heat(global_point: Vector3, orientation: Basis, dimensions: Vector3) -> float:
+	if not is_visible_in_tree() or not global_point.is_finite(): return 0.0
+	var point := to_local(global_point)
+	var flux := StellarExposure.irradiance(stellar_profile, point, PRIMARY_POSITION, planets)
+	var toward_star := orientation.inverse() * (to_global(PRIMARY_POSITION) - global_point)
+	# Keep the placeholder photosphere center from becoming a zero-direction cold spot.
+	if toward_star.is_zero_approx(): toward_star = Vector3.ONE
+	return StellarExposure.absorbed_power(flux, dimensions, toward_star)
 
 func _build_environment() -> void:
 	_world_environment = WorldEnvironment.new()
@@ -254,14 +267,14 @@ func _build_star() -> void:
 	light.rotation_degrees = Vector3(-28, -34, 0)
 	add_child(light)
 	if star_type == "Black Hole":
-		_sphere("Black hole event horizon", 245, Vector3(-1700, 1150, -4100), Color("010208"), 0.0, 0.95)
+		_sphere("Black hole event horizon", 245, PRIMARY_POSITION, Color("010208"), 0.0, 0.95)
 		var disk := TorusMesh.new()
 		disk.inner_radius = 270
 		disk.outer_radius = 338
 		var acc := MeshInstance3D.new()
 		acc.name = "Accretion disk"
 		acc.mesh = disk
-		acc.position = Vector3(-1700, 1150, -4100)
+		acc.position = PRIMARY_POSITION
 		acc.rotation = Vector3(0.3, 0.2, 0.12)
 		acc.material_override = _emissive(Color("ff703d"), 3.2)
 		add_child(acc)
@@ -272,7 +285,7 @@ func _build_star() -> void:
 		star_material.shader = STAR_SHADER
 		star_material.set_shader_parameter("star_color", star_color)
 		star_material.set_shader_parameter("star_kind", float(Universe.STAR_TYPES.find(star_type)))
-		_sphere("System primary", 250, Vector3(-1700, 1150, -4100), star_color, 2.3, 0.15, star_material)
+		_sphere("System primary", 250, PRIMARY_POSITION, star_color, 2.3, 0.15, star_material)
 		if star_type == "Neutron Star":
 			for side in [-1.0, 1.0]:
 				_box("Pulsar beam", Vector3(20, 1100, 20), Vector3(-1700, 1150 + side * 630, -4100), _emissive(Color("81d8ff"), 1.5))

@@ -53,6 +53,8 @@ var _rescuing: bool = false
 var pending_steam_lobby: int = 0
 var docked_station: int = -1
 var fleet_actors: Dictionary = {}
+var stellar_heat_w: float = 0.0
+var _thermal_dimensions := Vector3.ONE
 var flight_origin := SectorPosition.new()
 var flight_frame := FlightFrame.new()
 var cruise_waypoints: Array[SectorPosition] = []
@@ -649,6 +651,7 @@ func _spawn_actors() -> void:
 			var id: String = "raider_%d" % i
 			if id in eliminated: continue
 			var actor := ShipActor.new()
+			actor.stellar_heat_source = world.stellar_heat
 			actor.actor_id = id
 			actor.faction = "pirate"
 			actor.position = Vector3(-300 + i * 170, 90 + i * 35, -950 - i * 300)
@@ -659,6 +662,7 @@ func _spawn_actors() -> void:
 			actors.append(actor)
 		for i in range(2):
 			var actor := ShipActor.new()
+			actor.stellar_heat_source = world.stellar_heat
 			actor.actor_id = "security_%d" % i
 			if actor.actor_id in eliminated:
 				actor.free()
@@ -833,6 +837,7 @@ func _sync_fleet_actors() -> Array[String]:
 					fleet_actors.erase(id)
 			if not fleet_actors.has(id):
 				var actor := ShipActor.new()
+				actor.stellar_heat_source = world.stellar_heat
 				actor.actor_id = id
 				actor.faction = "player_fleet"
 				actor.hostile = false if is_trader else true
@@ -1038,6 +1043,13 @@ func _consume_ship_propulsion(before: Vector3, commanded: Vector3) -> Vector3:
 	return result
 
 func apply_ship_stats() -> void:
+	var cells := _ship_cells(state.ship_modules)
+	var low := Vector3i(1000, 1000, 1000)
+	var high := -low
+	for cell: Vector3i in cells:
+		low = low.min(cell)
+		high = high.max(cell)
+	_thermal_dimensions = Vector3(high - low) * ShipVisual.CELL_SIZE + ShipBlueprint.collision_size(cells)
 	pilot.set_suit_finish(CrewAppearance.SUITS[int(state.commander_appearance.suit)], CrewAppearance.ARMORS[int(state.commander_appearance.armor)])
 	pilot.propulsion_limiter = _consume_ship_propulsion
 	pilot.configure_ship_collision(state.ship_modules)
@@ -1589,8 +1601,19 @@ func _change_interior_deck(direction: int) -> bool:
 	return true
 
 
+func _sample_stellar_heat() -> float:
+	if aboard and is_instance_valid(coasting_hull):
+		return world.stellar_heat(coasting_hull.global_position, coasting_hull.global_basis, _thermal_dimensions)
+	if pilot.flying:
+		return world.stellar_heat(pilot.global_position, pilot.global_basis, _thermal_dimensions)
+	if (manual_planet >= 0 or docked_station >= 0) and is_instance_valid(ship_display):
+		return world.stellar_heat(ship_display.global_position, ship_display.global_basis, _thermal_dimensions)
+	# Public hangar and remote surface-transition parking remain sheltered abstractions.
+	return 0.0
+
 func _physics_process(delta: float) -> void:
-	state.cool_drive(delta)
+	stellar_heat_w = _sample_stellar_heat()
+	state.cool_drive(delta, stellar_heat_w)
 	_refresh_propulsion_limits()
 	if not aboard or not is_instance_valid(coasting_hull):
 		_tick_ship_defense(delta)
