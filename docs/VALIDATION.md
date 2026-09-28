@@ -2415,3 +2415,30 @@ no duplicate guest patrols, inactive replicas after a real Main update, direct
 and ray-hit damage suppression, an 8192-metre origin shift, distance culling and
 empty-snapshot removal. Hidden Gamescope reported texture RID leaks during
 shutdown after the success marker; no script error was reported.
+
+
+### Visitor ship fire against host NPCs (2026-09-28)
+
+Editor import, NPC snapshot transport and scene lifecycle regressions pass.
+Existing PvP transport and gameplay checks also pass after adding the visitor
+NPC firing path. The protocol version is now 3 because older visitors do not
+support these host-confirmed combat outcomes.
+
+The dedicated scene test passes natively and under hidden Gamescope, checking
+physical wall/range obstruction, shields before hull, player/fleet immunity,
+real ENet outcome delivery, host bounty suppression, host world elimination,
+per-visitor police assault deduplication and saved visitor bounty/crime state.
+The fixture calls the host shot resolver directly; the separate protocol test
+covers incoming visitor request validation. Graphics shutdown reports seven
+texture RID leaks after the success marker.
+
+Clean Windows export and hidden-Gamescope Proton smoke pass at `95c0462`:
+`build/windows-validation-dd5c267/build/proton-smoke.wKT8CS`, wrapper exit 0,
+`NEXT_INTEGRATION_OK` and no logged script errors. This packaged smoke covers
+general gameplay, not complete multiplayer or Steam interoperability.
+
+The new protocol loopback passes visitor authorization, design-derived damage,
+cooldown, travel epochs, grounded/offline/stale-pose rejection and target-only
+outcome delivery. Protocol compatibility, network power, locked loadout and
+NPC replication regressions also pass. No runtime changes followed the Windows
+smoke commit.
