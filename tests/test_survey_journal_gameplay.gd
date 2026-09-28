@@ -27,6 +27,7 @@ func _run() -> void:
 	var before_credits: int = game.state.credits
 	game.deck.show_page("journal")
 	assert(_rows(game.deck.content) == 20)
+	assert("1 /" in (game.deck.find_child("SystemSurveyProgress", true, false) as Label).text, "current system progress is visible")
 	(game.deck.find_child("NextSurveys", true, false) as Button).pressed.emit()
 	assert(game.deck.journal_page_index == 1 and _rows(game.deck.content) == 3)
 	assert((game.deck.find_child("NextSurveys", true, false) as Button).disabled)

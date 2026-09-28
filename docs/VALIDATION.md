@@ -2090,3 +2090,15 @@ art and does not establish photorealism. Clean Windows export and hidden-Gamesco
 Proton integration pass at `4a4d17c`:
 `build/windows-validation-dd5c267/build/proton-smoke.BRJltJ`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Dedicated material-state assertions ran natively.
+
+### System survey completion (2026-09-28)
+
+`test_survey_completion.gd` passes incomplete progress, partial sale followed by
+final completion, one-time bonus payout, pending and sold save/load, separate
+world archives, invalid system indices, empty systems and another system's
+pending data not reactivating an already sold bonus. Native base survey, journal
+and gameplay regressions pass. The completion fixture is registered in CI.
+
+The journal gameplay test passes under hidden Gamescope and checks displayed
+current-system progress alongside paging/filter/course controls. Its screenshot
+was visually inspected: progress and reward text fit within the scrolling page.

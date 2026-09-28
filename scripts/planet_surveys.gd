@@ -14,13 +14,30 @@ static func record(state: GameState, planet_index: int) -> String:
 
 static func pending_value(state: GameState) -> int:
 	var total := 0
+	var pending_systems: Dictionary = {}
 	for key: String in state.planet_surveys:
 		if int(state.planet_surveys[key]) != 1: continue
 		var parts := key.split(":")
+		pending_systems[int(parts[0])] = true
 		var data := Universe.system_data(int(parts[0]))
 		var planet: Dictionary = data.planets[int(parts[1])]
 		total += 250 + (150 if planet.atmosphere else 0) + (350 if Universe.planet_has_ocean(data, int(parts[1])) else 0)
+	for system: int in pending_systems:
+		total += int(system_progress(state, system).pending_bonus)
 	return total
+
+static func system_progress(state: GameState, system: int) -> Dictionary:
+	if system < 0 or system >= GameState.SYSTEM_LIMIT: return {"recorded": 0, "total": 0, "pending_bonus": 0, "bonus": 0}
+	var total: int = Universe.system_data(system).planets.size()
+	var recorded := 0
+	var pending := false
+	for planet in range(total):
+		var status := int(state.planet_surveys.get("%d:%d" % [system, planet], 0))
+		if status in [1, 2]: recorded += 1
+		if status == 1: pending = true
+	var bonus := 500 + 100 * total if total > 0 else 0
+	return {"recorded": recorded, "total": total, "pending_bonus": bonus if recorded == total and pending else 0, "bonus": bonus}
+
 
 static func sell(state: GameState) -> String:
 	var value := pending_value(state)

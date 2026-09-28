@@ -406,3 +406,18 @@ report, so information cannot flood across unseen chains of guards.
 This approximates local squad radio, including transmission through walls. It
 does not model equipment, jamming, latency, command hierarchies or audio barks.
 Only confirmed visual sightings are broadcast; hits alone do not broadcast.
+
+## Complete-system survey rewards
+
+Surveying every generated planet in a system earns an additional 500 CR plus
+100 CR per planet when pending data is sold. Earlier partial data sales still
+count toward completion. The bonus is derived from validated per-planet survey
+statuses: every planet must be recorded and at least one must remain unsold in
+that same system. Selling marks all pending records sold, preventing another
+bonus without adding a save field. Empty systems have no completion reward.
+Already fully sold legacy systems do not receive retroactive bonuses.
+
+The journal shows current-system progress and whether the completion bonus is
+awaiting sale. Pending sale totals include eligible bonuses across all systems.
+Survey proximity, speed, ship systems, orbital selling and separate visit
+economy restrictions remain in effect. Reward values are gameplay tuning.

@@ -1151,6 +1151,17 @@ func _survey_journal() -> void:
 	var archive := PlanetSurveys.journal_page(game.state, journal_page_index, journal_pending_only)
 	journal_page_index = int(archive.page)
 	_text("%d recorded planets / %d CR awaiting sale" % [game.state.planet_surveys.size(), PlanetSurveys.pending_value(game.state)], 21, InterfaceTheme.CYAN)
+	var progress := PlanetSurveys.system_progress(game.state, game.state.system_index)
+	var progress_label := InterfaceTheme.label("Current system: %d / %d planets surveyed" % [progress.recorded, progress.total], 16)
+	progress_label.name = "SystemSurveyProgress"
+	content.add_child(progress_label)
+	if int(progress.total) > 0:
+		if int(progress.pending_bonus) > 0:
+			_text("Complete-system bonus: %d CR included in pending sale" % progress.pending_bonus, 15, InterfaceTheme.CYAN)
+		elif int(progress.recorded) < int(progress.total):
+			_text("Survey every planet here for a %d CR completion bonus. Earlier data sales still count." % progress.bonus, 15)
+		else:
+			_text("System fully surveyed; all data sold.", 15)
 	var filter := CheckButton.new()
 	filter.name = "PendingSurveysOnly"
 	filter.text = "Show unsold data only"
