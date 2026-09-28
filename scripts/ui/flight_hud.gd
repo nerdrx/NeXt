@@ -76,7 +76,8 @@ func _draw() -> void:
 		var recovery_contacts: Array[Dictionary] = game.recovery_contacts()
 		_draw_radar(Vector2(w - 130, 220), recovery_contacts)
 		for contact: Dictionary in recovery_contacts:
-			_draw_marker(contact.position, "%s / %s" % [contact.title, contact.id], InterfaceTheme.GOLD, pilot.camera)
+			if contact.tracked: _draw_tracked_recovery(contact, pilot.camera)
+			else: _draw_marker(contact.position, "%s / %s" % [contact.title, contact.id], InterfaceTheme.GOLD, pilot.camera)
 		for peer_id: int in game.remote_ships:
 			var ship: Node3D = game.remote_ships[peer_id]
 			if not ship.visible: continue
@@ -141,6 +142,23 @@ func _draw_marker(point: Vector3, title: String, color: Color, camera: Camera3D)
 	_word(pos + Vector2(18, 0), title, 11, color)
 	var distance := camera.global_position.distance_to(point)
 	_word(pos + Vector2(18, 16), "%.1f km" % (distance / 1000.0) if distance >= 1000.0 else "%d m" % int(distance), 11, InterfaceTheme.MUTED)
+
+func _draw_tracked_recovery(contact: Dictionary, camera: Camera3D) -> void:
+	var local: Vector3 = camera.to_local(contact.position)
+	var screen := camera.unproject_position(contact.position)
+	var safe := Rect2(Vector2(140, 170), size - Vector2(420, 390))
+	if local.z < 0.0 and safe.has_point(screen):
+		_draw_marker(contact.position, "TRACKED / " + str(contact.id), InterfaceTheme.GOLD, camera)
+		return
+	var lateral := Vector2(local.x, -local.y)
+	var direction := Vector2.DOWN if lateral.length_squared() < maxf(0.000001, local.length_squared() * 0.000001) else lateral.normalized()
+	var half := safe.size * 0.5
+	var travel := minf(half.x / maxf(absf(direction.x), 0.0001), half.y / maxf(absf(direction.y), 0.0001))
+	var point := safe.get_center() + direction * travel
+	var side := Vector2(-direction.y, direction.x)
+	draw_colored_polygon(PackedVector2Array([point + direction * 9, point - direction * 6 + side * 6, point - direction * 6 - side * 6]), InterfaceTheme.GOLD)
+	_word(point + Vector2(-65, 26), "SALVAGE %.1f km%s" % [float(contact.distance) / 1000.0, " / BEHIND" if local.z >= 0.0 else ""], 12, InterfaceTheme.GOLD)
+
 
 func _draw_radar(pos: Vector2, recovery_contacts: Array[Dictionary] = []) -> void:
 	var radius: float = 75.0

@@ -1399,3 +1399,10 @@ Domain checks passed deterministic generation, valid saved structure and duplica
 The flight HUD now shows up to eight nearest active local recovery beacons as gold screen markers and outlined radar diamonds, with a salvage legend. Distant contacts use kilometres; close contacts use metres. Contacts derive from recorded absolute wreck positions, exclude completed/other-location records and distinguish hulls from freight caches. Nearby 3D beacon labels have an 800 m visibility range configured.
 
 Actual-main hidden Gamescope checks passed a discovered derelict entering the contact list, nearest-eight ordering, exclusion of completed and remote records, and all existing recovery/survey assertions. The 18.1 km HUD marker and radar legend were visually inspected in a flight capture. Recorded beacon navigation is not a physical sensor-detection model or a selected-target/offscreen-arrow system. Existing placeholder cockpit and background art remain below target quality.
+
+
+## Manual recovery beacon tracking — 2026-09-28
+
+Recovery rows expose TRACK/UNTRACK, returning to manual flight without starting cruise. Approach also selects its beacon. The tracked local contact takes priority within the eight-contact HUD limit and receives a labelled offscreen direction indicator, including a BEHIND cue. A small angular dead zone stabilizes directly-behind targets; indicator margins keep its label away from screen edges and the radar. Tracking is transient and clears when rebuilding a system; completed records no longer draw.
+
+Actual-main hidden Gamescope tests passed the real tracking button, no-autopilot behavior, toggle-off, and retention of a tracked contact outside the nearest-eight set. Front and behind captures were inspected; an initial behind-label overlap was corrected and recaptured. Existing survey/recovery checks passed. This uses the local recovery-contact range, not galaxy-wide target tracking. Dense unselected marker overlap remains an interface limitation.

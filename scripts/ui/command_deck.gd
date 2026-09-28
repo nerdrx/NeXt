@@ -998,6 +998,10 @@ func _recovery() -> void:
 		var cruise := InterfaceTheme.button("APPROACH", game.approach_wreck.bind(str(wreck.id)))
 		cruise.disabled = not here or not game.pilot.flying or game.aboard
 		controls.add_child(cruise)
+		var track := InterfaceTheme.button("UNTRACK" if game.tracked_wreck_id == str(wreck.id) else "TRACK", game.track_wreck.bind(str(wreck.id)))
+		track.set_meta("track_wreck", str(wreck.id))
+		track.disabled = not here or (bool(wreck.salvaged) and bool(wreck.cargo_recovered))
+		controls.add_child(track)
 		var recover := InterfaceTheme.button("RECOVER CARGO", _act.bind(game.recover_wreck.bind(str(wreck.id), false), "Available cargo recovered."))
 		recover.disabled = not here or distance > (80.0 if game.pilot.flying else 8.0) or game.aboard or units <= 0 or s.cargo_total() >= int(s.ship_stats().cargo_capacity)
 		controls.add_child(recover)

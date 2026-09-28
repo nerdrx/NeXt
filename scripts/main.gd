@@ -46,6 +46,7 @@ var save_path: String = "user://commander.json"
 var enemy_clock: float = 0.0
 var _last_stats: Dictionary = {}
 var _network_clock: float = 0.0
+var tracked_wreck_id := ""
 var _wreck_route_signature: int = 0
 var wreck_root: Node3D
 var _rescuing: bool = false
@@ -143,6 +144,7 @@ func _input_actions() -> void:
 	InputMap.action_add_event("fire", button)
 
 func _build_system() -> void:
+	tracked_wreck_id = ""
 	if aboard: exit_interior()
 	_clear_planet_terrain()
 	manual_planet = -1
@@ -2709,9 +2711,10 @@ func recovery_contacts() -> Array[Dictionary]:
 		var point: Variant = _wreck_position(wreck)
 		if point == null: continue
 		contacts.append({"id": str(wreck.id), "position": point,
-			"distance": pilot.position.distance_to(point),
+			"distance": pilot.position.distance_to(point), "tracked": str(wreck.id) == tracked_wreck_id,
 			"title": "FREIGHT" if bool(wreck.salvaged) or wreck.modules.is_empty() else "WRECK"})
 	contacts.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if a.tracked != b.tracked: return a.tracked
 		return a.distance < b.distance if a.distance != b.distance else a.id < b.id)
 	if contacts.size() > 8: contacts.resize(8)
 	return contacts
@@ -2719,6 +2722,15 @@ func recovery_contacts() -> Array[Dictionary]:
 
 func _wreck_position(wreck: Dictionary) -> Variant:
 	return ShipRecovery.wreck_relative(wreck, flight_origin.to_save())
+
+func track_wreck(id: String) -> void:
+	for wreck: Dictionary in state.recovery.wrecks:
+		if str(wreck.id) != id or int(wreck.system) != state.system_index or int(wreck.surface) != surface_index: continue
+		if bool(wreck.salvaged) and bool(wreck.cargo_recovered): return
+		tracked_wreck_id = "" if tracked_wreck_id == id else id
+		close_menu()
+		return
+
 
 func approach_wreck(id: String) -> void:
 	for wreck: Dictionary in state.recovery.wrecks:
@@ -2728,6 +2740,7 @@ func approach_wreck(id: String) -> void:
 			var p: Array = wreck.position
 			address = SectorPosition.new(Vector3i.ZERO, Vector3(p[0], p[1], p[2]))
 		address.move_delta(Vector3(0, 0, ShipRecovery.wreck_radius(wreck) + pilot.hull_radius + CruiseRoute.CLEARANCE + 5.0))
+		tracked_wreck_id = id
 		_start_address_cruise(address)
 		return
 

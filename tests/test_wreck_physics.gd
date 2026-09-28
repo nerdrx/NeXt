@@ -182,7 +182,21 @@ func _run() -> void:
 		game.state.recovery.wrecks.append(sample)
 	contacts = game.recovery_contacts()
 	assert(contacts.size() == 8 and contacts[0].id == "contact-02" and contacts[-1].id == "contact-09", "HUD keeps nearest eight active local contacts")
+	game.tracked_wreck_id = "contact-11"
+	contacts = game.recovery_contacts()
+	assert(contacts.size() == 8 and contacts[0].id == "contact-11", "tracked contact remains visible beyond nearest-eight cutoff")
 	game.state.recovery.wrecks = original_wrecks
+	game.tracked_wreck_id = ""
+	game.open_menu("recovery")
+	var track_button: Button
+	for candidate in game.deck.find_children("*", "Button", true, false):
+		if candidate.get_meta("track_wreck", "") == derelict.id: track_button = candidate
+	assert(track_button != null and not track_button.disabled)
+	track_button.pressed.emit()
+	assert(game.tracked_wreck_id == derelict.id and not game.ui_open and not game.pilot.autopilot_active, "tracking returns to manual flight without engaging cruise")
+	game.track_wreck(derelict.id)
+	assert(game.tracked_wreck_id.is_empty(), "same beacon toggles tracking off")
+	game.track_wreck(derelict.id)
 	game.close_menu()
 	game.pilot.teleport(Vector3(0, 1000, 500))
 	game.hud.message_time = 0.0
@@ -192,6 +206,11 @@ func _run() -> void:
 	if DisplayServer.get_name() != "headless":
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png("user://wreck-navigation.png")
+		game.pilot.camera.look_at(game.pilot.camera.global_position * 2.0 - derelict_position, Vector3.UP)
+		await process_frame
+		await process_frame
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png("user://wreck-tracking-behind.png")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
 	game.sound.shutdown()
 	game.session.leave()
