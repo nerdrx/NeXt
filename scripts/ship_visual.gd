@@ -550,7 +550,7 @@ func _add_engine_nozzle(origin: Vector3, metal: Material, lining: Material, dark
 	liner.position = origin
 	var backing := _add_cylinder(origin + Vector3(0, 0, 0.10), 0.33, 0.045, dark)
 	backing.rotation.x = PI * 0.5
-	var core := _add_cylinder(origin + Vector3(0, 0, 0.15), 0.16, 0.035, glow)
+	var core := _add_cylinder(origin + Vector3(0, 0, 0.15), 0.16, 0.035, glow, 32)
 	core.name = "EngineThroat%d" % get_child_count()
 	core.rotation.x = PI * 0.5
 	var collar := _add_torus(origin + Vector3(0, 0, 0.08), 0.34, 0.40, metal)
@@ -584,18 +584,38 @@ func _add_family_engine_housing(cell_pos: Vector3, material: Material, vent_mate
 	_add_box(vent_center + Vector3(0.35, 0.016, 0), Vector3(0.07, 0.035, 1.54), material)
 	for z in [-0.48, -0.16, 0.16, 0.48]:
 		_add_box(vent_center + Vector3(0, 0.025, z), Vector3(0.54, 0.035, 0.065), material)
+	# Roof-mounted coolant runs and their supports stay outside the pressure room.
+	var coolant := _surface_material(Color("74634e"), 0.32, 0.82)
+	var clamp_material := _surface_material(Color("72797a"), 0.38, 0.8)
+	for side in [-1.0, 1.0]:
+		var pipe_center := cell_pos + Vector3(side * 0.53, 1.90, 0.45)
+		var pipe := _add_cylinder(pipe_center, 0.036, 1.76, coolant, 20)
+		pipe.name = "EngineCoolantRun%d" % get_child_count()
+		pipe.rotation.x = PI * 0.5
+		(pipe.mesh as CylinderMesh).bottom_radius = 0.036
+		for end in [-0.88, 0.88]:
+			var elbow := pipe_center + Vector3(0, 0, end)
+			_add_sphere(elbow, 0.038, coolant)
+			_add_cylinder(elbow + Vector3(0, -0.06, 0), 0.04, 0.12, coolant, 20)
+		for z in [-0.72, 0.0, 0.72]:
+			_add_box(pipe_center + Vector3(0, -0.046, z), Vector3(0.14, 0.065, 0.09), vent_material)
+			var clamp_ring := _add_torus(pipe_center + Vector3(0, 0, z), 0.036, 0.052, clamp_material)
+			clamp_ring.rotation.x = PI * 0.5
+	var cover := cell_pos + Vector3(0, 1.834, -0.63)
+	_add_bevelled_plate(cover, Vector3(1.02, 0.025, 0.28), clamp_material, 0.008)
+	_add_stencil("PROPULSION / SERVICE", cover + Vector3(0, 0.017, 0), 0.00135, Color("252b2b"))
 	# Twin raised shoulders add a stepped, armored edge to the nozzle fairing.
 	for side in [-1, 1]:
 		_add_box(cell_pos + Vector3(float(side) * 0.72, 1.846, 0.45), Vector3(0.075, 0.045, 1.48), material)
 
 
-func _add_cylinder(pos: Vector3, radius: float, height: float, material: Material) -> MeshInstance3D:
+func _add_cylinder(pos: Vector3, radius: float, height: float, material: Material, segments: int = 12) -> MeshInstance3D:
 	var mesh := MeshInstance3D.new()
 	var cylinder := CylinderMesh.new()
 	cylinder.top_radius = radius
 	cylinder.bottom_radius = radius * 0.82
 	cylinder.height = height
-	cylinder.radial_segments = 12
+	cylinder.radial_segments = segments
 	mesh.mesh = cylinder
 	mesh.material_override = material
 	add_child(mesh)

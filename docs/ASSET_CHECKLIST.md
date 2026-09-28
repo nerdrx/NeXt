@@ -209,3 +209,9 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
   sky remains separate. Family hulls now use lighter neutral paint, darker
   livery/stencils, reduced cloudy staining and filtered coating bump. These are
   replaceable material placeholders, not reference-quality hull design or art.
+
+- [ ] Engine service hardware (`ShipVisual._add_family_engine_housing`): replace
+  procedural coolant runs, elbows, clamps and service cover with authored
+  machinery. These sit above the pressure roof and remain visual-only; they do
+  not implement separate coolant circuits or component damage. Preserve nozzle
+  throat power/thrust behavior when replacing the higher-resolution throat mesh.

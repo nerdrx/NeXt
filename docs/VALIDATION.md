@@ -2249,3 +2249,15 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `734a85b`:
 `build/windows-validation-dd5c267/build/proton-smoke.qPbGmF`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Material comparisons used native hidden-Gamescope captures;
 the packaged smoke checks general gameplay and does not establish art quality.
+
+### Engine service hardware (2026-09-28)
+
+Family fairings now carry connected coolant runs, mounting clamps and a marked
+service cover. Exhaust throats use 32 radial segments instead of twelve; the
+existing bell, glow material, thrust and power behavior remain intact. Native
+ship-nozzle, blueprint containment and hull-damage checks pass. Initial hidden
+Gamescope captures were inspected for Pathfinder exterior and Ranger engine
+detail; the pipe ends were then connected into the fairing. This is decorative
+hardware, not a simulated independent coolant system.
+Final three-family hidden-Gamescope capture and editor import pass without
+script/shader errors. The final Ranger engine view was visually inspected.
