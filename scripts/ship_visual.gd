@@ -20,10 +20,10 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 	_engine_glow.clear()
 	var active_layout: Dictionary = layout if ShipLayout.validate_data(layout, modules) else ShipLayout.empty_data()
 	var accent := Color("46e5da") if faction in ["player", "player_fleet"] else (Color("ff6b58") if faction == "pirate" else Color("65aaff"))
-	var hull_mat := _surface_material(Color("26394c"), 0.46, 0.03)
-	var plate_mat := _surface_material(Color("64788a"), 0.34, 0.03)
-	var inset_mat := _surface_material(Color("34495c"), 0.55, 0.03)
-	var dark_mat := _material(Color("111e2b"), 0.8, 0.0)
+	var hull_mat := _surface_material(Color("30373b"), 0.42, 0.03)
+	var plate_mat := _surface_material(Color("8b9497"), 0.32, 0.03)
+	var inset_mat := _surface_material(Color("434b4f"), 0.55, 0.03)
+	var dark_mat := _material(Color("15191d"), 0.8, 0.0)
 	var accent_mat := _material(accent.darkened(0.3), 0.52, 0.0)
 	var warm_mat := _material(Color("ffbd74"), 0.25, 2.5)
 	# Exhaust must not share emission state with navigation lights or weapon fittings.
@@ -77,16 +77,16 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 		var paint := ShaderMaterial.new()
 		paint.shader = preload("res://shaders/fleet_surface.gdshader")
 		var family_id := ShipBlueprint.family_for_cells(cells)
-		paint.set_shader_parameter("paint", {"pathfinder": Color("4d5960"), "merchant": Color("645e51"), "ranger": Color("697077")}.get(family_id, Color("4d5960")))
-		paint.set_shader_parameter("base_roughness",0.38)
+		paint.set_shader_parameter("paint", {"pathfinder": Color("b9bfbc"), "merchant": Color("99958a"), "ranger": Color("8a9194")}.get(family_id, Color("4d5960")))
+		paint.set_shader_parameter("base_roughness",0.29)
 		paint.set_shader_parameter("metalness",0.04)
-		paint.set_shader_parameter("coating",0.22)
+		paint.set_shader_parameter("coating",0.32)
 		paint.set_shader_parameter("panel_strength",1.0)
 		paint.set_shader_parameter("industrial_detail",1.0)
 		paint.set_shader_parameter("panel_origin",center)
 		paint.set_shader_parameter("livery_strength", 1.0)
 		paint.set_shader_parameter("hull_extent", bounds)
-		paint.set_shader_parameter("livery_paint", {"pathfinder": Color("89958f"), "merchant": Color("957946"), "ranger": Color("9b5b38")}.get(family_id, Color("89958f")))
+		paint.set_shader_parameter("livery_paint", {"pathfinder": Color("455554"), "merchant": Color("766036"), "ranger": Color("8f492c")}.get(family_id, Color("89958f")))
 		_hull_material = paint
 		paint.set_shader_parameter("damage_amount", 1.0 - _hull_integrity)
 		shell.material_override = paint
@@ -176,7 +176,7 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 				_add_box(deck + Vector3(0, 0.236, 0), Vector3(1.2, 0.025, 1.45), dark_mat)
 				for z in range(8):
 					_add_box(deck + Vector3(0, 0.258, -0.59 + z * 0.17), Vector3(1.08, 0.04, 0.07), hull_mat)
-				_add_stencil("THERMAL / KEEP CLEAR", deck + Vector3(0, 0.235, -0.84), 0.0015, Color("d9b468"))
+				_add_stencil("THERMAL / KEEP CLEAR", deck + Vector3(0, 0.235, -0.84), 0.0015, Color("845c20"))
 			"cargo":
 				# Paired access leaves with visible seals, hinges and painted latch tabs.
 				_add_box(deck + Vector3(0, 0.035, 0), Vector3(1.98, 0.055, 1.96), dark_mat)
@@ -186,7 +186,7 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 						_add_box(deck + Vector3(float(side) * 0.95, 0.098, z), Vector3(0.14, 0.065, 0.22), hull_mat)
 					_add_box(deck + Vector3(float(side) * 0.12, 0.12, 0), Vector3(0.08, 0.02, 0.21), accent_mat)
 				_add_stencil("CARGO / %02d" % (cells.find(cell) + 1), deck + Vector3(-0.46, 0.111, -0.55), 0.00155)
-				_add_stencil("LIFT HERE", deck + Vector3(0.47, 0.111, 0.57), 0.00135, Color("d9b468"))
+				_add_stencil("LIFT HERE", deck + Vector3(0.47, 0.111, 0.57), 0.00135, Color("845c20"))
 			"weapon":
 				_add_box(deck + Vector3(0, 0.09, -0.2), Vector3(0.52, 0.16, 1.9), hull_mat, Vector3(-0.06, 0, 0))
 				for side in [-1, 1]:
@@ -217,7 +217,7 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 
 
 # Painted identification remains attached to physical panels and responds to light.
-func _add_stencil(text: String, at: Vector3, pixel: float, ink: Color = Color("d6d7c9")) -> Label3D:
+func _add_stencil(text: String, at: Vector3, pixel: float, ink: Color = Color("303639")) -> Label3D:
 	var label := Label3D.new()
 	label.name = "HullStencil"
 	label.text = text
@@ -656,18 +656,13 @@ func _material(color: Color, roughness: float, glow: float) -> StandardMaterial3
 
 
 static func preview_environment() -> Environment:
-	# A neutral studio gradient supplies reflected light even behind a solid backdrop.
+	# Broad studio cards reveal coating and metal response behind a solid backdrop.
 	var environment := Environment.new()
 	environment.background_mode = Environment.BG_COLOR
 	environment.background_color = Color("101820")
 	var sky := Sky.new()
-	var studio := ProceduralSkyMaterial.new()
-	studio.sky_top_color = Color("8896a5")
-	studio.sky_horizon_color = Color("d9dedf")
-	studio.ground_bottom_color = Color("10151b")
-	studio.ground_horizon_color = Color("687784")
-	studio.sky_curve = 0.2
-	studio.ground_curve = 0.15
+	var studio := ShaderMaterial.new()
+	studio.shader = preload("res://shaders/ship_studio_sky.gdshader")
 	sky.sky_material = studio
 	environment.sky = sky
 	environment.reflected_light_source = Environment.REFLECTION_SOURCE_SKY

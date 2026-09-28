@@ -2230,3 +2230,17 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `7867752`:
 `build/windows-validation-dd5c267/build/proton-smoke.10bfhV`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Dedicated approach/HUD assertions ran natively and under
 hidden Gamescope; the packaged smoke checks general gameplay.
+
+### Hull finish and preview reflections (2026-09-28)
+
+Hidden-Gamescope capture passes for Pathfinder, Merchant and Ranger, including
+close coating, damaged hull, distant, engine and interior views. Pathfinder
+exterior/close finish, Merchant exterior and Ranger engine captures were visually
+inspected. The finish now separates lighter painted shells from dark housings;
+stencils were darkened for contrast after the paint change. Coarse staining and
+roughness mottling were reduced rather than adding more high-contrast noise.
+A procedural softbox sky supplies reflections in shared shipyard/wardrobe preview
+environments; it does not change the world sky. Native ship-blueprint containment
+and hull-damage material tests pass. Hidden-Gamescope wardrobe tests and visual
+inspection pass, as does editor import. Shader review found no numerical or
+filtering blocker. These captures do not establish near-photorealism or FPS.

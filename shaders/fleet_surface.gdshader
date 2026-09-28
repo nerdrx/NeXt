@@ -110,8 +110,8 @@ void fragment() {
  ALBEDO *= 1.0 - groove * 0.42 - seal_dirt * 0.13;
  ALBEDO = mix(ALBEDO, vec3(0.09), bolt_rim * 0.38);
  ALBEDO = mix(ALBEDO, vec3(0.19), bolt);
- ROUGHNESS = clamp(base_roughness + (panel_tone-0.5)*0.18*panel_strength + (mottling-0.5)*roughness_variation + (micro-0.5)*0.065 + abrasion*0.07 + groove*0.14 + seal_dirt*0.08, 0.12, 0.92);
- ALBEDO *= 1.0 - oily_stain * 0.18;
+ ROUGHNESS = clamp(base_roughness + (panel_tone-0.5)*0.18*panel_strength + (mottling-0.5)*roughness_variation*0.45 + (micro-0.5)*0.065 + abrasion*0.07 + groove*0.14 + seal_dirt*0.08, 0.12, 0.92);
+ ALBEDO *= 1.0 - oily_stain * 0.06;
  ALBEDO = mix(ALBEDO, vec3(0.12, 0.10, 0.075), primer * 0.55);
  float bare_metal = max(edge_wear, chipped_paint);
  ALBEDO = mix(ALBEDO, vec3(0.17, 0.19, 0.21), bare_metal);
@@ -130,7 +130,9 @@ void fragment() {
  CLEARCOAT = coating * (1.0-bare_metal) * (1.0-primer*0.5) * (1.0-scorch);
  CLEARCOAT_ROUGHNESS = 0.35;
  // Submillimetre finish variation; fade below pixel size to avoid sparkle.
- float height = (micro-0.5) * 0.00012 + panel_height - bolt_rim * 0.0015;
+ float coating_detail = 1.0-smoothstep(0.02, 0.08, surface_footprint);
+ float coating_height = (grain(local_position * 12.0)-0.5) * 0.00045 * coating_detail;
+ float height = (micro-0.5) * 0.00012 + coating_height * (1.0-bare_metal) + panel_height - bolt_rim * 0.0015;
  vec3 q0 = dFdx(VERTEX); vec3 q1 = dFdy(VERTEX);
  vec3 r1 = cross(q1, NORMAL); vec3 r2 = cross(NORMAL, q0);
  float det = dot(q0, r1);

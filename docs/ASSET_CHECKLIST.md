@@ -202,3 +202,10 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
   masks/VFX. Current family pressure shells darken and lose clearcoat as hull
   condition falls; repairs clear the effect. This is aggregate hull condition,
   not hit-position decals, deformation, equipment damage or persistent scars.
+
+- [ ] Preview reflection lighting (`shaders/ship_studio_sky.gdshader`): replace
+  procedural softbox cards with authored studio/HDR lighting as desired. Shared
+  ship-designer and wardrobe previews use this isolated environment; the world
+  sky remains separate. Family hulls now use lighter neutral paint, darker
+  livery/stencils, reduced cloudy staining and filtered coating bump. These are
+  replaceable material placeholders, not reference-quality hull design or art.
