@@ -429,10 +429,13 @@ func tick(elapsed_seconds: float, local_patrol_ship_ids: Array[String] = [], loc
 					if str(order.phase) == "outbound" and int(vessel.system) == int(order.origin):
 						target_system = int(order.destination)
 					var represented_same_system_trade := local_trade and int(vessel.system) == target_system
-					if int(vessel.system) != target_system:
-						fuel_cost = 10.0
-					elif not represented_same_system_trade:
-						fuel_cost = 2.0
+					var partial_market_sale := str(order.phase) == "inbound" and not order.has("delivery_station") and int(vessel.cargo.get(str(order.good), 0)) > GameState.MARKET_CAPACITY - state.market_stock(str(order.good), int(order.destination))
+					# A partial unloading stays at the berth and needs no return-jump fuel.
+					if not partial_market_sale:
+						if int(vessel.system) != target_system:
+							fuel_cost = 10.0
+						elif not represented_same_system_trade:
+							fuel_cost = 2.0
 				if float(vessel.get("fuel", 100.0)) < fuel_cost:
 					order.progress = interval
 					var was_paused := bool(order.paused)
@@ -583,22 +586,31 @@ func _trade_leg(order: Dictionary) -> Dictionary:
 		order.phase = "outbound"
 		order.purchase_cost = 0
 		return {"kind": "trade", "status": "cargo delivered", "crew_id": order.crew_id, "ship_id": ship.id, "good": good, "quantity": sold, "station": station.name, "station_index": station_index, "cost": purchase_cost if purchase_cost >= 0 else null, "system": ship.system}
+	var held := sold
+	sold = mini(held, GameState.MARKET_CAPACITY - state.market_stock(good, int(order.destination)))
+	if sold <= 0: return {"kind": "trade", "status": "waiting: destination market full", "crew_id": order.crew_id}
 	var revenue: int = state.market_total(good, int(order.destination), sold, false, 0.85)
 	if revenue < 0: return {"kind": "trade", "status": "waiting: destination market full", "crew_id": order.crew_id}
 	var transfer_error: String = state.market_transfer(good, int(order.destination), sold, false)
 	if not transfer_error.is_empty(): return {"kind": "trade", "status": transfer_error, "crew_id": order.crew_id}
-	ship.cargo[good] = 0
-	ship.erase("flight")
+	var remaining := held - sold
+	ship.cargo[good] = remaining
 	var refill: int = mini(revenue, int(order.escrow_limit) - int(order.escrow))
 	order.escrow = int(order.escrow) + refill
 	state.credits += revenue - refill
-	var purchase_cost: int = int(order.get("purchase_cost", -1))
+	var total_cost: int = int(order.get("purchase_cost", -1))
+	# Integer allocation leaves rounding in the remaining cargo; the final sale
+	# consumes that residue, conserving the original invoice exactly.
+	var purchase_cost: int = int(total_cost * sold / held) if total_cost >= 0 else -1
 	var profit: Variant = revenue - purchase_cost if purchase_cost >= 0 else null
 	if profit != null: order.earned = int(order.earned) + int(profit)
-	order.purchase_cost = 0
-	ship.system = int(order.origin)
-	order.phase = "outbound"
-	return {"kind": "trade", "status": "cargo sold", "crew_id": order.crew_id, "ship_id": ship.id, "good": good, "quantity": sold, "revenue": revenue, "purchase_cost": purchase_cost if purchase_cost >= 0 else null, "profit": profit, "system": ship.system}
+	order.purchase_cost = total_cost - purchase_cost if total_cost >= 0 else -1
+	if remaining == 0:
+		order.purchase_cost = 0
+		ship.erase("flight")
+		ship.system = int(order.origin)
+		order.phase = "outbound"
+	return {"kind": "trade", "status": "cargo sold" if remaining == 0 else "cargo partially sold", "crew_id": order.crew_id, "ship_id": ship.id, "good": good, "quantity": sold, "remaining": remaining, "revenue": revenue, "purchase_cost": purchase_cost if purchase_cost >= 0 else null, "profit": profit, "system": ship.system}
 
 func _patrol_leg(order: Dictionary) -> Dictionary:
 	var ship: Dictionary = _ship(str(order.ship_id))

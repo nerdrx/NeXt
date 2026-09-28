@@ -1629,3 +1629,11 @@ F now enters a nearby parked walkable ship without opening the command deck; E r
 The new fixture checks guard conditions, actual F entry into a supported walking interior, context hints, E exit and retained E launch. A graphical run initially showed that a post-frame return-position assertion included subsequent capsule motion; the final check measures restoration immediately before another physics step, at 1 mm tolerance. Final hidden-Gamescope run passed with PARKED_BOARDING_OK and no script/shader errors, and its interior screenshot was inspected. The anchored-interior regression passed. The fixture is registered in Windows CI; README and in-game controls were updated.
 
 Clean Windows release export at `bb69fd8` passed without script/export errors (`build/parked-boarding-export.log` in the validation checkout). Boarding interaction checks ran natively under hidden Gamescope; the last full Proton smoke remains `514a0f1`.
+
+### Partial fleet market sales
+
+Inbound traders now sell the quantity a destination market can receive, retaining remaining cargo and purchase basis at that destination. Each partial sale allocates an integer share of the original invoice; rounding stays in the remaining basis, so the final sale accounts for the exact full cost. Legacy cargo with unknown basis does not invent realized profit. Revenue replenishes route escrow before crediting the commander. Reports include remaining units. Station supply delivery behavior is unchanged.
+
+Partial unloading requires no return-jump fuel and does not change the ship's system, flight record or inbound phase. It still requires local-arrival readiness when represented and pays the normal attempt wage. The final unload/return remains coupled to the existing fuel gate; decoupled unloading and departure, alternate market selection and predictive route planning remain unfinished.
+
+`test_partial_trade.gd` passes headless and under hidden Gamescope: zero-fuel partial unloading, unavailable-local-actor gating, full-market waits, stock/credit/escrow conservation, exact invoice allocation through save/load and final sale, and unknown legacy basis. Existing cost-basis, local-trade and station-supply regressions pass without script errors. The new check is registered in Windows CI.

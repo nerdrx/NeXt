@@ -1709,9 +1709,10 @@ func _process(delta: float) -> void:
 	if not reports.is_empty():
 		var report: Dictionary = reports.back()
 		var message: String = "Crew / %s: %s" % [report.get("kind", "operation"), report.get("status", "updated")]
-		if report.get("status", "") == "cargo sold":
+		if report.get("status", "") in ["cargo sold", "cargo partially sold"]:
 			message += " / %d CR received / " % int(report.revenue)
 			message += ("margin %+d CR before wages" % int(report.profit)) if report.get("profit") != null else "purchase cost unknown"
+			if int(report.get("remaining", 0)) > 0: message += " / %d units still aboard" % int(report.remaining)
 		notify(message)
 	for actor in actors:
 		if not is_instance_valid(actor): continue
