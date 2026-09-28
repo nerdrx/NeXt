@@ -2024,3 +2024,8 @@ and other-colony actors. Reports are rate limited. A blocked recipient neither
 fires nor rebroadcasts and cannot track hidden movement; its memory expires
 without another sighting. Contact, first-assault and ground behavior regressions
 pass. The radio fixture is registered in CI.
+
+Clean Windows export and hidden-Gamescope Proton integration pass at `b2e5453`:
+`build/windows-validation-dd5c267/build/proton-smoke.GLmZYc`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Dedicated radio assertions ran natively; packaged smoke
+covers general gameplay. Read-only parallel review found no further defect.
