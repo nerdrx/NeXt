@@ -1236,7 +1236,7 @@ func _near_ship_boarding() -> bool:
 
 # On-foot boarding keeps launch on E and offers the walkable cabin on F.
 func board_parked_interior() -> bool:
-	if aboard or pilot.flying or ui_open or jump_charge > 0 or session.connected: return false
+	if aboard or pilot.flying or ui_open or jump_charge > 0: return false
 	if not _near_ship_boarding() or not bool(state.ship_stats().get("walkable", false)): return false
 	var access := ship_display.get_node_or_null("BoardingAccess")
 	var entry: Variant = access.get_meta("entry_cell", null) if access != null else null
@@ -1493,7 +1493,7 @@ func interaction_hint() -> String:
 	var person: Node3D = _near_person()
 	if person != null: return "Talk to " + person.display_name
 	if _near_ship_boarding():
-		return "E: Launch ship  /  F: Walk aboard" if bool(state.ship_stats().get("walkable", false)) and not session.connected else "E: Launch ship"
+		return "E: Launch ship  /  F: Walk aboard" if bool(state.ship_stats().get("walkable", false)) else "E: Launch ship"
 	return "Approach your ship or a service officer"
 
 func _near_person() -> Node3D:
@@ -1738,7 +1738,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 					crew_focus_id = member.actor_id
 					open_menu("fleet")
 			elif not ui_open:
-				board_parked_interior()
+				if pilot.flying: enter_interior()
+				else: board_parked_interior()
 		KEY_B:
 			if pilot.flying or aboard: stop_cruise()
 		KEY_J: open_menu("navigation")
@@ -1940,7 +1941,8 @@ func _process(delta: float) -> void:
 	_network_clock += delta
 	if session != null and session.connected and _network_clock > 0.05:
 		_network_clock = 0
-		session.publish_pose(pilot.position, Vector3(pilot.camera.rotation.x, pilot.rotation.y, pilot.camera.rotation.z) if pilot.flying else pilot.rotation, flight_origin.to_save(), pilot.flying and not aboard)
+		var pose := _network_ship_pose()
+		session.publish_pose(pose.position, pose.rotation, flight_origin.to_save(), pose.flying)
 		_update_remote_positions()
 		if session.is_host: session.publish_npc_ships(_npc_snapshot())
 
@@ -2086,7 +2088,14 @@ func _pvp_clear_shot(attacker: int, target_id: int, direction: Vector3, distance
 	if point == null: return false
 	var excluded: Array[RID] = []
 	for id in [attacker, target_id]:
-		if id == multiplayer.get_unique_id(): excluded.append(pilot.get_rid())
+		if id == multiplayer.get_unique_id():
+			excluded.append(pilot.get_rid())
+			if aboard and is_instance_valid(coasting_hull):
+				excluded.append(coasting_hull.get_rid())
+				for body: StaticBody3D in _coasting_deck_bodies:
+					if is_instance_valid(body): excluded.append(body.get_rid())
+				for member: ShipCrew in ship_crew:
+					if is_instance_valid(member): excluded.append(member.get_rid())
 		if remote_ships.has(id):
 			var body: StaticBody3D = remote_ships[id].get_meta("hit_body") if remote_ships[id].has_meta("hit_body") else null
 			if is_instance_valid(body): excluded.append(body.get_rid())
@@ -2095,7 +2104,7 @@ func _pvp_clear_shot(attacker: int, target_id: int, direction: Vector3, distance
 	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 func _receive_pvp_damage(attacker: int, damage: float) -> void:
-	if not pilot.flying or aboard or not is_finite(damage) or damage <= 0: return
+	if not _own_ship_in_flight() or not is_finite(damage) or damage <= 0: return
 	_apply_ship_hit(damage, "Ship hit by %s." % str(session.presence.get(attacker, {}).get("name", "visitor")))
 
 func _apply_ship_hit(damage: float, message: String) -> void:
@@ -2682,6 +2691,9 @@ func fleet_boarding_issue(ship_id: String) -> String:
 
 
 func enter_interior(fleet_id: String = "", entry_cell: Variant = null) -> void:
+	if jump_charge > 0:
+		notify("Cancel the hyperdrive charge before leaving the helm.")
+		return
 	if not fleet_id.is_empty():
 		var issue := fleet_boarding_issue(fleet_id)
 		if not issue.is_empty():
@@ -2690,8 +2702,8 @@ func enter_interior(fleet_id: String = "", entry_cell: Variant = null) -> void:
 	if aboard:
 		close_menu()
 		return
-	if session.connected:
-		notify("Leave the current world visit before boarding the interior.")
+	if session.connected and not fleet_id.is_empty():
+		notify("Leave the current world visit before inspecting a fleet interior.")
 		return
 	if fleet_id.is_empty() and not bool(state.ship_stats().get("walkable", false)):
 		notify("Install a habitat and at least eight connected modules to support walkable decks.")
@@ -3276,5 +3288,19 @@ func _nearest_hostile_visitor(actor: ShipActor) -> Node3D:
 
 
 func _receive_npc_damage(damage: float) -> void:
-	if not session.connected or session.is_host or not pilot.flying or aboard or not is_finite(damage) or damage <= 0: return
+	if not session.connected or session.is_host or not _own_ship_in_flight() or not is_finite(damage) or damage <= 0: return
 	_apply_ship_hit(damage, "Ship hit by hostile patrol.")
+
+
+func _own_ship_in_flight() -> bool:
+	return (pilot.flying and not aboard) or (aboard and aboard_fleet_id.is_empty() and is_instance_valid(coasting_hull))
+
+
+func _network_ship_pose() -> Dictionary:
+	if aboard and aboard_fleet_id.is_empty():
+		if is_instance_valid(coasting_hull):
+			return {"position": coasting_hull.position, "rotation": coasting_hull.rotation, "flying": true}
+		return {"position": ship_display.position, "rotation": ship_display.rotation, "flying": false}
+	return {"position": pilot.position,
+		"rotation": Vector3(pilot.camera.rotation.x, pilot.rotation.y, pilot.camera.rotation.z) if pilot.flying else pilot.rotation,
+		"flying": pilot.flying and not aboard}

@@ -65,7 +65,8 @@ func _run() -> void:
 	if not _check(not game.board_parked_interior() and not game.aboard, "jump charge rejects boarding"): return
 	game.jump_charge = 0.0
 	game.session.connected = true
-	if not _check(not game.board_parked_interior() and not game.aboard, "connected session rejects boarding"): return
+	if not _check(game.board_parked_interior() and game.aboard, "connected session permits own parked interior"): return
+	game.exit_interior()
 	game.session.connected = false
 
 	var outside: Vector3 = game.pilot.position

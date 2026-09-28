@@ -14,7 +14,7 @@ signal npc_hit_received(faction: String, killed: bool, assault: bool)
 signal npc_damage_received(damage: float)
 
 # Increment when wire payloads or shared simulation contracts become incompatible.
-const PROTOCOL_VERSION: int = 4
+const PROTOCOL_VERSION: int = 5
 const JOIN_TIMEOUT: float = 20.0
 const DEFAULT_PORT: int = 27840
 const MAX_PLAYERS: int = 8

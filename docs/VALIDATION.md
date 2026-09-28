@@ -2465,3 +2465,18 @@ damage only to the struck visitor and shield-before-hull application. Graphics
 shutdown retains the known seven texture RID leak warning after the success
 marker. Dedicated scene/protocol checks ran natively; the Windows smoke is a
 separate general-gameplay check.
+
+
+### Own-ship interiors during multiplayer (2026-09-28)
+
+Protocol 5 loopback passes exterior coasting address/rotation/flight-state
+round-trip, NPC damage delivery, grounded revocation and travel reset. Join,
+NPC damage and visitor-fire protocol regressions pass. Native parked boarding,
+aboard combat and PvP gameplay regressions pass after enabling connected entry.
+
+The new aboard scene passes headless and hidden Gamescope: connected F entry,
+exterior pose independent of the passenger, origin rebasing, actual target-hull
+versus external-wall occlusion, NPC/PvP shield and hull damage, parked exclusion,
+helm momentum continuity and lethal rescue with a persisted wreck. This scene
+reported no Godot errors or texture cleanup warnings. It does not establish
+shared cabin occupancy or anti-cheat enforcement of helm ownership.

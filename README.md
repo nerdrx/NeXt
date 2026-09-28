@@ -23,7 +23,7 @@ For a hidden Linux validation of the Windows build, run `./tools/test-proton.sh`
 | Space / Ctrl | Jump or vertical flight |
 | Q / R | Roll left / right |
 | E | Talk to nearby officer, launch near ship, dock near station, or leave interior |
-| F | Walk aboard a nearby parked walkable ship; talk to crew while inside |
+| F | Walk aboard your ship in flight or near its parked access; talk to crew inside |
 | Left click | Fire |
 | Tab / Escape | Command deck / return to world |
 | J | Navigation |
@@ -60,7 +60,7 @@ The complete target is substantially larger than the implemented systems above:
 - Connected hosts can close new visitor admission or remove a guest from Settings. These per-session controls are validated over ENet; they are not persistent bans or property permissions.
 - Steam lobby adapter code and lifecycle tests are present, but native Steam build configuration and a production AppID are still required. Real invites/relay, shared authoritative combat/economy, property permissions and durable transfer transactions are **not verified or complete**. Mutually opted-in flight PvP now passes ENet loopback checks; it is not yet verified over live Steam. ENet visits are an explicitly limited development feature, not finished Steam co-op.
 - Freeform hull shaping, movable interior walls/furniture, physical trade routes, fleet wreck salvage and territorial sovereignty/negotiated diplomacy remain unimplemented. Current room and panel refits are bounded grid choices.
-- Cities are generated colony districts; they are not complete populated urban simulations. Ship interiors currently pause local threats after requiring a safe flight zone. They do not simulate unattended ships under attack.
+- Cities are generated colony districts; they are not complete populated urban simulations. Own-ship interiors remain vulnerable while coasting, including during visits. Shared cabin occupants and boarding another player's ship remain unimplemented.
 - Orbital flight rebases across sectors without the former 28 km snap-back. Existing celestial bodies remain compact and presentation-scale; newly crossed space has no generated content yet. This is not a physically scaled or fully streamed galaxy.
 - Local patrol positions reset when rebuilding a system; hull damage and orders persist. Disabled fleet ships are service-repaired, not yet salvageable wrecks.
 - Menus pause local AI in solo play. NPC combat and economies remain independent during visits. Opted-in ship hits are host-validated, while target health and rescue remain local. Orbital flight saves resume their sector location and momentum; manual planet/port saves preserve ground positions, while legacy colony saves resume at the station.
@@ -150,3 +150,9 @@ Ship interiors use automatic telescoping bulkheads between different room roles.
 Players and crew open them by approaching from either side; the doors stay open
 while occupied and close after departure. These doors do not yet seal pressure,
 support access permissions or respond to power failures.
+
+
+You can walk inside your own ship while hosting or visiting a friend over ENet.
+Other peers continue to see the exterior hull; NPC hits and consensual PvP hits
+still damage that hull while you are away from the helm. Fleet inspections and
+boarding another player's cabin are not yet supported during visits.

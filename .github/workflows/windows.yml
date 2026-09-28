@@ -73,6 +73,8 @@ jobs:
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_npc_fire_scene.gd -- --capture-only
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_npc_damage_protocol.gd -- --capture-only
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_npc_retaliation_scene.gd -- --capture-only
+          timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_aboard_network_protocol.gd -- --capture-only
+          timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_aboard_multiplayer.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_coasting_hull.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_coasting_navigation.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_flight_dynamics.gd

@@ -161,7 +161,7 @@ transport configuration remain separate unfinished requirements.
 
 ## Protocol compatibility and admission deadlines
 
-Join requests and welcomes carry `NetworkSession.PROTOCOL_VERSION` (currently 4).
+Join requests and welcomes carry `NetworkSession.PROTOCOL_VERSION` (currently 5).
 A missing or different version is rejected before world identity, presence or
 visitor profile adoption. Increment this version whenever wire formats or shared
 simulation contracts become incompatible; matching version numbers alone do not
@@ -238,7 +238,28 @@ rescue use the existing damage path. Stale travel epochs and non-finite or
 out-of-range damage are rejected.
 
 Damage and player rescue remain client-applied, not tamper-proof host-owned
-health. Visitors walking inside coasting ships currently publish a non-flying
-pose and are excluded; shared exterior damage while aboard needs further work.
+health. Visitors walking inside their own coasting ships publish the exterior hull pose
+and remain eligible for exterior damage, as described below.
 Police memory of visitor assaults belongs to the current patrol/session; full
 shared law enforcement and all-viewer weapon effects remain unfinished.
+
+
+## Walking aboard your ship during a visit
+
+Protocol 5 defines the presence `flying` flag as the active own ship's exterior
+flight state. Walking inside a coasting ship publishes its hull position and
+rotation, not the passenger's position. Origin rebasing retains that hull address.
+Own docked interiors publish the parked hull with `flying=false`. Fleet interior
+inspections remain unavailable during a session.
+
+F enters your walkable ship from flight or its nearby parked access; E returns
+to the helm or outside. Hyperdrive charging must be cancelled before entry.
+Exterior NPC damage and mutually agreed PvP damage continue while walking aboard;
+shields, hull destruction and insurance rescue follow the existing ship path.
+The host's occlusion check excludes its target hull's cabin geometry and crew,
+while external cover still blocks incoming fire.
+
+This does not let visitors board each other's ships or replicate cabin occupants.
+Manual ship fire is unavailable through the normal walking controls, but the
+protocol trusts client flight/shot reports and does not enforce a separate helm
+occupancy state against modified clients. Player health is still client-applied.
