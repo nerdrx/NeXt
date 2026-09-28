@@ -882,6 +882,7 @@ func _fleet() -> void:
 		var text := "%s / %s" % [member.name, "Available" if order.is_empty() else str(order.get("kind", "Order")).capitalize() + " / " + ("Paused" if order.get("paused", false) else str(order.get("phase", "Active")))]
 		if order.get("kind", "") == "trade":
 			var cost: int = int(order.get("purchase_cost", -1))
+			if order.has("search_start"): text += "\nAdaptive %s / addresses %d–%d" % [str(order.good), int(order.search_start), mini(int(order.search_start) + 31, GameState.SYSTEM_LIMIT-1)]
 			if order.has("delivery_station"): text += "\nSupplying " + str(s.stations[int(order.delivery_station)].name)
 			text += "\nCargo purchase cost: " + (("%d CR" % cost) if cost >= 0 else "unknown / carried or legacy cargo")
 		var label := InterfaceTheme.label(text, 16)
@@ -958,10 +959,15 @@ func _fleet() -> void:
 		_act(game.crew_operations().assign_trade_route.bind(str(crew_choice.get_selected_metadata()), str(ship_choice.get_selected_metadata()), str(goods_choice.get_selected_metadata()), int(destination_field.value), int(quantity.value)), "Trade route ordered."))
 	trade.disabled = s.fleet_ships.is_empty()
 	orders.add_child(trade)
+	var adaptive := InterfaceTheme.button("ADAPTIVE TRADE", func():
+		_act(game.crew_operations().assign_adaptive_trade.bind(str(crew_choice.get_selected_metadata()), str(ship_choice.get_selected_metadata()), str(goods_choice.get_selected_metadata()), int(destination_field.value), int(quantity.value)), "Adaptive trader assigned."))
+	adaptive.disabled = s.fleet_ships.is_empty()
+	orders.add_child(adaptive)
 	var patrol := InterfaceTheme.button("PATROL SYSTEM", func():
 		_act(game.crew_operations().assign_patrol.bind(str(crew_choice.get_selected_metadata()), str(ship_choice.get_selected_metadata()), int(destination_field.value)), "Patrol ordered."))
 	patrol.disabled = s.fleet_ships.is_empty()
 	orders.add_child(patrol)
+	_text("Adaptive trade keeps the selected commodity and scans 32 addresses before each empty outbound trip. It uses only reserved cargo capital, waits if no positive estimate fits, and still incurs normal wages. Cancel to release the remaining capital.", 14, InterfaceTheme.MUTED)
 	if not s.stations.is_empty():
 		var property_row := _row()
 		var station_choice := OptionButton.new()

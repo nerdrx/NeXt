@@ -48,6 +48,21 @@ func _run() -> void:
 	assign.pressed.emit()
 	var order: Dictionary = game.state.crew_orders[game.state.crew[0].id]
 	assert(order.good == quote.good and order.destination == quote.destination and order.quantity == quote.quantity, "actual assignment uses selected result")
+	assert(game.crew_operations().cancel(str(game.state.crew[0].id)).is_empty())
+	game.open_menu("fleet")
+	for node in game.deck.find_children("*", "SpinBox", true, false):
+		if node.prefix == "System ": node.value = 17
+		if node.prefix == "Cargo ": node.value = 20
+	for node in game.deck.find_children("*", "OptionButton", true, false):
+		for index in node.item_count:
+			if node.get_item_metadata(index) == "luxuries": node.select(index)
+	var adaptive: Button
+	for node in game.deck.find_children("*", "Button", true, false):
+		if node.text == "ADAPTIVE TRADE": adaptive = node
+	assert(adaptive != null and not adaptive.disabled)
+	adaptive.pressed.emit()
+	order = game.state.crew_orders[game.state.crew[0].id]
+	assert(order.search_start == 17 and order.good == "luxuries" and order.quantity == 20)
 	game.sound.shutdown()
 	game.session.leave()
 	game.queue_free()

@@ -199,6 +199,16 @@ func assign_trade_route(crew_id: String, ship_id: String, good: String, destinat
 	state.crew_orders[crew_id] = order
 	return ""
 
+# The commodity and capital stay fixed; only the sale destination adapts.
+func assign_adaptive_trade(crew_id: String, ship_id: String, good: String, first_destination: int, quantity: int = 5) -> String:
+	var choices := _route_candidates(ship_id, quantity, first_destination, good.to_lower())
+	if choices.is_empty(): return "No affordable positive-margin route for this commodity in the search range."
+	var issue := assign_trade_route(crew_id, ship_id, good, int(choices[0].destination), quantity)
+	if not issue.is_empty(): return issue
+	state.crew_orders[crew_id].search_start = first_destination
+	return ""
+
+
 func assign_station_supply(crew_id: String, ship_id: String, station_index: int, good: String, quantity: int = 5) -> String:
 	if station_index < 0 or station_index >= state.stations.size(): return "Owned station does not exist."
 	return assign_trade_route(crew_id, ship_id, good, int(state.stations[station_index].system), quantity, station_index)
@@ -314,18 +324,24 @@ func route_quote(good: String, destination: int, quantity: int, ship_id: String 
 
 # Read-only market discovery over a bounded address range, not a galaxy-wide optimum.
 func discover_trade_routes(ship_id: String, quantity: int, first_destination: int = 0) -> Array[Dictionary]:
+	return _route_candidates(ship_id, quantity, first_destination)
+
+
+func _route_candidates(ship_id: String, quantity: int, first_destination: int, good_filter: String = "", reserved_capital: int = -1) -> Array[Dictionary]:
 	var results: Array[Dictionary] = []
 	var vessel := _ship(ship_id)
-	if vessel.is_empty() or _ship_busy(ship_id) or float(vessel.hull) <= 0.0 or _cargo_total(vessel) > 0: return results
+	if vessel.is_empty() or (reserved_capital < 0 and _ship_busy(ship_id)) or float(vessel.hull) <= 0.0 or _cargo_total(vessel) > 0: return results
 	if quantity < 1 or quantity > mini(100, int(vessel.capacity) - _cargo_total(vessel)): return results
 	if first_destination < 0 or first_destination >= GameState.SYSTEM_LIMIT: return results
 	for destination in range(first_destination, mini(first_destination + 32, GameState.SYSTEM_LIMIT)):
 		if destination == int(vessel.system): continue
 		for good: String in GameState.GOODS:
+			if not good_filter.is_empty() and good != good_filter: continue
 			var quote := route_quote(good, destination, quantity, ship_id)
 			if not quote.ok or quote.estimated_operating_margin == null: continue
 			if int(quote.estimated_operating_margin) <= 0: continue
-			if int(quote.escrow) + int(quote.round_trip_wages) + int(quote.fuel_replacement_cost) > state.credits: continue
+			if reserved_capital >= 0 and int(quote.escrow) > reserved_capital: continue
+			if int(quote.escrow) + int(quote.round_trip_wages) + int(quote.fuel_replacement_cost) > state.credits + maxi(0, reserved_capital): continue
 			results.append(quote)
 	results.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		if a.estimated_operating_margin != b.estimated_operating_margin: return a.estimated_operating_margin > b.estimated_operating_margin
@@ -559,6 +575,10 @@ func _trade_leg(order: Dictionary) -> Dictionary:
 			ship.erase("flight")
 			ship.system = int(order.origin)
 			return {"kind": "trade", "status": "returned to origin", "crew_id": order.crew_id, "ship_id": ship.id, "system": ship.system}
+		if order.has("search_start") and _cargo_total(ship) == 0:
+			var choices := _route_candidates(str(ship.id), int(order.quantity), int(order.search_start), good, int(order.escrow))
+			if choices.is_empty(): return {"kind": "trade", "status": "waiting: no profitable route within reserved capital", "crew_id": order.crew_id, "ship_id": ship.id}
+			order.destination = int(choices[0].destination)
 		var quantity: int = mini(int(order.quantity), int(ship.capacity) - _cargo_total(ship))
 		quantity = mini(quantity, state.market_stock(good, int(order.origin)))
 		if quantity <= 0: return {"kind": "trade", "status": "waiting: origin stock unavailable", "crew_id": order.crew_id}

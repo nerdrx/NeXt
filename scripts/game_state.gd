@@ -966,6 +966,7 @@ func _load_v2(data: Dictionary) -> String:
 					for numeric: String in ["origin", "destination", "quantity", "escrow", "escrow_limit", "earned"]: order[numeric] = int(order[numeric])
 					if order.has("purchase_cost"): order.purchase_cost = int(order.purchase_cost)
 					if order.has("delivery_station"): order.delivery_station = int(order.delivery_station)
+					if order.has("search_start"): order.search_start = int(order.search_start)
 				"patrol":
 					order.system = int(order.system)
 					order.encounters = int(order.encounters)
@@ -1059,10 +1060,13 @@ func _valid_order(value: Variant, crew_id: String, ship_ids: Dictionary, station
 	var kind: String = str(value.get("kind", ""))
 	if kind == "trade":
 		var has_delivery_station: bool = value.has("delivery_station")
-		if value.size() != 13 + (1 if value.has("purchase_cost") else 0) + (1 if has_delivery_station else 0) or not value.has_all(["kind", "crew_id", "ship_id", "good", "origin", "destination", "quantity", "escrow", "escrow_limit", "progress", "phase", "earned", "paused"]): return false
+		var adaptive: bool = value.has("search_start")
+		if adaptive and (has_delivery_station or not _is_int(value.search_start) or int(value.search_start) < 0 or int(value.search_start) >= SYSTEM_LIMIT): return false
+		if value.size() != 13 + (1 if value.has("purchase_cost") else 0) + (1 if has_delivery_station else 0) + (1 if adaptive else 0) or not value.has_all(["kind", "crew_id", "ship_id", "good", "origin", "destination", "quantity", "escrow", "escrow_limit", "progress", "phase", "earned", "paused"]): return false
 		if value.has("purchase_cost") and (not GOODS.has(value.good) or not _is_int(value.purchase_cost) or int(value.purchase_cost) < -1 or int(value.purchase_cost) > 100 * ceili(float(GOODS[value.good]) * 1.45 * MAX_SCARCITY_MULTIPLIER)): return false
 		var valid_trade: bool = ship_ids.has(value.ship_id) and GOODS.has(value.good) and _is_int(value.origin) and _is_int(value.destination) and int(value.origin) >= 0 and int(value.origin) < SYSTEM_LIMIT and int(value.destination) >= 0 and int(value.destination) < SYSTEM_LIMIT and _is_int(value.quantity) and int(value.quantity) > 0 and int(value.quantity) <= 100 and _is_int(value.escrow) and int(value.escrow) >= 0 and _is_int(value.escrow_limit) and int(value.escrow_limit) >= int(value.escrow) and int(value.escrow_limit) <= int(value.quantity) * ceili(float(GOODS[value.good]) * 1.45 * MAX_SCARCITY_MULTIPLIER) and value.phase in ["outbound", "inbound"] and _is_int(value.earned)
 		if not valid_trade: return false
+		if adaptive and (int(value.destination) < int(value.search_start) or int(value.destination) >= mini(int(value.search_start)+32, SYSTEM_LIMIT)): return false
 		if not has_delivery_station: return int(value.origin) != int(value.destination)
 		if not _is_int(value.delivery_station) or int(value.delivery_station) < 0 or int(value.delivery_station) >= stations_to_validate.size(): return false
 		return int(value.destination) == int(stations_to_validate[int(value.delivery_station)].system)
