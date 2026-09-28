@@ -2500,3 +2500,8 @@ event, wall and miss endpoints, correctly rebased orange beam geometry, distant
 culling, unchanged health and tween cleanup. The GPU run retains the known seven
 texture RID cleanup warning. Retaliation and aboard multiplayer scene regressions
 pass. The visual signal intentionally carries no gameplay damage.
+
+Clean Windows export and hidden-Gamescope Proton smoke pass at `25c015d`:
+`build/windows-validation-dd5c267/build/proton-smoke.Ycdb3k`, wrapper exit 0,
+`NEXT_INTEGRATION_OK` and no logged script errors. Dedicated beam assertions ran
+natively and in hidden Gamescope; packaged smoke covers general gameplay.
