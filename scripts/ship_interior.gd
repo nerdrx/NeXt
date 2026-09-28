@@ -341,8 +341,16 @@ func _box(at: Vector3, size: Vector3, color: Color, collide: bool = false, emiss
 		instance.material_override = material
 	else:
 		var panel_material := ShaderMaterial.new()
-		panel_material.shader = preload("res://shaders/interior_panel.gdshader")
+		panel_material.shader = preload("res://shaders/fleet_surface.gdshader")
 		panel_material.set_shader_parameter("paint", color)
+		panel_material.set_shader_parameter("base_roughness", 0.57)
+		panel_material.set_shader_parameter("metalness", 0.08)
+		panel_material.set_shader_parameter("coating", 0.12)
+		# Mesh dimensions are metres; keep joints aligned in the moving cabin's frame.
+		panel_material.set_shader_parameter("panel_origin", at)
+		panel_material.set_shader_parameter("panel_pitch", Vector2(0.7, 1.225))
+		var broad_faces := int(size.x > 0.5) + int(size.y > 0.5) + int(size.z > 0.5)
+		panel_material.set_shader_parameter("panel_strength", 1.0 if broad_faces >= 2 else 0.0)
 		instance.material_override = panel_material
 	add_child(instance)
 	instance.position = at

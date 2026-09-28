@@ -125,3 +125,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Replace fleet equipment variants (weapons, cargo, habitats, shields, radiators and extra reactors) with coherent authored fittings. Preserve module coordinates, clear interior passages and loadout-driven exterior/thermal behavior.
 
 - [ ] Inspect custom fleet copies with asymmetric and multi-deck designs. They reuse modular player visuals and fittings; authored replacements must preserve the saved modules, interior walkways and generated collision.
+
+- [ ] Replace ship cabin procedural panel finish with authored material masks and purposeful seam placement. `ShipInterior._box` now shares `shaders/fleet_surface.gdshader`: metre-scaled joints, shallow relief, filtered grain and low-metallic painted surfaces. Keep cabin-local alignment during turns/rebasing; glass and emissive fixtures retain separate materials. The regular grid remains placeholder art.

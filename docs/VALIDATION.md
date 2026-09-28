@@ -1180,3 +1180,9 @@ Process inspection after the success marker showed NeXt and Proton had exited, w
 Clean checkout `2150a39fba14babb1972aa096aa99c6e985035fd` passed both Windows release runs in hidden Gamescope: crew evidence `build/proton-smoke.GgatTL` and normal-entry evidence `build/proton-smoke.L2WnnD`. Both reached their expected gameplay markers, with Proton exit 0, cleanup statuses 0/0 and wrapper exit 0. Neither Godot log contains script/errors; the SDR-white-level warning remains. This resolves the preceding test-wrapper timeout, not a general claim about every shutdown path.
 
 Both runs exported byte-identical executable/PCK pairs. The local development ZIP was refreshed with that source and updated BUILD_INFO; member SHA-256 and ZIP CRC checks passed. Archive size: 40,194,183 bytes; SHA-256: `a3b4775e904e1b42afb971383c9edc588669bbe008013c7986eaccd9ca2f9cca`. Steam interoperability, Windows-host behavior and the performance target remain unverified.
+
+## Cabin surface finish — 2026-09-28
+
+Opaque ship interior boxes now reuse the existing fleet surface shader rather than a separate UV-noise shader. Panel coordinates use mesh metres plus cabin-local position, with 0.7 by 1.225 m pitch, shallow joint relief and derivative-filtered fine grain. Broad surfaces receive joints; small fittings retain plain paint. Lower metallic response and restrained coating represent painted surfaces. Glass, emissive strips, geometry and collision remain unchanged. The unused interior shader was removed.
+
+The actual-main crew test passed in hidden Gamescope; its capture was inspected for the new joints and highlights. Cabin movement, turning, menu pause and exit checks passed, as did the headless interior-glass regression. No shader/script errors appeared; the existing seven-texture shutdown warning remains. The regular tile layout and primitive crew shapes are still placeholders, below the requested visual target.
