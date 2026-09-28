@@ -23,6 +23,10 @@ var fire_interval: float = 0.16
 var autopilot_target: Vector3 = Vector3.ZERO
 var autopilot_active: bool = false
 var propulsion_limiter: Callable
+var atmospheric_density_source: Callable
+var drag_mass_kg: float = 40000.0
+var drag_dimensions := Vector3.ONE
+var aerodynamic_g: float = 0.0
 
 var _pitch: float = 0.0
 var _fire_cooldown: float = 0.0
@@ -179,6 +183,10 @@ func _fly(delta: float) -> void:
 			autopilot_blocked.emit()
 	_flight_velocity = _limit_propulsion(incoming_thrust, commanded)
 	thrust_g = FlightDynamics.thrust_load(incoming_thrust, _flight_velocity, delta)
+	var before_drag := _flight_velocity
+	var density: float = atmospheric_density_source.call(global_position) if atmospheric_density_source.is_valid() else 0.0
+	_flight_velocity = AtmosphericFlight.drag_velocity(_flight_velocity, density, drag_dimensions, camera.global_basis, drag_mass_kg, delta)
+	aerodynamic_g = FlightDynamics.thrust_load(before_drag, _flight_velocity, delta)
 	if provisional_arrival and _flight_velocity.is_zero_approx():
 		autopilot_active = false
 		autopilot_arrived.emit()

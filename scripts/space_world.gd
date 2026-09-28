@@ -9,6 +9,7 @@ const STAR_SHADER: Shader = preload("res://shaders/star_surface.gdshader")
 
 const PRIMARY_POSITION := Vector3(-1700, 1150, -4100)
 var stellar_profile: Dictionary = {}
+var _surface_mode := false
 
 var data: Dictionary = {}
 var planets: Array[Dictionary] = []
@@ -25,6 +26,7 @@ var _material_cache: Dictionary = {}
 var _planet_materials: Array[ShaderMaterial] = []
 
 func build(system_index: int) -> void:
+	_surface_mode = false
 	spawn_position = Vector3(0, 2, 20)
 	launch_position = Vector3(0, 12, -110)
 	for child in get_children():
@@ -53,6 +55,17 @@ func build(system_index: int) -> void:
 	_build_star()
 	_build_planets()
 	_build_distant_stars()
+
+func atmospheric_density(global_point: Vector3) -> float:
+	if _surface_mode or not is_visible_in_tree() or not global_point.is_finite(): return 0.0
+	var point := to_local(global_point)
+	var density := 0.0
+	for body: Dictionary in planets:
+		if not bool(body.atmosphere): continue
+		var altitude := point.distance_to(Vector3(body.position)) - float(body.visual_radius)
+		density = maxf(density, AtmosphericFlight.density(altitude))
+	return density
+
 
 func stellar_heat(global_point: Vector3, orientation: Basis, dimensions: Vector3) -> float:
 	if not is_visible_in_tree() or not global_point.is_finite(): return 0.0
@@ -426,6 +439,7 @@ func _build_distant_stars() -> void:
 	add_child(stars)
 
 func build_surface(planet_index: int) -> void:
+	_surface_mode = true
 	for child in get_children():
 		child.queue_free()
 	if planets.is_empty():

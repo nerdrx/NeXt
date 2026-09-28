@@ -31,6 +31,8 @@ var search_seconds_remaining: float = 0.0
 var travel_active: bool = false
 var travel_target := Vector3.ZERO
 var propulsion_limiter: Callable
+var atmospheric_density_source: Callable
+var aerodynamic_g: float = 0.0
 var stellar_heat_source: Callable
 var stellar_heat_w: float = 0.0
 var thermal_retreat: bool = false
@@ -179,6 +181,10 @@ func _physics_process(delta: float) -> void:
 		var forward: Vector3 = velocity.normalized() if velocity.length_squared() > 0.25 else offset.normalized()
 		var up: Vector3 = Vector3.FORWARD if absf(forward.dot(Vector3.UP)) > 0.98 else Vector3.UP
 		look_at(global_position + forward, up)
+	var before_drag := velocity
+	var density: float = atmospheric_density_source.call(global_position) if atmospheric_density_source.is_valid() else 0.0
+	velocity = AtmosphericFlight.drag_velocity(velocity, density, _thermal_dimensions, global_basis, mass, delta)
+	aerodynamic_g = FlightDynamics.thrust_load(before_drag, velocity, delta)
 	move_and_slide()
 	_desired_velocity = velocity
 	_visual.set_thrust(clampf(actual_dv.length() / maxf(acceleration * delta, 0.000001), 0.0, 1.0))

@@ -25,6 +25,11 @@ func _track_damaged(_actor: ShipActor) -> void:
 	damaged_count += 1
 
 
+func _wait_physics_steps(count: int = 2) -> void:
+	for _step in range(count):
+		await physics_frame
+
+
 func _run() -> void:
 	var world := Node3D.new()
 	root.add_child(world)
@@ -54,18 +59,18 @@ func _run() -> void:
 	attacker.target = target_ship
 	attacker.fired.connect(_track_fired)
 	world.add_child(attacker)
-	await create_timer(0.1).timeout
+	await _wait_physics_steps()
 	assert(fired_count == 1, "hostile ship can fire on an active ship target outside origin safe zone")
 	assert(last_fire_direction.dot((target_ship.global_position - last_fire_origin).normalized()) > 0.999, "ship fire aims toward target")
 	attacker._attack_cooldown = 0.0
 	target_ship.active = false
-	await create_timer(0.1).timeout
+	await _wait_physics_steps()
 	assert(fired_count == 1, "inactive target is not attacked")
 	target_ship.active = true
 	target_ship.destroyed.connect(_track_destroyed)
 	target_ship.take_damage(1000.0)
 	attacker._attack_cooldown = 0.0
-	await create_timer(0.1).timeout
+	await _wait_physics_steps()
 	assert(destroyed_count == 3 and fired_count == 1, "destroyed target is not attacked")
 	var hull_target := CoastingHull.new()
 	hull_target.position = Vector3(1000, 330, 0)
@@ -76,13 +81,13 @@ func _run() -> void:
 	hull_attacker.target = hull_target
 	hull_attacker.fired.connect(_track_fired)
 	world.add_child(hull_attacker)
-	await create_timer(0.1).timeout
+	await _wait_physics_steps()
 	assert(fired_count == 2, "hostile ship fires on an active CoastingHull target")
 	assert(last_fire_direction.dot((hull_target.aim_point() - last_fire_origin).normalized()) > 0.9999, "enemy aims at occupied module rather than empty hull center")
 	assert(hull_target.aim_point().distance_to(hull_target.global_position) > 5.0)
 	hull_target.queue_free()
 	hull_attacker._attack_cooldown = 0.0
-	await create_timer(0.1).timeout
+	await _wait_physics_steps()
 	assert(fired_count == 2, "queued-for-deletion CoastingHull target is not attacked")
 	var pilot_target := Pilot.new()
 	pilot_target.position = Vector3(500, 300, 0)
@@ -94,7 +99,7 @@ func _run() -> void:
 	pilot_attacker.target = pilot_target
 	pilot_attacker.fired.connect(_track_fired)
 	world.add_child(pilot_attacker)
-	await create_timer(0.1).timeout
+	await _wait_physics_steps()
 	assert(fired_count == 3, "flying Pilot target behavior remains active")
 	var damage_probe := ShipActor.new()
 	damage_probe.hp = 50.0

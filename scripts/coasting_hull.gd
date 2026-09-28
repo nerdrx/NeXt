@@ -5,6 +5,10 @@ var braking: bool = false
 var thrust_g: float = 0.0
 var acceleration_mps2: float = FlightDynamics.STANDARD_GRAVITY * FlightDynamics.CRUISE_G
 var propulsion_limiter: Callable
+var atmospheric_density_source: Callable
+var drag_mass_kg: float = 40000.0
+var drag_dimensions := Vector3.ONE
+var aerodynamic_g: float = 0.0
 var _module_shapes: Array[CollisionShape3D] = []
 var _navigation_radius := 0.0
 
@@ -59,6 +63,7 @@ func aim_point() -> Vector3:
 
 func navigate(delta: float, target: Vector3, speed: float) -> Dictionary:
 	thrust_g = 0.0
+	aerodynamic_g = 0.0
 	var result := {"displacement": Vector3.ZERO, "impact_speed": 0.0, "arrived": false, "blocked": false}
 	if not is_finite(delta) or delta < 0.0 or delta > 1.0 or not target.is_finite() or not is_finite(speed) or speed < 0.0 or not velocity.is_finite():
 		return result
@@ -137,6 +142,7 @@ func _rotation_clear() -> bool:
 
 func advance(delta: float) -> Dictionary:
 	thrust_g = 0.0
+	aerodynamic_g = 0.0
 	var result := {"displacement": Vector3.ZERO, "impact_speed": 0.0}
 	if not is_finite(delta) or delta < 0.0 or delta > 1.0 or not velocity.is_finite():
 		return result
@@ -148,6 +154,10 @@ func advance(delta: float) -> Dictionary:
 		velocity = _limit_propulsion(before, commanded)
 		thrust_g = FlightDynamics.thrust_load(before, velocity, delta)
 		if velocity.is_zero_approx(): braking = false
+	var before_drag := velocity
+	var density: float = atmospheric_density_source.call(global_position) if atmospheric_density_source.is_valid() else 0.0
+	velocity = AtmosphericFlight.drag_velocity(velocity, density, drag_dimensions, global_basis, drag_mass_kg, delta)
+	aerodynamic_g = FlightDynamics.thrust_load(before_drag, velocity, delta)
 	var incoming := velocity
 	var start := global_position
 	var collision := move_and_collide(incoming * delta)

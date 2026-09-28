@@ -166,3 +166,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Refine host session controls and peer-list presentation. Preserve clear admission state, host-only removal actions, departure refresh and the distinction between removing a visitor and preventing rejoining.
 
 - [ ] Replace shared procedural equipment finishes with authored material maps. Ship covers now share the filtered hull finish shader; canopy trim and radiator fins use exposed-metal response, while painted covers remain dielectric. Preserve exhaust emission and transparent glazing. This material pass does not resolve blocky hull silhouettes or establish reference-quality art.
+
+- [ ] Add atmospheric flight audio and restrained airflow cues. The flight HUD now reports AIR DRAG in g separately from thrust. Preserve readability and distinguish real aerodynamic heating (not implemented) from purely cosmetic re-entry effects.

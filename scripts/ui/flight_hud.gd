@@ -69,9 +69,12 @@ func _draw() -> void:
 	else:
 		_draw_meter(Vector2(35, h - 98), "VESSEL", float(inspected.hull) / 100.0, InterfaceTheme.CYAN)
 		_word(Vector2(35, h - 155), "FLEET INTERIOR / " + str(inspected.name), 13, InterfaceTheme.MUTED)
-	_word(Vector2(w - 250, h - 105), "%03d m/s" % int(pilot.velocity.length()), 30, InterfaceTheme.CYAN)
+	var displayed_speed: float = game.coasting_hull.velocity.length() if game.aboard and is_instance_valid(game.coasting_hull) else pilot.velocity.length()
+	_word(Vector2(w - 250, h - 105), "%03d m/s" % int(displayed_speed), 30, InterfaceTheme.CYAN)
 	if pilot.flying or (game.aboard and is_instance_valid(game.coasting_hull)):
 		var thrust_g: float = pilot.thrust_g if pilot.flying else game.coasting_hull.thrust_g
+		var aerodynamic_g: float = pilot.aerodynamic_g if pilot.flying else game.coasting_hull.aerodynamic_g
+		if aerodynamic_g >= 0.01: _word(Vector2(w - 250, h - 152), "AIR DRAG %.2f g" % aerodynamic_g, 14, InterfaceTheme.GOLD)
 		_word(Vector2(w - 250, h - 131), "THRUST %.1f g" % thrust_g, 14, InterfaceTheme.GOLD)
 	_word(Vector2(w - 250, h - 78), "CARGO  %d / %d" % [state.cargo_total() if inspected.is_empty() else state._fleet_cargo_total(inspected), int(stats.cargo_capacity) if inspected.is_empty() else int(inspected.capacity)], 14, InterfaceTheme.MUTED)
 	_word(Vector2(w - 250, h - 54), ("BRAKING" if pilot.braking else ("CRUISE AUTOPILOT" if pilot.autopilot_active else ("FLIGHT ASSIST  ON" if pilot.flight_assist_enabled else "INERTIAL FLIGHT"))) if pilot.flying else "MAG BOOTS  ACTIVE", 13, InterfaceTheme.MUTED)

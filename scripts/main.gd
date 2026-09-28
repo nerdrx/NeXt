@@ -654,6 +654,7 @@ func _spawn_actors() -> void:
 			if id in eliminated: continue
 			var actor := ShipActor.new()
 			actor.stellar_heat_source = world.stellar_heat
+			actor.atmospheric_density_source = world.atmospheric_density
 			actor.actor_id = id
 			actor.faction = "pirate"
 			actor.position = Vector3(-300 + i * 170, 90 + i * 35, -950 - i * 300)
@@ -665,6 +666,7 @@ func _spawn_actors() -> void:
 		for i in range(2):
 			var actor := ShipActor.new()
 			actor.stellar_heat_source = world.stellar_heat
+			actor.atmospheric_density_source = world.atmospheric_density
 			actor.actor_id = "security_%d" % i
 			if actor.actor_id in eliminated:
 				actor.free()
@@ -840,6 +842,7 @@ func _sync_fleet_actors() -> Array[String]:
 			if not fleet_actors.has(id):
 				var actor := ShipActor.new()
 				actor.stellar_heat_source = world.stellar_heat
+				actor.atmospheric_density_source = world.atmospheric_density
 				actor.actor_id = id
 				actor.faction = "player_fleet"
 				actor.hostile = false if is_trader else true
@@ -1054,6 +1057,8 @@ func apply_ship_stats() -> void:
 	_thermal_dimensions = Vector3(high - low) * ShipVisual.CELL_SIZE + ShipBlueprint.collision_size(cells)
 	pilot.set_suit_finish(CrewAppearance.SUITS[int(state.commander_appearance.suit)], CrewAppearance.ARMORS[int(state.commander_appearance.armor)])
 	pilot.propulsion_limiter = _consume_ship_propulsion
+	pilot.atmospheric_density_source = world.atmospheric_density
+	pilot.drag_dimensions = _thermal_dimensions
 	pilot.configure_ship_collision(state.ship_modules)
 	_refresh_propulsion_limits()
 	state.hull = minf(state.hull, float(_last_stats.max_hull))
@@ -1067,6 +1072,10 @@ func _refresh_propulsion_limits() -> void:
 	if is_instance_valid(ship_display): ship_display.set_systems_online(state.systems_online)
 	if session != null: session.set_systems_online(state.systems_online)
 	_last_stats = state.ship_stats()
+	pilot.drag_mass_kg = float(_last_stats.loaded_mass_kg)
+	if is_instance_valid(coasting_hull):
+		coasting_hull.drag_mass_kg = pilot.drag_mass_kg
+		coasting_hull.drag_dimensions = _thermal_dimensions
 	pilot.flight_speed = float(_last_stats.speed)
 	pilot.acceleration_mps2 = float(_last_stats.acceleration_mps2)
 	pilot.boost_acceleration_mps2 = float(_last_stats.boost_acceleration_mps2)
@@ -2503,6 +2512,9 @@ func enter_interior(fleet_id: String = "") -> void:
 		coasting_hull.braking = pilot.braking
 		coasting_hull.acceleration_mps2 = pilot.acceleration_mps2
 		coasting_hull.propulsion_limiter = _consume_ship_propulsion
+		coasting_hull.atmospheric_density_source = world.atmospheric_density
+		coasting_hull.drag_mass_kg = pilot.drag_mass_kg
+		coasting_hull.drag_dimensions = _thermal_dimensions
 		_coasting_deck_bodies.clear()
 		for body: Node in interior.find_children("*", "StaticBody3D", true, false):
 			_coasting_deck_bodies.append(body)
