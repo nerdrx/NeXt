@@ -145,3 +145,8 @@ During criminal pursuit, **Allegiances & Law → Settle With Nearby Patrol** off
 Parked hull families have a marked crew-access hatch and a walkable ramp. F still
 enters the room adjoining the exterior hatch using the existing transition; opening airlocks, seamless boarding
 and terrain-adjusting access gear remain unfinished.
+
+Ship interiors use automatic telescoping bulkheads between different room roles.
+Players and crew open them by approaching from either side; the doors stay open
+while occupied and close after departure. These doors do not yet seal pressure,
+support access permissions or respond to power failures.

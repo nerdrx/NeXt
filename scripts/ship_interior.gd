@@ -50,6 +50,20 @@ func build(blueprint: Array[Dictionary], layout: Dictionary = {}) -> void:
 					_box(center + offset + side * direction * 1.12 + Vector3(0, WALL_HEIGHT * 0.5, 0), Vector3(0.18, WALL_HEIGHT, 0.38) if axis.x != 0 else Vector3(0.38, WALL_HEIGHT, 0.18), Color("4a606d"), true)
 				_box(center + offset + Vector3(0, 2.3, 0), Vector3(0.2, 0.3, 2.8) if axis.x != 0 else Vector3(2.8, 0.3, 0.2), Color("4a606d"), true)
 				_doorway_sign(cell, neighbor)
+				# One bulkhead per shared boundary between unlike room roles.
+				if axis.x > 0 or axis.z > 0:
+					var neighbor_kind := "hull"
+					for other: Dictionary in modules:
+						if Vector3i(other.x, other.y, other.z) == neighbor:
+							neighbor_kind = str(other.kind)
+							break
+					var neighbor_room: String = str(_layout.rooms.get(ShipLayout.cell_key(neighbor), ShipLayout.default_room(neighbor_kind)))
+					if room_type != neighbor_room:
+						var door := ShipBulkhead.new()
+						door.name = "Bulkhead"
+						door.position = center + offset
+						if axis.x != 0: door.rotation.y = PI * 0.5
+						add_child(door, true)
 		_equipment(center, kind, room_type)
 		_room_furnishing(center, room_type)
 		var lamp := OmniLight3D.new()

@@ -180,3 +180,7 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Replace parked family crew-access hatch, ramp and handrails with authored
   deployable access equipment; preserve walking collision and add opening/closing
   animation when exterior and interior doors share a continuous passage.
+
+- [ ] Replace interior telescoping bulkhead panels with authored door leaves,
+  recessed handles and actuator audio. Preserve the open capsule clearance,
+  proximity hold and moving-hull collision behavior.
