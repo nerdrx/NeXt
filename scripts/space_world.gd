@@ -58,6 +58,14 @@ func build(system_index: int) -> void:
 	_build_planets()
 	_build_distant_stars()
 
+func primary_radius() -> float:
+	return 245.0 if str(stellar_profile.get("kind", "")) == "Black Hole" else 250.0
+
+func primary_contact(global_point: Vector3) -> bool:
+	if _surface_mode or stellar_profile.is_empty() or not is_visible_in_tree() or not global_point.is_finite(): return false
+	return to_local(global_point).distance_squared_to(PRIMARY_POSITION) <= pow(primary_radius(), 2.0)
+
+
 func gravity_acceleration(global_point: Vector3) -> Vector3:
 	if _surface_mode or not is_visible_in_tree() or not global_point.is_finite(): return Vector3.ZERO
 	var point := to_local(global_point)
@@ -311,7 +319,7 @@ func _build_star() -> void:
 	light.basis = Basis.looking_at(-PRIMARY_POSITION, Vector3.UP)
 	add_child(light)
 	if star_type == "Black Hole":
-		_sphere("Black hole event horizon", 245, PRIMARY_POSITION, Color("010208"), 0.0, 0.95)
+		_sphere("Black hole event horizon", primary_radius(), PRIMARY_POSITION, Color("010208"), 0.0, 0.95)
 		var disk := TorusMesh.new()
 		disk.inner_radius = 270
 		disk.outer_radius = 338
@@ -329,7 +337,7 @@ func _build_star() -> void:
 		star_material.shader = STAR_SHADER
 		star_material.set_shader_parameter("star_color", star_color)
 		star_material.set_shader_parameter("star_kind", float(Universe.STAR_TYPES.find(display_kind)))
-		var primary := _sphere("System primary", 250, PRIMARY_POSITION, star_color, 2.3, 0.15, star_material)
+		var primary := _sphere("System primary", primary_radius(), PRIMARY_POSITION, star_color, 2.3, 0.15, star_material)
 		(primary.mesh as SphereMesh).radial_segments = 128
 		(primary.mesh as SphereMesh).rings = 64
 		var corona := MeshInstance3D.new()

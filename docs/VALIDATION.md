@@ -2195,3 +2195,13 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `0a13586`:
 `build/windows-validation-dd5c267/build/proton-smoke.pcFOwu`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Dedicated field and live free-fall assertions ran natively;
 the packaged smoke checks general gameplay, not relativistic accuracy or FPS.
+
+### Primary core contact (2026-09-28)
+
+`test_primary_contact.gd` checks shared black-hole bounds, origin rebasing,
+invalid/hidden/surface guards, real cruise target rejection and detouring,
+shield bypass, NPC debris without free kill credit, player rescue and save
+persistence, and coasting hull contact while aboard. The fixture is in CI.
+Native and hidden-Gamescope execution pass without script/engine errors.
+Stellar gravity, stellar heat, thermal overflow and survey-cruise regressions
+pass, together with headless editor import.

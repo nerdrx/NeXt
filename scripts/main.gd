@@ -327,6 +327,8 @@ func _plan_cruise_leg() -> bool:
 	cruise_waypoints.clear()
 	if cruise_address == null: return false
 	var obstacles: Array[Dictionary] = []
+	if world.is_visible_in_tree() and not world._surface_mode and not world.stellar_profile.is_empty():
+		obstacles.append({"center": to_local(world.to_global(SpaceWorld.PRIMARY_POSITION)), "radius": world.primary_radius() + pilot.hull_radius})
 	for index in world.planets.size():
 		var center: Variant = _planet_center(index)
 		if center != null: obstacles.append({"center": center, "radius": float(world.planets[index].visual_radius) + pilot.hull_radius})
@@ -675,6 +677,7 @@ func _spawn_actors() -> void:
 			if id in eliminated: continue
 			var actor := ShipActor.new()
 			actor.stellar_heat_source = world.stellar_heat
+			actor.primary_contact_source = world.primary_contact
 			actor.atmospheric_density_source = world.atmospheric_density
 			actor.gravity_source = world.gravity_acceleration
 			actor.actor_id = id
@@ -688,6 +691,7 @@ func _spawn_actors() -> void:
 		for i in range(2):
 			var actor := ShipActor.new()
 			actor.stellar_heat_source = world.stellar_heat
+			actor.primary_contact_source = world.primary_contact
 			actor.atmospheric_density_source = world.atmospheric_density
 			actor.gravity_source = world.gravity_acceleration
 			actor.actor_id = "security_%d" % i
@@ -889,6 +893,7 @@ func _sync_fleet_actors() -> Array[String]:
 			if not fleet_actors.has(id):
 				var actor := ShipActor.new()
 				actor.stellar_heat_source = world.stellar_heat
+				actor.primary_contact_source = world.primary_contact
 				actor.atmospheric_density_source = world.atmospheric_density
 				actor.gravity_source = world.gravity_acceleration
 				actor.actor_id = id
@@ -1777,6 +1782,15 @@ func _absorb_aerodynamic_heat(energy_j: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	var primary_contact := false
+	if aboard and is_instance_valid(coasting_hull):
+		primary_contact = world.primary_contact(coasting_hull.global_position)
+	elif pilot.flying:
+		primary_contact = world.primary_contact(pilot.global_position)
+	if primary_contact:
+		state.hull = 0.0
+		_rescue()
+		return
 	stellar_heat_w = _sample_stellar_heat()
 	var hull_before := state.hull
 	state.cool_drive(delta, stellar_heat_w)

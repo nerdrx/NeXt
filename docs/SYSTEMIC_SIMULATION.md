@@ -490,3 +490,22 @@ gravity falls linearly to zero rather than becoming singular. This is an explici
 numerical approximation, not event-horizon behavior. No relativistic effects,
 tidal damage, true-scale moving geometry or multi-body orbital integration are
 implemented by this change. Separate legacy surface scenes omit this field.
+
+## Primary core contact
+
+A ship whose center enters the visible primary core is now destroyed through
+the existing hull-loss path, bypassing shields. The shared visual/contact radius
+is 250 local metres for stars and 245 for black holes. Player helm flight and
+coasting hulls while walking aboard use the same check; NPC and local fleet
+actors bind it at spawn. Player losses invoke existing rescue/insurance and
+wreck persistence. Unassisted NPC losses grant no commander kill credit.
+Autopilot treats the primary as a spherical obstacle, rejecting destinations
+inside its clearance and planning detours around crossings.
+
+This is a sampled gameplay exclusion volume, not stellar-surface material
+physics or a relativistic event horizon. It uses the ship center, not every hull
+panel, and does not provide continuous collision detection for extreme speeds.
+The existing debris/rescue rules remain abstractions even for a black-hole loss;
+no claim is made that wrecks or rescue could physically escape a real horizon.
+Hidden/legacy surface scenes disable the contact field. Remote strategic ships
+are not spatially integrated through this hazard.

@@ -38,6 +38,7 @@ var gravity_source: Callable
 var atmospheric_density_source: Callable
 var aerodynamic_g: float = 0.0
 var aerodynamic_heat_w: float = 0.0
+var primary_contact_source: Callable
 var stellar_heat_source: Callable
 var stellar_heat_w: float = 0.0
 var thermal_retreat: bool = false
@@ -123,6 +124,9 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	if not active or not is_finite(delta) or delta <= 0.0 or delta > 1.0:
+		return
+	if primary_contact_source.is_valid() and primary_contact_source.call(global_position):
+		take_damage(maxf(1.0, max_hull), true)
 		return
 	# Fleet shield time is owned by hosted crew simulation, including remote vessels.
 	if not has_meta("fleet_ship_id"): _tick_shields(delta)
