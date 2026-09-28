@@ -2626,12 +2626,13 @@ func rebuild_wrecks() -> void:
 		var position: Variant = _wreck_position(wreck)
 		if position == null: continue
 		var cargo_only: bool = wreck.modules.is_empty() or bool(wreck.get("salvaged", false))
+		var geometry := ShipRecovery.wreck_geometry(wreck)
 		if cargo_only:
 			var cache := Node3D.new()
 			wreck_root.add_child(cache)
 			cache.position = position
-			cache.rotation = Vector3(0.2, 0.4, -0.15)
-			_add_wreck_collision(cache, Vector3.ZERO, Vector3(3.8, 2.4, 5.0))
+			cache.rotation = geometry.rotation
+			_add_wreck_collision(cache, geometry.boxes[0].center, geometry.boxes[0].size)
 			_box(cache, Vector3.ZERO, Vector3(3.6, 2.2, 5.0), Color("33434c"))
 			for z: float in [-1.7, 1.7]:
 				_box(cache, Vector3(0, 0, z), Vector3(3.8, 2.4, 0.18), Color("bb914e"))
@@ -2641,13 +2642,11 @@ func rebuild_wrecks() -> void:
 			wreck_root.add_child(hull)
 			hull.build(wreck.modules, "wreck")
 			hull.set_systems_online(false)
-			var cells := _ship_cells(wreck.modules)
-			var center := ShipBlueprint.center(cells)
-			for cell: Vector3i in cells:
-				_add_wreck_collision(hull, Vector3(cell) * ShipVisual.CELL_SIZE - center, ShipBlueprint.collision_size(cells))
+			for box: Dictionary in geometry.boxes:
+				_add_wreck_collision(hull, box.center, box.size)
 			hull.position = position
-			hull.rotation = Vector3(0.25, 0.7, -0.35)
-			hull.scale = Vector3.ONE * 0.85
+			hull.rotation = geometry.rotation
+			hull.scale = Vector3.ONE * float(geometry.scale)
 		var beacon := Label3D.new()
 		beacon.text = ("FREIGHT CACHE / " if cargo_only else "RECOVERY BEACON / ") + str(wreck.id)
 		beacon.font_size = 32
@@ -2683,7 +2682,7 @@ func approach_wreck(id: String) -> void:
 		if address == null:
 			var p: Array = wreck.position
 			address = SectorPosition.new(Vector3i.ZERO, Vector3(p[0], p[1], p[2]))
-		address.move_delta(Vector3(0, 0, 25))
+		address.move_delta(Vector3(0, 0, ShipRecovery.wreck_radius(wreck) + pilot.hull_radius + 12.0))
 		_start_address_cruise(address)
 		return
 

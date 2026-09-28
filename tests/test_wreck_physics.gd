@@ -32,6 +32,13 @@ func _run() -> void:
 	for material in hull._engine_glow:
 		assert(material.emission_energy_multiplier == 0.0, "wreck engines are unpowered")
 	game.pilot.set_flight(true)
+	game.pilot.teleport(point + Vector3(0, 0, 100))
+	game.approach_wreck(report.wreck_id)
+	assert(game.cruise_address != null)
+	var target: Vector3 = game.cruise_address.relative_to(game.flight_origin, 30000.0)
+	var radius := ShipRecovery.wreck_radius(game.state.recovery.wrecks[0])
+	assert(is_equal_approx(target.distance_to(point), radius + game.pilot.hull_radius + 12.0), "approach leaves clearance around wreck and player hull")
+	game.pilot.cancel_autopilot()
 	game.pilot.teleport(point + Vector3(0, 0, 20))
 	assert(game.recover_wreck(report.wreck_id, true).is_empty())
 	await physics_frame

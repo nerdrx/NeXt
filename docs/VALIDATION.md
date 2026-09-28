@@ -1334,3 +1334,10 @@ Refreshed local `build/NeXt-Windows.zip` from the exact tested executable/PCK pa
 Wreck hulls now carry conservative module-box collision on the world obstacle layer, matching their visual scale and tilt. Freight caches have box collision. Hull salvage replaces the hull with a cache while cargo remains; completed recovery removes the collision with the visual. Wreck exhaust stays unpowered.
 
 Actual-main checks passed headlessly and in hidden Gamescope: world rays hit wreck/cache colliders, a player movement sweep hits the wreck, engines are dark, salvage removes the hull while preserving recoverable freight, and final recovery removes stale collision. Existing recovery domain checks passed. This adds static obstacles, not towing, debris dynamics, walkable derelicts or repairable wrecks. The existing center-distance recovery interaction remains unchanged.
+
+
+## Wreck surface recovery range — 2026-09-28
+
+Recovery now measures distance to the nearest conservative wreck collision box, accounting for tilt, scale and absolute address. Menu availability and domain actions use the same calculation. Shared geometry drives collision and range, so salvaging switches both to the smaller freight cache. Cruise approach targets use wreck bounding radius plus player hull radius and 12 m clearance rather than a fixed 25 m center offset.
+
+Recovery tests passed the 7.9 m/8.1 m walking boundary beside a large tilted Merchant hull, including origin rebasing and non-finite position rejection. Actual-main wreck physics passed headlessly and in hidden Gamescope; an additional headless check verifies the requested approach target clearance. Conservative boxes are not exact damaged-mesh surfaces; route-wide avoidance of all wrecks, towing and derelict repair remain open.

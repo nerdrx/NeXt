@@ -279,6 +279,43 @@ static func wreck_relative(wreck: Dictionary, origin_data: Dictionary, radius: f
 	return SectorPosition.new(Vector3i.ZERO, legacy_position).relative_to(legacy_origin, radius)
 
 
+# Shared conservative geometry for rendering collision, interaction and approach.
+static func wreck_geometry(wreck: Dictionary) -> Dictionary:
+	if wreck.modules.is_empty() or bool(wreck.get("salvaged", false)):
+		return {"rotation": Vector3(0.2, 0.4, -0.15), "scale": 1.0,
+			"boxes": [{"center": Vector3.ZERO, "size": Vector3(3.8, 2.4, 5.0)}]}
+	var cells: Array[Vector3i] = []
+	for module: Dictionary in wreck.modules:
+		cells.append(Vector3i(int(module.x), int(module.y), int(module.z)))
+	var center := ShipBlueprint.center(cells)
+	var size := ShipBlueprint.collision_size(cells)
+	var boxes: Array[Dictionary] = []
+	for cell in cells:
+		boxes.append({"center": Vector3(cell) * ShipBlueprint.CELL_SIZE - center, "size": size})
+	return {"rotation": Vector3(0.25, 0.7, -0.35), "scale": 0.85, "boxes": boxes}
+
+
+static func wreck_distance(wreck: Dictionary, position: Vector3, origin_data: Dictionary = {}) -> float:
+	if not position.is_finite(): return INF
+	var relative: Variant = wreck_relative(wreck, origin_data, SectorPosition.MAX_RELATIVE_DISTANCE)
+	if relative == null: return INF
+	var geometry := wreck_geometry(wreck)
+	var local: Vector3 = Basis.from_euler(geometry.rotation).inverse() * (position - relative) / float(geometry.scale)
+	var distance := INF
+	for box: Dictionary in geometry.boxes:
+		var outside: Vector3 = (local - box.center).abs() - box.size * 0.5
+		distance = minf(distance, outside.max(Vector3.ZERO).length() * float(geometry.scale))
+	return distance
+
+
+static func wreck_radius(wreck: Dictionary) -> float:
+	var geometry := wreck_geometry(wreck)
+	var radius := 0.0
+	for box: Dictionary in geometry.boxes:
+		radius = maxf(radius, (box.center.length() + box.size.length() * 0.5) * float(geometry.scale))
+	return radius
+
+
 static func _find_wreck(state: GameState, wreck_id: String, surface: int, position: Vector3, max_distance: float, origin_data: Dictionary = {}) -> Dictionary:
 	if not validate_data(state.recovery):
 		return _report(false, "Recovery record is invalid.")
@@ -289,8 +326,7 @@ static func _find_wreck(state: GameState, wreck_id: String, surface: int, positi
 			continue
 		if int(wreck.system) != state.system_index or int(wreck.surface) != surface:
 			return _report(false, "Wreck is at another location.")
-		var relative: Variant = wreck_relative(wreck, origin_data, SectorPosition.MAX_RELATIVE_DISTANCE)
-		if relative == null or position.distance_to(relative) > max_distance:
+		if wreck_distance(wreck, position, origin_data) > max_distance:
 			return _report(false, "Move closer to the wreck to recover it.")
 		return {"ok": true, "message": "", "wreck": wreck}
 	return _report(false, "Wreck does not exist.")

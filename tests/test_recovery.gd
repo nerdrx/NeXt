@@ -105,5 +105,28 @@ func _initialize() -> void:
 	state.recovery.wrecks[0].salvaged = true
 	var reclaimed: Dictionary = Recovery.destroy_ship(state, Vector3.ZERO, 0)
 	assert(reclaimed.ok and state.recovery.wrecks.size() == Recovery.MAX_WRECKS, "completed wreck is pruned to make room")
+	var large := GameState.new()
+	large.ship_modules = ShipBlueprint.family("merchant").modules.duplicate(true)
+	large.cargo = {"ore": 3}
+	large.hull = 0.0
+	var large_origin := SectorPosition.new(Vector3i(4, 0, 0), Vector3.ZERO)
+	assert(Recovery.destroy_ship(large, Vector3.ZERO, -1, large_origin.to_save()).ok)
+	var large_wreck: Dictionary = large.recovery.wrecks[0]
+	var geometry := Recovery.wreck_geometry(large_wreck)
+	var outer: Dictionary = geometry.boxes[0]
+	for box: Dictionary in geometry.boxes:
+		if box.center.x > outer.center.x: outer = box
+	var edge: Vector3 = outer.center + Vector3.RIGHT * float(outer.size.x) * 0.5
+	var rotation := Basis.from_euler(geometry.rotation)
+	var nearby: Vector3 = rotation * (edge * float(geometry.scale) + Vector3.RIGHT * 7.9)
+	var distant: Vector3 = rotation * (edge * float(geometry.scale) + Vector3.RIGHT * 8.1)
+	assert(nearby.length() > 8.0, "large wreck center is beyond walking recovery range")
+	assert(is_equal_approx(Recovery.wreck_distance(large_wreck, nearby, large_origin.to_save()), 7.9))
+	assert(not Recovery.recover_cargo(large, large_wreck.id, -1, distant, 8.0, large_origin.to_save()).is_empty())
+	assert(Recovery.recover_cargo(large, large_wreck.id, -1, nearby, 8.0, large_origin.to_save()).is_empty())
+	var shifted: SectorPosition = SectorPosition.from_save(large_origin.to_save())
+	shifted.move_delta(Vector3(10, 0, 0))
+	assert(is_equal_approx(Recovery.wreck_distance(large_wreck, nearby - Vector3(10, 0, 0), shifted.to_save()), 7.9), "surface distance survives rebasing")
+	assert(Recovery.wreck_distance(large_wreck, Vector3(INF, 0, 0), large_origin.to_save()) == INF)
 	print("ShipRecovery tests passed")
 	quit()

@@ -988,11 +988,10 @@ func _recovery() -> void:
 	if wrecks.is_empty(): _text("No wreck beacons recorded.", 16, InterfaceTheme.MUTED)
 	for wreck: Dictionary in wrecks:
 		var here: bool = int(wreck.system) == s.system_index and int(wreck.surface) == game.surface_index
-		var local_point: Variant = game._wreck_position(wreck)
-		var distance: float = game.pilot.position.distance_to(local_point) if here and local_point != null else INF
+		var distance: float = ShipRecovery.wreck_distance(wreck, game.pilot.position, game.flight_origin.to_save()) if here else INF
 		var units: int = 0
 		for amount: Variant in wreck.get("cargo", {}).values(): units += int(amount)
-		_text("%s / system %d / %s / %d cargo units / hull salvage %d CR" % [wreck.id, wreck.system, "%.0f m" % distance if here else "Remote beacon", units, 0 if wreck.get("salvaged", false) else int(wreck.get("salvage_value", 0))], 17)
+		_text("%s / system %d / %s / %d cargo units / hull salvage %d CR" % [wreck.id, wreck.system, "%.0f m from hull/cache" % distance if here else "Remote beacon", units, 0 if wreck.get("salvaged", false) else int(wreck.get("salvage_value", 0))], 17)
 		var controls := _row()
 		var cruise := InterfaceTheme.button("APPROACH", game.approach_wreck.bind(str(wreck.id)))
 		cruise.disabled = not here or not game.pilot.flying or game.aboard
