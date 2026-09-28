@@ -2205,3 +2205,10 @@ persistence, and coasting hull contact while aboard. The fixture is in CI.
 Native and hidden-Gamescope execution pass without script/engine errors.
 Stellar gravity, stellar heat, thermal overflow and survey-cruise regressions
 pass, together with headless editor import.
+Parallel review confirmed visual/contact radius consistency, aboard wreck
+location, actor bindings and cruise coordinate-frame alignment.
+
+Clean Windows export and hidden-Gamescope Proton integration pass at `1005713`:
+`build/windows-validation-dd5c267/build/proton-smoke.IovcX2`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Dedicated primary-contact assertions ran natively and in
+hidden Gamescope; packaged smoke checks general gameplay.
