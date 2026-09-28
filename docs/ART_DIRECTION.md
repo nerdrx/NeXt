@@ -62,3 +62,6 @@ Family material inspection uses a less intense, steeper key light plus restraine
 
 
 Pathfinder and Merchant outer hulls now use three profile sections around the unchanged pressure-room footprint. Their sides slope outward to a shoulder and back toward the keel; Pathfinder is proportionally broader. Generic rectangular side insets were removed from these families, and configurable armor/window/radiator fittings project onto the actual hull triangles. The cockpit glazing sits outside the new bow. The result remains a low-detail blockout: roof plan, propulsion integration, surface construction and stronger family differentiation still require substantial design work.
+
+
+Family shell paint now has restrained recessed fasteners, seal dirt and a slightly smoother coating. Engine fairings carry framed service grilles and low-profile rails. The shipyard and family capture tool share a neutral studio reflection environment so reflective finishes can be reviewed against the solid background. This improves material inspection, not the in-world lighting or the unfinished family silhouettes; the procedural grid and repeated roof equipment still need authored design.

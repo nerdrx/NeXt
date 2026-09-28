@@ -5,6 +5,7 @@ uniform float base_roughness = 0.45;
 uniform float metalness = 0.05;
 uniform float coating = 0.25;
 uniform float panel_strength : hint_range(0.0, 1.0) = 0.0;
+uniform float industrial_detail : hint_range(0.0, 1.0) = 0.0;
 uniform vec2 panel_pitch = vec2(2.8, 2.8);
 uniform vec3 panel_origin = vec3(0.0);
 varying vec3 local_position;
@@ -38,18 +39,26 @@ void fragment() {
  float pixel = max(length(fwidth(surface)), 0.0001);
  float panel_detail = 1.0 - smoothstep(0.03, 0.14, pixel);
  float groove = (1.0-smoothstep(0.003, 0.003+pixel, edge_distance)) * panel_detail * panel_strength;
+ // Recessed fasteners and seal dirt establish metre scale without luminous trim.
+ vec2 corner_offset = edge - vec2(0.065);
+ float bolt_radius = length(corner_offset);
+ float bolt = (1.0-smoothstep(0.012, 0.012+pixel, bolt_radius)) * panel_detail * industrial_detail;
+ float bolt_rim = (1.0-smoothstep(0.022, 0.022+pixel, bolt_radius)) * panel_detail * industrial_detail;
+ float seal_dirt = (1.0-smoothstep(0.012, 0.075, edge_distance)) * industrial_detail * panel_strength;
  float panel_tone = hash3(vec3(floor(panel_uv), 7.0));
  float panel_height = smoothstep(0.0, 0.018, edge_distance) * 0.002 * panel_detail * panel_strength;
  float finish_tone = mix(0.94 + 0.08 * mottling, 0.975 + 0.035 * mottling, panel_strength);
  ALBEDO = paint.rgb * finish_tone * (1.0 + (panel_tone-0.5)*0.065*panel_strength);
- ALBEDO *= 1.0 - groove * 0.42;
- ROUGHNESS = clamp(base_roughness + (mottling-0.5)*0.12 + (micro-0.5)*0.065 + abrasion*0.07 + groove*0.14, 0.12, 0.92);
- METALLIC = metalness;
+ ALBEDO *= 1.0 - groove * 0.42 - seal_dirt * 0.13;
+ ALBEDO = mix(ALBEDO, vec3(0.09), bolt_rim * 0.38);
+ ALBEDO = mix(ALBEDO, vec3(0.19), bolt);
+ ROUGHNESS = clamp(base_roughness + (mottling-0.5)*0.12 + (micro-0.5)*0.065 + abrasion*0.07 + groove*0.14 + seal_dirt*0.08, 0.12, 0.92);
+ METALLIC = mix(metalness, 0.75, bolt);
  SPECULAR = 0.5;
  CLEARCOAT = coating;
  CLEARCOAT_ROUGHNESS = 0.35;
  // Submillimetre finish variation; fade below pixel size to avoid sparkle.
- float height = (micro-0.5) * 0.00012 + panel_height;
+ float height = (micro-0.5) * 0.00012 + panel_height - bolt_rim * 0.0015;
  vec3 q0 = dFdx(VERTEX); vec3 q1 = dFdy(VERTEX);
  vec3 r1 = cross(q1, NORMAL); vec3 r2 = cross(NORMAL, q0);
  float det = dot(q0, r1);

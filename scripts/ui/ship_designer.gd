@@ -82,12 +82,7 @@ func _ready() -> void:
 	var scene := Node3D.new()
 	viewport.add_child(scene)
 	var environment := WorldEnvironment.new()
-	environment.environment = Environment.new()
-	environment.environment.background_mode = Environment.BG_COLOR
-	environment.environment.background_color = Color("091321")
-	environment.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.environment.ambient_light_color = Color("91a9c1")
-	environment.environment.ambient_light_energy = 0.35
+	environment.environment = ShipVisual.preview_environment()
 	scene.add_child(environment)
 	var light := DirectionalLight3D.new()
 	light.rotation_degrees = Vector3(-50, -30, 0)

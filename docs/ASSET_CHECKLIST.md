@@ -128,3 +128,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 
 - [ ] Replace ship cabin procedural panel finish with authored material masks and purposeful seam placement. `ShipInterior._box` now shares `shaders/fleet_surface.gdshader`: metre-scaled joints, shallow relief, filtered grain and low-metallic painted surfaces. Keep cabin-local alignment during turns/rebasing; glass and emissive fixtures retain separate materials. The regular grid remains placeholder art.
 - [ ] Replace multi-deck floor transfer markings with authored lift landings and a physical shaft/cabin system. Crew currently walk to the existing abstract deck-transfer landing, wait and transfer to a clear destination. Preserve approach/onward routing, occupant clearance, pause behavior and moving-cabin coordinates.
+
+- [ ] Replace procedural family fastener rings, seal dirt and fairing grilles with authored construction detail. Keep distance filtering and cabin clearance. Shipyard previews now use a neutral reflection sky shared with family review captures; approve final materials under actual hangar, sunlight and planetary conditions as well.

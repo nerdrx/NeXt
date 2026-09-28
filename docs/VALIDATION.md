@@ -1243,3 +1243,10 @@ Owned patrols now save system-space position, velocity, patrol center and course
 The actual-main regression passed headlessly and in hidden Gamescope for rebased reload, independent patrol center, course clock, empty-fuel coasting, culled rebuild, invalid records, legacy saves and immediate cancellation/reassignment. Additional headless checks passed relocation cleanup, existing trader flight saves, fleet order fuel and patrol timing. The deliberate infinite-value fixture emits Godot's `Exponent too high` warning and is rejected without state mutation. This Gamescope run showed no texture teardown warning. CI includes the new regression. Remote patrol movement remains an abstract encounter simulation; this preserves the last materialized course, not combat targets or continuous distant trajectories.
 
 A clean Windows release export at `d52fd9f` passed with no script/export errors. No fresh Proton runtime check or development ZIP refresh is claimed for this increment.
+
+
+## Family material and preview inspection — 2026-09-28
+
+Family pressure shells opt into filtered procedural fastener recesses and seal dirt, with smoother coated paint. Fairings now have framed grilles and low rails. ShipDesigner and the family capture tool share a neutral reflection sky behind their solid backdrop; gameplay retains its existing world lighting. Exterior and rear captures were inspected in hidden Gamescope: service detail is clearer, but the flat roof plan, repeated fittings and coarse silhouette remain below the requested cinematic target.
+
+Blueprint room/outer-hull containment regression passed. ShipDesigner interaction regression, family exterior/rear/cutaway captures and radiator capture passed in hidden Gamescope with no Godot script or shader errors. An initial incorrect reflection enum was fixed using the installed engine's ClassDB constants. A radiator capture mistakenly attempted on the dummy headless renderer failed and timed out; its subsequent hidden graphical run passed. These checks do not establish performance, photorealism or final authored asset quality.

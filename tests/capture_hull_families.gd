@@ -10,13 +10,7 @@ func _capture() -> void:
 	var scene := Node3D.new()
 	root.add_child(scene)
 	var world := WorldEnvironment.new()
-	world.environment = Environment.new()
-	world.environment.background_mode = Environment.BG_COLOR
-	world.environment.background_color = Color("101820")
-	world.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	world.environment.ambient_light_color = Color("b0bdc8")
-	world.environment.ambient_light_energy = 0.25
-	world.environment.tonemap_mode = Environment.TONE_MAPPER_ACES
+	world.environment = ShipVisual.preview_environment()
 	scene.add_child(world)
 	var key := DirectionalLight3D.new()
 	key.rotation_degrees = Vector3(-65, -15, 0)

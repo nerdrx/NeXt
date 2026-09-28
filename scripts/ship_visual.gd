@@ -66,10 +66,11 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 		var paint := ShaderMaterial.new()
 		paint.shader = preload("res://shaders/fleet_surface.gdshader")
 		paint.set_shader_parameter("paint",Color("4d5960") if ShipBlueprint.family_for_cells(cells) == "pathfinder" else Color("645e51"))
-		paint.set_shader_parameter("base_roughness",0.5)
+		paint.set_shader_parameter("base_roughness",0.38)
 		paint.set_shader_parameter("metalness",0.04)
-		paint.set_shader_parameter("coating",0.1)
+		paint.set_shader_parameter("coating",0.22)
 		paint.set_shader_parameter("panel_strength",1.0)
+		paint.set_shader_parameter("industrial_detail",1.0)
 		paint.set_shader_parameter("panel_origin",center)
 		shell.material_override = paint
 		add_child(shell)
@@ -367,14 +368,17 @@ func _add_family_engine_housing(cell_pos: Vector3, material: Material, vent_mate
 	housing.material_override = material
 	add_child(housing)
 	housing.position = cell_pos + Vector3(0, 0, 0.45)
-	var vent := MeshInstance3D.new()
-	vent.name = "FamilyEngineVent%d" % get_child_count()
-	var vent_mesh := BoxMesh.new()
-	vent_mesh.size = Vector3(0.38, 0.018, 2.0)
-	vent.mesh = vent_mesh
-	vent.material_override = vent_material
-	add_child(vent)
-	vent.position = cell_pos + Vector3(0, 1.824, 0.45)
+	# Shallow inset service grille breaks up the broad upper fairing without
+	# turning it into a bright, oversized rooftop feature.
+	var vent_center := cell_pos + Vector3(0, 1.82, 0.45)
+	_add_box(vent_center, Vector3(0.62, 0.028, 1.42), vent_material)
+	_add_box(vent_center + Vector3(-0.35, 0.016, 0), Vector3(0.07, 0.035, 1.54), material)
+	_add_box(vent_center + Vector3(0.35, 0.016, 0), Vector3(0.07, 0.035, 1.54), material)
+	for z in [-0.48, -0.16, 0.16, 0.48]:
+		_add_box(vent_center + Vector3(0, 0.025, z), Vector3(0.54, 0.035, 0.065), material)
+	# Twin raised shoulders add a stepped, armored edge to the nozzle fairing.
+	for side in [-1, 1]:
+		_add_box(cell_pos + Vector3(float(side) * 0.72, 1.846, 0.45), Vector3(0.075, 0.045, 1.48), material)
 
 
 func _add_cylinder(pos: Vector3, radius: float, height: float, material: Material) -> MeshInstance3D:
@@ -428,3 +432,29 @@ func _material(color: Color, roughness: float, glow: float) -> StandardMaterial3
 		material.emission = color
 		material.emission_energy_multiplier = glow
 	return material
+
+
+static func preview_environment() -> Environment:
+	# A neutral studio gradient supplies reflected light even behind a solid backdrop.
+	var environment := Environment.new()
+	environment.background_mode = Environment.BG_COLOR
+	environment.background_color = Color("101820")
+	var sky := Sky.new()
+	var studio := ProceduralSkyMaterial.new()
+	studio.sky_top_color = Color("8896a5")
+	studio.sky_horizon_color = Color("d9dedf")
+	studio.ground_bottom_color = Color("10151b")
+	studio.ground_horizon_color = Color("687784")
+	studio.sky_curve = 0.2
+	studio.ground_curve = 0.15
+	sky.sky_material = studio
+	environment.sky = sky
+	environment.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
+	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	environment.ambient_light_color = Color("b0bdc8")
+	environment.ambient_light_energy = 0.18
+	environment.tonemap_mode = Environment.TONE_MAPPER_ACES
+	environment.ssao_enabled = true
+	environment.ssao_radius = 0.6
+	environment.ssao_intensity = 1.4
+	return environment
