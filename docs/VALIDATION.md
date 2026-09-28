@@ -1306,3 +1306,10 @@ Ship power now has a reliable owner-to-host-to-peers stream, independent of unre
 Real ENet loopback checks passed offline raw-RPC attack rejection, target vulnerability, restart, stale pose and reliable echo handling, idempotence, sender impersonation and stale-epoch rejection, power-before-pose ordering, simultaneous travel/toggle and reconnect. Existing network and PvP transport regressions passed. The actual-main shutdown menu/gameplay regression passed in hidden Gamescope. These checks cover reported state; they do not establish client anti-cheat, authoritative remote electrical simulation or live Steam interoperability.
 
 Clean Windows release export at `4c63820` passed without script/export errors. No fresh Proton runtime check or development ZIP refresh is claimed for this replication increment.
+
+
+## Family hull paint blocking — 2026-09-28
+
+Added optional hull-local painted shoulder and flank bands to the shared surface shader; only family exterior hulls opt in. Pathfinder uses grey-green identification paint and Merchant uses ochre. Paint retains panel joints, dirt and physical surface response. Geometry, pressure rooms and collisions are unchanged.
+
+The six existing family capture views completed under hidden Gamescope; Pathfinder exterior and Merchant rear were visually inspected after reducing initially excessive stripe contrast and width. Shader compilation succeeded. The silhouettes and repeated roof fittings remain blockout quality, well below the requested cinematic reference. Moving-camera aliasing and final art acceptance remain open.

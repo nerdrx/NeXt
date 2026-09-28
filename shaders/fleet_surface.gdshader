@@ -6,6 +6,10 @@ uniform float metalness = 0.05;
 uniform float coating = 0.25;
 uniform float panel_strength : hint_range(0.0, 1.0) = 0.0;
 uniform float industrial_detail : hint_range(0.0, 1.0) = 0.0;
+// Optional family paint scheme, expressed in hull-local metres.
+uniform float livery_strength : hint_range(0.0, 1.0) = 0.0;
+uniform vec4 livery_paint : source_color = vec4(0.75, 0.72, 0.64, 1.0);
+uniform vec3 hull_extent = vec3(10.0);
 uniform vec2 panel_pitch = vec2(2.8, 2.8);
 uniform vec3 panel_origin = vec3(0.0);
 varying vec3 local_position;
@@ -55,6 +59,15 @@ void fragment() {
  float panel_height = smoothstep(0.0, 0.018, edge_distance) * 0.002 * panel_detail * panel_strength;
  float finish_tone = mix(0.94 + 0.08 * mottling, 0.975 + 0.035 * mottling, panel_strength);
  ALBEDO = paint.rgb * finish_tone * (1.0 + (panel_tone-0.5)*0.065*panel_strength);
+ // Broad painted shoulders establish a readable silhouette before fine detail.
+ vec3 hull_uv = local_position / max(hull_extent, vec3(0.1));
+ float paint_pixel = max(length(fwidth(hull_uv.xz)), 0.0001);
+ float shoulder = abs(hull_uv.x) - (0.22 + hull_uv.z * 0.10);
+ float stripe = (1.0-smoothstep(0.045-paint_pixel, 0.045+paint_pixel, abs(shoulder))) * smoothstep(0.25, 0.8, local_normal.y);
+ // Angled flank identification band, with the same metre-scale filtered edge.
+ float side_band = (1.0-smoothstep(0.045-paint_pixel, 0.045+paint_pixel, abs(hull_uv.z + hull_uv.y*0.35 + 0.12))) * smoothstep(0.4, 0.85, abs(local_normal.x));
+ float livery = max(stripe, side_band) * livery_strength;
+ ALBEDO = mix(ALBEDO, livery_paint.rgb * finish_tone, livery);
  ALBEDO *= 1.0 - groove * 0.42 - seal_dirt * 0.13;
  ALBEDO = mix(ALBEDO, vec3(0.09), bolt_rim * 0.38);
  ALBEDO = mix(ALBEDO, vec3(0.19), bolt);

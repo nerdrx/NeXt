@@ -72,6 +72,9 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 		paint.set_shader_parameter("panel_strength",1.0)
 		paint.set_shader_parameter("industrial_detail",1.0)
 		paint.set_shader_parameter("panel_origin",center)
+		paint.set_shader_parameter("livery_strength", 1.0)
+		paint.set_shader_parameter("hull_extent", bounds)
+		paint.set_shader_parameter("livery_paint", Color("89958f") if ShipBlueprint.family_for_cells(cells) == "pathfinder" else Color("957946"))
 		shell.material_override = paint
 		add_child(shell)
 	# Connected pressure modules form the hull; avoid a broad hidden keel that reads as a wing.
