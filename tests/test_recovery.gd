@@ -105,6 +105,12 @@ func _initialize() -> void:
 	state.recovery.wrecks[0].salvaged = true
 	var reclaimed: Dictionary = Recovery.destroy_ship(state, Vector3.ZERO, 0)
 	assert(reclaimed.ok and state.recovery.wrecks.size() == Recovery.MAX_WRECKS, "completed wreck is pruned to make room")
+	var debris_state := GameState.new()
+	assert(not Recovery.combat_debris(debris_state, Vector3.ZERO, NAN).ok)
+	assert(not Recovery.combat_debris(debris_state, Vector3.ZERO, -1.0).ok)
+	assert(debris_state.recovery.wrecks.is_empty(), "invalid debris requests leave registry untouched")
+	assert(Recovery.combat_debris(debris_state, Vector3.ZERO, 1000000.0).ok)
+	assert(debris_state.recovery.wrecks[0].cargo.alloys == 8, "large hull debris yield is bounded")
 	var large := GameState.new()
 	large.ship_modules = ShipBlueprint.family("merchant").modules.duplicate(true)
 	large.cargo = {"ore": 3}

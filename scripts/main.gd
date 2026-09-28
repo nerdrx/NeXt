@@ -1292,8 +1292,13 @@ func _actor_destroyed(actor: Node3D) -> void:
 		notify(("Fleet ship disabled. Arrange repairs in Crew Operations." + cargo_message) if saved else "Fleet ship disabled; damage NOT SAVED. Check storage and save again.")
 		return
 	var eliminated: Array = state.world_flags.get(_location_key(), [])
-	if actor.actor_id not in eliminated: eliminated.append(actor.actor_id)
+	if actor.actor_id in eliminated: return
+	eliminated.append(actor.actor_id)
 	state.world_flags[_location_key()] = eliminated
+	if actor is ShipActor and surface_index == -1:
+		var debris := ShipRecovery.combat_debris(state, actor.global_position, actor.dry_mass_kg, flight_origin.to_save())
+		if debris.ok: rebuild_wrecks()
+		else: notify("Debris beacon unavailable: " + str(debris.message))
 	if actor.get_meta("player_hit", false):
 		state.record_kill(actor.faction)
 		notify("Pirate neutralized. Bounty credited." if actor.faction == "pirate" else "Civilian/security casualty recorded. Wanted status updated.")

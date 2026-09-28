@@ -1355,3 +1355,10 @@ Actual-main checks passed headlessly and in hidden Gamescope: a direct course th
 Rebuilding wrecks now compares their active absolute records and collision geometry. A change replans an active cruise from its current helm position; an unchanged rebuild preserves the route. If a new obstacle makes the destination unsafe, the route is cleared and braking is requested on the piloted or aboard hull. Braking still requires available thrust and propellant.
 
 Actual-main tests passed headlessly and in hidden Gamescope for a newly created wreck interrupting a direct route, preservation of route objects on an unchanged rebuild, and cancellation/brake request when another wreck appears at the destination. Existing physical wreck/recovery assertions and the aboard-cruise regression passed. This is event-driven recovery-obstacle replanning, not continuous avoidance of all moving actors.
+
+
+## NPC combat debris — 2026-09-28
+
+Destroyed non-owned ShipActors in local space now leave recoverable alloy caches using the existing persistent recovery registry, physical cache geometry and cruise obstacle updates. Yield is a bounded gameplay approximation: floor(dry mass / 10,000 kg), clamped to 1–8 alloy units. No original freight manifest is invented. Owned fleet destruction retains its existing disabled-vessel and actual-cargo rules. Registry failure does not prevent combat death; a notification reports the missing beacon. Repeated callbacks for an already eliminated actor cannot duplicate debris or bounty.
+
+Actual-main tests passed natively and in hidden Gamescope for a real pirate destruction, four-unit cache from its 40-tonne dry mass, duplicate callback rejection, save/load of both debris and eliminated actor ID, one-time collection, and existing wreck geometry/replanning checks. Domain validation rejects invalid masses without mutation and bounds large yields. Existing fleet-cargo recovery and crew-defense gameplay regressions passed. This does not implement repairable NPC hulls, realistic material composition, theft/legal ownership of salvage or shared multiplayer loot.

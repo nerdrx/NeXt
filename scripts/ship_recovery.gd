@@ -126,6 +126,32 @@ static func abandon_fleet_cargo(state: GameState, ship_id: String, position: Vec
 	for good: String in GameState.GOODS:
 		if not cargo.has(good): cargo[good] = 0
 	if total <= 0: return _report(false, "Fleet ship has no cargo to abandon.")
+	var stored := _store_cargo_cache(state, position, origin_data, cargo)
+	if not stored.ok: return stored
+	var wreck_id: String = stored.wreck_id
+	ship.cargo.clear()
+	ship.erase("flight")
+	for order: Dictionary in state.crew_orders.values():
+		if order.get("kind", "") == "trade" and str(order.get("ship_id", "")) == ship_id:
+			order.purchase_cost = 0
+	return _report(true, "Fleet cargo abandoned in a recovery wreck.", {"wreck_id": wreck_id, "ship_id": ship_id, "cargo": cargo})
+
+
+static func combat_debris(state: GameState, position: Vector3, dry_mass_kg: float, origin_data: Dictionary = {}) -> Dictionary:
+	if not validate_data(state.recovery) or not _valid_location(state.system_index, -1, position):
+		return _report(false, "Recovery location or record is invalid.")
+	if not is_finite(dry_mass_kg) or dry_mass_kg <= 0.0 or dry_mass_kg > 1e9:
+		return _report(false, "Debris mass is invalid.")
+	if not origin_data.is_empty() and SectorPosition.from_save(origin_data) == null:
+		return _report(false, "Recovery address is invalid.")
+	# Bounded gameplay yield, not a material composition simulation.
+	var cargo: Dictionary = {}
+	for good: String in GameState.GOODS: cargo[good] = 0
+	cargo.alloys = clampi(floori(dry_mass_kg / 10000.0), 1, 8)
+	return _store_cargo_cache(state, position, origin_data, cargo)
+
+
+static func _store_cargo_cache(state: GameState, position: Vector3, origin_data: Dictionary, cargo: Dictionary) -> Dictionary:
 	if int(state.recovery.next_id) >= 2147483647: return _report(false, "Wreck registry ID limit reached.")
 	var recyclable: int = -1
 	if state.recovery.wrecks.size() >= MAX_WRECKS:
@@ -159,12 +185,7 @@ static func abandon_fleet_cargo(state: GameState, ship_id: String, position: Vec
 	next_recovery.next_id = int(state.recovery.next_id) + 1
 	if not validate_data(next_recovery): return _report(false, "Recovery record is invalid.")
 	state.recovery = next_recovery
-	ship.cargo.clear()
-	ship.erase("flight")
-	for order: Dictionary in state.crew_orders.values():
-		if order.get("kind", "") == "trade" and str(order.get("ship_id", "")) == ship_id:
-			order.purchase_cost = 0
-	return _report(true, "Fleet cargo abandoned in a recovery wreck.", {"wreck_id": wreck_id, "ship_id": ship_id, "cargo": cargo})
+	return _report(true, "Recovery cache recorded.", {"wreck_id": wreck_id})
 
 
 static func recover_cargo(state: GameState, wreck_id: String, surface: int, position: Vector3, max_distance: float = 80.0, origin_data: Dictionary = {}) -> String:

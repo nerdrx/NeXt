@@ -138,3 +138,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Replace engine luminous discs with authored nozzle interiors and exhaust effects. Preserve `ShipVisual.set_systems_online` and `set_thrust`: shutdown darkens exhaust without changing independent navigation-light materials, including visitor ships and rebuilt hulls.
 
 - [ ] Replace conservative wreck module-box and freight-cache collision with authored damaged-hull collision. Retain obstacle layer 1, visual transform alignment, unpowered exhaust and hull-to-cache transition when salvage precedes cargo recovery.
+
+- [ ] Give NPC combat alloy debris a distinct damaged-material cache visual. It currently reuses the freight-cache placeholder and beacon; preserve saved recovery records, collision, range and one-time collection.
