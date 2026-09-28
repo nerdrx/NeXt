@@ -204,6 +204,46 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 	_apply_engine_glow()
 
 
+# Deployed only on the parked display. Four broad pads replace a skid per module.
+func add_landing_gear(modules: Array) -> void:
+	var cells: Array[Vector3i] = []
+	for module: Dictionary in modules:
+		cells.append(Vector3i(int(module.x), int(module.y), int(module.z)))
+	if cells.is_empty(): return
+	var center := ShipBlueprint.center(cells)
+	var lowest := cells[0].y
+	for cell in cells: lowest = mini(lowest, cell.y)
+	var gear := Node3D.new()
+	gear.name = "LandingGear"
+	add_child(gear)
+	var steel := _surface_material(Color("707880"), 0.28, 0.88)
+	var casing := _surface_material(Color("303b43"), 0.52, 0.06)
+	var sole := _material(Color("161a1d"), 0.85, 0.0)
+	for corner: Vector2 in [Vector2(-1,-1), Vector2(1,-1), Vector2(-1,1), Vector2(1,1)]:
+		var selected := cells[0]
+		var best := -INF
+		for cell in cells:
+			if cell.y != lowest: continue
+			var score := float(cell.x)*corner.x + float(cell.z)*corner.y
+			if score > best:
+				best = score
+				selected = cell
+		var leg := Node3D.new()
+		leg.name = "Gear%d" % gear.get_child_count()
+		gear.add_child(leg)
+		leg.position = Vector3(selected)*CELL_SIZE - center + Vector3(corner.x*0.85, -1.98, corner.y*0.85)
+		# Helpers build origin-local meshes, then attach them to the contact frame.
+		var foot := _add_bevelled_plate(Vector3(0,0.08,0), Vector3(0.72,0.16,0.92), sole, 0.045)
+		foot.reparent(leg, false)
+		foot.name = "Foot"
+		var piston := _add_cylinder(Vector3(0,0.34,0), 0.085, 0.40, steel)
+		piston.reparent(leg, false)
+		var sleeve := _add_cylinder(Vector3(0,0.56,0), 0.14, 0.32, casing)
+		sleeve.reparent(leg, false)
+		var collar := _add_box(Vector3(0,0.64,0), Vector3(0.46,0.18,0.42), casing)
+		collar.reparent(leg, false)
+
+
 # Mount configurable fittings onto the actual armor triangle instead of the grid face.
 func _fit_surface_fittings(first: int, center: Vector3, face: String, faces: PackedVector3Array) -> void:
 	var direction := Vector3(ShipLayout.FACE_STEPS[face])

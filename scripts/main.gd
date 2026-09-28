@@ -1027,17 +1027,11 @@ func rebuild_player_ship() -> void:
 		var cell := Vector3(module.x, module.y, module.z)
 		low = low.min(cell)
 		high = high.max(cell)
-	var center := (low + high) * 0.5 * ShipVisual.CELL_SIZE
 	var bottom := (high.y - low.y) * 0.5 * ShipVisual.CELL_SIZE + 1.28
 	var pad_up: Vector3 = landed_ship_normal if manual_planet >= 0 else Vector3.UP
 	ship_display.position = _ship_pad() + pad_up * (bottom + 0.7)
 	ship_display.basis = Basis(Quaternion(Vector3.UP, pad_up))
-	for module: Dictionary in state.ship_modules:
-		if float(module.y) != low.y: continue
-		var cell := Vector3(module.x, module.y, module.z) * ShipVisual.CELL_SIZE - center
-		for side in [-1.0, 1.0]:
-			_box(ship_display, cell + Vector3(side * 0.9, -1.58, 0), Vector3(0.12, 0.6, 0.15), Color("a6acaf"))
-			_box(ship_display, cell + Vector3(side * 0.9, -1.9, 0), Vector3(0.4, 0.16, 1.9), Color("252b30"))
+	ship_display.add_landing_gear(state.ship_modules)
 	ship_display.visible = not pilot.flying
 	flight_frame.track(ship_display, flight_origin)
 

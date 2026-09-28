@@ -76,6 +76,21 @@ func _capture() -> void:
 			_frame_camera(camera, bay_center, Vector3(3.4, 2.4, 2.6), Vector3(0.7, 0.4, 1.8))
 			await _save_capture("family-%s-engine-detail.png" % family_id)
 
+		visual.add_landing_gear(modules)
+		var floor_mesh := MeshInstance3D.new()
+		var floor_box := BoxMesh.new()
+		floor_box.size = Vector3(extent.x + 8.0, 0.1, extent.z + 8.0)
+		floor_mesh.mesh = floor_box
+		var floor_material := StandardMaterial3D.new()
+		floor_material.albedo_color = Color("30363c")
+		floor_material.roughness = 0.85
+		floor_mesh.material_override = floor_material
+		floor_mesh.position.y = float(low.y)*cell_size - ShipBlueprint.center(cells).y - 2.03
+		scene.add_child(floor_mesh)
+		_frame_camera(camera, Vector3.ZERO, extent + Vector3.UP, Vector3(1.4, 0.3, -1.5))
+		await _save_capture("family-%s-landed.png" % family_id)
+		floor_mesh.queue_free()
+
 		visual.hide()
 		interior.show()
 		_hide_deck_ceilings(interior, modules)

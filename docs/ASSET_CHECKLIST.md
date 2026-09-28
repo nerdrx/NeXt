@@ -170,3 +170,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Add atmospheric flight audio and restrained airflow cues. The flight HUD reports AIR DRAG in g and AIR HEAT in kW separately from thrust. Use the actual energy-based heating signal for restrained thermal cues; plasma and material-specific re-entry effects are not simulated. Preserve readability.
 
 - [ ] Replace procedural flank service strips and staggered coating seams with authored hull access panels, maintenance markings and material maps. Preserve exposed-face placement, configured windows/armor and radiator clearance; these details do not change pressure-room geometry.
+
+- [ ] Replace parked-ship four-point gear (pads, pistons, sleeves and collars) with authored retractable assemblies. Preserve the lowest occupied deck support plane and surface-normal orientation. Current gear is visual only: no suspension, terrain-adaptive leg extension, retraction animation or physical boarding ramp.

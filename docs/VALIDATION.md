@@ -1613,3 +1613,9 @@ Exposed family flanks now carry compact four-mesh service strips on the upper ar
 The first graphical run exposed an inferred typed-array mismatch in the optional radiator-face list; an explicit typed empty array fixes it. Subsequent three-family hidden-Gamescope captures completed without script/shader errors. Pathfinder exterior and Merchant rear were inspected; the detail breaks up blank flanks but remains repetitive placeholder art. Existing radiator and hull-family refit checks passed; the final refit rerun had no script errors.
 
 Clean Windows release export at `e2d6424` passed without script/export errors (`build/hull-flanks-export.log` in the validation checkout). This visual increment was rendered natively under hidden Gamescope; the last full Proton smoke remains `92160f6`.
+
+### Parked ship landing gear
+
+The parked display now creates four broad pads with piston struts, sleeves and hull collars instead of two skids beneath every bottom-deck module. Support positions use extreme occupied bottom cells with in-cell offsets. Their contact plane preserves the existing parked height and surface-normal orientation. Flight visuals do not deploy gear. These are visual supports, not suspension, load-bearing physics or terrain-adaptive feet; boarding remains the existing transition.
+
+`test_landing_gear.gd` passes for all three families and a multi-deck layout: opt-in deployment, four finite supports, feet on the lowest contact plane and placement within occupied bottom-cell footprints. The anchored-interior regression passes parked/rotated hulls and return placement. Final import passes without script errors after restoring a peer-collision center declaration accidentally removed during the edit. Three-family landed captures passed under hidden Gamescope; Merchant landed view was inspected. The new test is registered in Windows CI.
