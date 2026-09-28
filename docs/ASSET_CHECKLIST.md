@@ -121,6 +121,7 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 
 - [ ] Author a visible fleet service berth and boarding route; the current menu opens a separate local inspection interior using the real family rooms.
 - [ ] Replace bridge seats/consoles while keeping the center passage wide enough for the walking capsule. Add legible room signs viewed from both travel directions.
+- [ ] Replace procedural doorway destination lettering with authored ship signage. Each side names the adjoining room from the saved layout, updates after refits and remains attached to the moving cabin; retain source-facing text and avoid mirrored back faces. Current signs identify adjacent rooms, not routes through the whole ship.
 
 - [ ] Replace fleet room-refit fixtures and hull-panel placeholders with authored variants. Preserve saved room/panel choices, usable walkways and exposed-face radiator behavior.
 

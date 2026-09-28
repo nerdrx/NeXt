@@ -1441,3 +1441,9 @@ Extended coasting and crew-roaming checks accept `--ranger` and are registered i
 Ranger crew checks passed a cockpit-to-aft-outboard route over six cells in direct span, movement after cabin translation/rotation, capsule clearance during the tilted segment, pause/resume and arrival. Merchant roaming, custom coasting, crew lift transfer, crew yielding and shared blueprint containment regressions passed. Seven Texture RID teardown warnings remain in the actual-main graphical harness. Live multiplayer interiors and performance targets remain unverified.
 
 Clean Windows release export at `a60f2f6` passed without script or parse errors. The last full Proton runtime smoke remains `1bd35f5`; this passage fix was exercised natively under hidden Gamescope.
+
+## Ship doorway destination signs — 2026-09-28
+
+Every connected horizontal cabin doorway now carries a destination-room label on each approach side. Names derive from the validated saved room layout, so lounge/medical/workshop refits change the signs. Labels face the source room, suppress mirrored back faces and follow the cabin transform. Existing room-identity labels only remain on closed forward walls, avoiding contradictory names on doorway headers. Signs add no collision geometry.
+
+The new `test_ship_wayfinding.gd`, registered in Windows CI, passed exact directed-link coverage, destination names, orientation, header placement, transformed placement, refit updates and rebuild cleanup. Hidden Gamescope Ranger moving-interior checks passed; doorway text was visually inspected in the walking capture. Seven Texture RID shutdown warnings remain in that harness. These are local room identifiers, not a full deck map or route-to-destination navigation system.

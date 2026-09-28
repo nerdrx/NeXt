@@ -49,6 +49,7 @@ func build(blueprint: Array[Dictionary], layout: Dictionary = {}) -> void:
 				for direction in [-1, 1]:
 					_box(center + offset + side * direction * 1.12 + Vector3(0, WALL_HEIGHT * 0.5, 0), Vector3(0.18, WALL_HEIGHT, 0.38) if axis.x != 0 else Vector3(0.38, WALL_HEIGHT, 0.18), Color("4a606d"), true)
 				_box(center + offset + Vector3(0, 2.3, 0), Vector3(0.2, 0.3, 2.8) if axis.x != 0 else Vector3(2.8, 0.3, 0.2), Color("4a606d"), true)
+				_doorway_sign(cell, neighbor)
 		_equipment(center, kind, room_type)
 		_room_furnishing(center, room_type)
 		var lamp := OmniLight3D.new()
@@ -72,6 +73,29 @@ func build(blueprint: Array[Dictionary], layout: Dictionary = {}) -> void:
 			sign.rotation.x = -PI / 2.0
 			sign.modulate = Color("8badae")
 			add_child(sign)
+
+func _doorway_sign(from_cell: Vector3i, to_cell: Vector3i) -> void:
+	var destination_kind := ""
+	for module: Dictionary in modules:
+		if Vector3i(module.x, module.y, module.z) == to_cell:
+			destination_kind = str(module.kind)
+			break
+	var room: String = _layout.rooms.get(ShipLayout.cell_key(to_cell), ShipLayout.default_room(destination_kind))
+	var direction := Vector3(to_cell - from_cell)
+	var sign := Label3D.new()
+	sign.name = "DoorwaySign"
+	sign.text = room.to_upper()
+	sign.font_size = 40
+	sign.pixel_size = 0.002
+	sign.outline_size = 0
+	sign.modulate = Color("d4e3e4")
+	sign.double_sided = false
+	sign.position = Vector3(from_cell) * CELL + direction * 1.28 + Vector3.UP * 2.3
+	sign.basis = Basis.looking_at(direction, Vector3.UP)
+	sign.set_meta("source_cell", from_cell)
+	sign.set_meta("destination_cell", to_cell)
+	add_child(sign, true)
+
 
 func crew_path(from_local: Vector3, to_local: Vector3) -> PackedVector3Array:
 	if not from_local.is_finite() or not to_local.is_finite(): return PackedVector3Array()
@@ -167,13 +191,15 @@ func _floor(center: Vector3, room_type: String, panels: Dictionary) -> void:
 			_box(center + Vector3(x, 0.014, 0), Vector3(0.022, 0.018, 2.5), Color("587c83"))
 	if ceiling_type != "window":
 		_box(center + Vector3(0, 2.34, 0), Vector3(0.13, 0.04, 1.9), Color("bce7e5"), false, true)
-	var label := Label3D.new()
-	label.text = room_type.to_upper() + "  /  DECK " + str(int(round(center.y / CELL.y)))
-	label.font_size = 40
-	label.pixel_size = 0.0015
-	label.position = center + Vector3(0, 2.2, -1.22)
-	label.modulate = Color("89d5dc")
-	add_child(label)
+	# Door headers identify the next room; room identity belongs on a closed wall.
+	if not _has_cell(Vector3i((center / CELL).round()) + Vector3i.FORWARD):
+		var label := Label3D.new()
+		label.text = room_type.to_upper() + "  /  DECK " + str(int(round(center.y / CELL.y)))
+		label.font_size = 40
+		label.pixel_size = 0.0015
+		label.position = center + Vector3(0, 2.2, -1.22)
+		label.modulate = Color("89d5dc")
+		add_child(label)
 	if floor_type == "armored" or ceiling_type == "armored":
 		for x in [-1.1, 1.1]:
 			_box(center + Vector3(x, 0.025, 0), Vector3(0.045, 0.035, 2.35), Color("78858a"))

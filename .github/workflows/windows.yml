@@ -94,6 +94,7 @@ jobs:
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_fleet_model_collision.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_fleet_panel_bevel.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_ship_blueprint.gd
+          timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_ship_wayfinding.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_hull_family_refit.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_contact_search.gd -- --capture-only
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_thermal_signature.gd
