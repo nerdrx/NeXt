@@ -1996,3 +1996,17 @@ shooting through the wall or revealing the target's changed location. Existing
 expiry, reacquisition, target isolation, peace and pursuit-leash assertions pass.
 The post-guard fixture explicitly faces its target and still verifies holding,
 shooting and damage. Attack awareness is wired into the player's ground-hit path.
+
+The contact fixture also checks 59-degree acceptance and 61-degree rejection
+around the 60-degree half-angle. Clean Windows export and hidden-Gamescope
+Proton integration pass at `b61f836`:
+`build/windows-validation-dd5c267/build/proton-smoke.sCcJgx`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Directional-awareness assertions ran natively; the Windows
+run covers general gameplay.
+
+Review caught a first-hit ordering issue: newly assaulted police were still
+neutral when receiving the impact event. The player-hit path now updates police
+hostility before delivering that event. `test_ground_attack.gd` fires a real
+player ray into a neutral guard's back and verifies damage, assault reporting,
+immediate hostile contact and facing toward the origin. This fixture passes
+and is registered in CI.
