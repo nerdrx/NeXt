@@ -64,8 +64,14 @@ var landed_ship_address: SectorPosition
 var landed_ship_normal := Vector3.UP
 
 func _ready() -> void:
+	# Stock release templates ignore --script; route the opt-in runtime check here.
+	if "--crew-check" in OS.get_cmdline_user_args() and not has_meta("crew_test_instance"):
+		set_process(false)
+		set_physics_process(false)
+		get_tree().change_scene_to_file.call_deferred("res://tests/crew_gameplay.tscn")
+		return
 	process_physics_priority = -100
-	automation = "--smoke" in OS.get_cmdline_user_args() or "--visual-tour" in OS.get_cmdline_user_args() or "--capture-only" in OS.get_cmdline_user_args()
+	automation = "--crew-check" in OS.get_cmdline_user_args() or "--smoke" in OS.get_cmdline_user_args() or "--visual-tour" in OS.get_cmdline_user_args() or "--capture-only" in OS.get_cmdline_user_args()
 	if automation: save_path = "user://integration_commander-%d.json" % OS.get_process_id()
 	_input_actions()
 	state = GameState.new()

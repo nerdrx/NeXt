@@ -40,7 +40,7 @@ else
 fi
 godot_args=(--audio-driver Dummy --log-file "Z:$run_dir/godot.log")
 if [[ "$mode" == crew ]]; then
-    godot_args+=(-s res://tests/test_ship_crew_gameplay.gd -- --capture-only)
+    godot_args+=(-- --crew-check --capture-only)
 else
     godot_args+=(-- --smoke)
 fi
