@@ -1865,3 +1865,9 @@ known seven Texture RID cleanup warning at shutdown.
 Station-supply, adaptive-trade and partial-sale regressions pass. The new fixture
 is registered in CI. This does not validate live Steam logistics, physical remote
 transit, production invoice accounting or performance targets.
+
+The final native fixture also verifies a remote exporter returns to its station
+system before loading. Clean Windows export and hidden-Gamescope Proton
+integration pass at `06beb81`: `build/windows-validation-dd5c267/build/proton-smoke.e8atmy`,
+wrapper exit 0 and `NEXT_INTEGRATION_OK`. Export-specific assertions ran natively;
+the packaged smoke covers general integration.
