@@ -37,7 +37,10 @@ var jump_charge: float = 0.0
 var jump_destination: int = 0
 var suit_health: float = 100.0
 var autosave_clock: float = 0.0
-var shield_delay: float = 0.0
+var shield_delay: float:
+	get: return state.shield_delay if state != null else 0.0
+	set(value):
+		if state != null: state.shield_delay = value
 var automation: bool = false
 var save_path: String = "user://commander.json"
 var enemy_clock: float = 0.0
@@ -1581,8 +1584,7 @@ func _process(delta: float) -> void:
 		jump_charge = maxf(0, jump_charge - delta)
 		if jump_charge == 0: _complete_jump()
 	if not ui_open and jump_charge <= 0:
-		shield_delay -= delta
-		if shield_delay <= 0: state.shield = minf(float(_last_stats.get("max_shield", 100)), state.shield + delta * 5)
+		state.recharge_shields(delta)
 		if not pilot.flying and manual_planet < 0:
 			var safe_spawn: Vector3 = _public_berth_point("stand")
 			var dock := _station_node(docked_station)
@@ -2291,11 +2293,8 @@ func refit_fleet_module(ship_id: String, cell: Vector3i, kind: String) -> String
 func exchange_fleet_helm(ship_id: String) -> String:
 	if session.connected: return "Leave the world visit before changing ships."
 	if pilot.flying or aboard or surface_index >= 0 or manual_planet >= 0: return "Return to an orbital concourse before changing ships."
-	var vessel: Dictionary = crew_operations()._ship(ship_id)
-	var incoming_delay := float(vessel.get("defense", {}).get("delay", 0.0))
 	var error: String = crew_operations().exchange_helm(ship_id, shield_delay)
 	if not error.is_empty(): return error
-	shield_delay = incoming_delay
 	pilot.cancel_autopilot()
 	apply_ship_stats()
 	rebuild_player_ship()
@@ -2490,6 +2489,7 @@ func _copy_carried_ship(source: GameState, destination: GameState) -> void:
 	destination.cargo = source.cargo.duplicate(true)
 	destination.hull = source.hull
 	destination.shield = source.shield
+	destination.shield_delay = source.shield_delay
 	destination.fuel = source.fuel
 	destination.drive_temperature_k = source.drive_temperature_k
 

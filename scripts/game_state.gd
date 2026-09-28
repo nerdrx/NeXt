@@ -51,6 +51,7 @@ var credits: int = 18000
 var cargo: Dictionary = {}
 var hull: float = 100.0
 var shield: float = 100.0
+var shield_delay: float = 0.0
 var fuel: float = 100.0
 var drive_temperature_k: float = 300.0
 var kills: int = 0
@@ -114,6 +115,13 @@ func ship_stats() -> Dictionary:
 	result.acceleration_mps2 = minf(3.0 * 9.80665, float(result.thrust_newtons) * float(result.drive_thrust_factor) / maxf(float(result.loaded_mass_kg), 1.0))
 	result.boost_acceleration_mps2 = minf(6.0 * 9.80665, float(result.thrust_newtons) * float(result.drive_thrust_factor) * float(result.boost_multiplier) / maxf(float(result.loaded_mass_kg), 1.0))
 	return result
+
+func recharge_shields(delta: float) -> void:
+	if not is_finite(delta) or delta <= 0.0: return
+	var recharge_time: float = maxf(0.0, delta - maxf(0.0, shield_delay))
+	shield_delay = maxf(0.0, shield_delay - delta)
+	if hull <= 0.0: return
+	shield = minf(float(ship_stats().max_shield), shield + recharge_time * 5.0)
 
 func radiator_area_m2() -> float:
 	# Retain the starter's abstract 40 m2 loop; modular panels add exposed area.
@@ -670,6 +678,12 @@ func _load_v1(data: Dictionary) -> String:
 
 func _load_v2(data: Dictionary) -> String:
 	var expected: Array[String] = ["version", "system_index", "world_id", "location", "credits", "cargo", "hull", "shield", "fuel", "kills", "day", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout", "faction"]
+	var has_shield_delay: bool = data.has("shield_delay")
+	if has_shield_delay: expected.append("shield_delay")
+	var loaded_shield_delay: float = 0.0
+	if has_shield_delay:
+		if typeof(data.shield_delay) == TYPE_BOOL or not _is_number(data.shield_delay) or not is_finite(float(data.shield_delay)) or float(data.shield_delay) < 0.0 or float(data.shield_delay) > 6.0: return "Invalid shield delay."
+		loaded_shield_delay = float(data.shield_delay)
 	var has_ship_identity: bool = data.has("ship_identity")
 	if has_ship_identity: expected.append("ship_identity")
 	var loaded_ship_identity: Dictionary = {"id": "ship-" + _new_world_id(), "name": "Commander ship"}
@@ -933,6 +947,7 @@ func _load_v2(data: Dictionary) -> String:
 	cargo = loaded_cargo
 	hull = float(data.hull)
 	shield = float(data.shield)
+	shield_delay = loaded_shield_delay
 	fuel = float(data.fuel)
 	drive_temperature_k = loaded_drive_temperature
 	kills = int(data.kills)
@@ -1066,10 +1081,10 @@ func _normalize_location(value: Dictionary) -> Dictionary:
 	return result
 
 func _save_data() -> Dictionary:
-	return {"version": SAVE_VERSION, "system_index": system_index, "world_id": world_id, "ship_identity": ship_identity, "location": location, "credits": credits, "cargo": cargo, "hull": hull, "shield": shield, "fuel": fuel, "drive_temperature_k": drive_temperature_k, "kills": kills, "day": day, "day_progress": day_progress, "ephemeris_seconds": ephemeris_seconds, "visited": visited, "reputation": reputation, "wanted": wanted, "ship_modules": ship_modules, "stations": stations, "shares": shares, "crew": crew, "world_flags": world_flags, "company_name": company_name, "company_balance": company_balance, "crew_paid": crew_paid, "contracts": contracts, "fleet_ships": fleet_ships, "crew_orders": crew_orders, "recovery": recovery, "ship_layout": ship_layout, "faction": faction, "market_stocks": market_stocks}
+	return {"version": SAVE_VERSION, "system_index": system_index, "world_id": world_id, "ship_identity": ship_identity, "location": location, "credits": credits, "cargo": cargo, "hull": hull, "shield": shield, "shield_delay": shield_delay, "fuel": fuel, "drive_temperature_k": drive_temperature_k, "kills": kills, "day": day, "day_progress": day_progress, "ephemeris_seconds": ephemeris_seconds, "visited": visited, "reputation": reputation, "wanted": wanted, "ship_modules": ship_modules, "stations": stations, "shares": shares, "crew": crew, "world_flags": world_flags, "company_name": company_name, "company_balance": company_balance, "crew_paid": crew_paid, "contracts": contracts, "fleet_ships": fleet_ships, "crew_orders": crew_orders, "recovery": recovery, "ship_layout": ship_layout, "faction": faction, "market_stocks": market_stocks}
 
 func _copy_from(other: GameState) -> void:
-	for key: String in ["system_index", "world_id", "ship_identity", "location", "credits", "cargo", "hull", "shield", "fuel", "drive_temperature_k", "kills", "day", "day_progress", "ephemeris_seconds", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout", "faction", "market_stocks"]:
+	for key: String in ["system_index", "world_id", "ship_identity", "location", "credits", "cargo", "hull", "shield", "shield_delay", "fuel", "drive_temperature_k", "kills", "day", "day_progress", "ephemeris_seconds", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout", "faction", "market_stocks"]:
 		set(key, other.get(key).duplicate(true) if other.get(key) is Array or other.get(key) is Dictionary else other.get(key))
 
 func _pay_crew_and_company() -> void:

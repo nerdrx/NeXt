@@ -84,7 +84,7 @@ func refit_layout(ship_id: String, cell: Vector3i, value: String, face: String =
 
 
 # Scene code enforces dock access; this transaction never sells or merges either hold.
-func exchange_helm(ship_id: String, outgoing_shield_delay: float = 0.0) -> String:
+func exchange_helm(ship_id: String, outgoing_shield_delay: float = -1.0) -> String:
 	var vessel := _ship(ship_id)
 	if vessel.is_empty(): return "Fleet vessel does not exist."
 	if int(vessel.system) != state.system_index or float(vessel.hull) <= 0.0: return "Choose a local operational vessel."
@@ -95,7 +95,8 @@ func exchange_helm(ship_id: String, outgoing_shield_delay: float = 0.0) -> Strin
 	if state.crew.size() > int(stats.crew_capacity): return "This vessel cannot accommodate your crew roster."
 	if state.hull <= 0.0 or not ShipBlueprint.valid_custom_modules(state.ship_modules): return "Recover or repair your current design before storing it."
 	if not ShipLayout.validate_data(state.ship_layout, state.ship_modules): return "Your current layout is invalid."
-	if not is_finite(outgoing_shield_delay): return "Invalid shield recovery state."
+	if outgoing_shield_delay == -1.0: outgoing_shield_delay = state.shield_delay
+	if not is_finite(outgoing_shield_delay) or outgoing_shield_delay < 0.0 or outgoing_shield_delay > 6.0: return "Invalid shield recovery state."
 	for order: Dictionary in state.crew_orders.values():
 		if str(order.kind) == "defend":
 			var has_weapon := false
@@ -119,6 +120,7 @@ func exchange_helm(ship_id: String, outgoing_shield_delay: float = 0.0) -> Strin
 	state.cargo = vessel.cargo.duplicate(true)
 	state.hull = float(stats.max_hull) * float(vessel.hull) / 100.0
 	state.shield = float(vessel.get("defense", {}).get("charge", 0.0))
+	state.shield_delay = float(vessel.get("defense", {}).get("delay", 0.0))
 	state.fuel = float(vessel.get("fuel", 100.0))
 	state.drive_temperature_k = float(vessel.get("drive_temperature_k", 300.0))
 	state.fleet_ships[index] = stored

@@ -11,9 +11,11 @@ func _initialize() -> void:
 	state.cargo.food = 8
 	state.credits = 0
 	state.hull = 0.0
+	state.shield_delay = 6.0
 	var wrecked: Dictionary = Recovery.destroy_ship(state, Vector3(12, 4, -8), -1)
 	assert(wrecked.ok and wrecked.wreck_id == "wreck-000001")
 	assert(state.ship_modules.size() == 7 and state.hull > 0 and state.fuel == 25.0)
+	assert(state.shield_delay == 0.0, "replacement shield does not inherit the destroyed ship's damage timer")
 	assert(state.cargo_total() == 0 and wrecked.debt_added > 0 and state.recovery.debt == wrecked.debt_added)
 	assert(Recovery.wreck_relative(state.recovery.wrecks[0], {}) == Vector3(12, 4, -8), "legacy wreck keeps local-coordinate display")
 	var legacy_state = GameStateScript.new()

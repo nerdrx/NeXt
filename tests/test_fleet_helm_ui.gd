@@ -16,6 +16,8 @@ func _run() -> void:
 	game.state.credits = 50000
 	game.state.cargo.ore = 4
 	game.state.fuel = 37.0
+	game._apply_ship_hit(1.0, "Shield persistence probe")
+	assert(game.state.shield_delay == 6.0, "combat hits set the persisted recovery timer")
 	game.shield_delay = 4.0
 	var original_id := str(game.state.ship_identity.id)
 	var original_modules: Array = game.state.ship_modules.duplicate(true)
@@ -48,6 +50,7 @@ func _run() -> void:
 	assert(game.save_commander(false))
 	var loaded := GameState.new()
 	assert(loaded.load_save(path).is_empty() and loaded.ship_identity.id == id)
+	assert(loaded.shield_delay == 2.0, "active ship recharge delay survives saving after helm exchange")
 	assert(game.exchange_fleet_helm(original_id).is_empty())
 	assert(game.state.ship_modules == original_modules and game.state.fuel == 37.0 and game.shield_delay == 4.0)
 	assert(game.state.cargo.ore == 4)

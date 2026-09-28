@@ -1120,3 +1120,11 @@ Built published commit `9b84799` from an isolated clean worktree at `build/windo
 This is the normal-entrypoint broad gameplay smoke. It exercises trading, construction, combat, persistence, travel, interiors, crew and generic fleet behavior. It does not invoke the newly added custom commissioning or helm-exchange callbacks; those retain their separate native/headless-Gamescope evidence above. It does not prove Steam networking, native Windows hardware compatibility or the 1440p/60 FPS target.
 
 Refreshed local `build/NeXt-Windows.zip` (40,159,166 bytes), containing `NeXt.exe`, `NeXt.pck` and source/version/hash information. ZIP CRC and extracted member SHA-256 checks passed. Package SHA-256: `5ca917d78fc1d73fe3f939ab50226488fa291f0c6bc3b37a92be82bc3a8a26d1`. Executable SHA-256: `4a9eaded8955ef789ab02651ed9d2dde80328fbb342bd2a6db4db33e86305668`; PCK SHA-256: `4b68ebb486516c00dafd3f981ec34f6866d436478ae4f7db453aa9b8a90c6892`. This local development package is not a GitHub release asset.
+
+## Persisted active shield recovery — 2026-09-28
+
+The active ship's recharge delay now belongs to GameState, is saved as an optional validated 0..6 second value, and follows the ship through world visits and helm exchanges. This supersedes the runtime-only delay limitation noted above. Old saves default to zero; malformed values reject before loading state. Main's existing damage paths write this same state. A replacement ship after destruction starts without the destroyed hull's timer.
+
+Recharge subtracts the delay first and grants 5 shield units per second only for the remaining elapsed time, rather than granting a full frame when the delay crosses zero. Delay stays nonnegative, shield charge is capped, invalid elapsed values are ignored, and destroyed hulls do not recharge. Existing menu/jump pause conditions remain.
+
+Native tests passed split-step timing equivalence, recharge boundaries, invalid elapsed input, shield-delay save/reload and malformed/legacy saves. Main-scene tests verified a real damage call sets the stored timer, active delay survives a helm-exchange save, and visitor arrival retains it. Recovery, existing GameState checks and Windows export passed. This change has no new Proton runtime result; the clean ZIP described above still contains commit `9b84799`.
