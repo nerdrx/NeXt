@@ -351,7 +351,7 @@ func _target_is_active() -> bool:
 		return target.flying
 	if target is CoastingHull:
 		return true
-	return false
+	return bool(target.get_meta("npc_target_active", false))
 
 
 func _near_safe_zone() -> bool:

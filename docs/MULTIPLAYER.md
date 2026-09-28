@@ -161,7 +161,7 @@ transport configuration remain separate unfinished requirements.
 
 ## Protocol compatibility and admission deadlines
 
-Join requests and welcomes carry `NetworkSession.PROTOCOL_VERSION` (currently 3).
+Join requests and welcomes carry `NetworkSession.PROTOCOL_VERSION` (currently 4).
 A missing or different version is rejected before world identity, presence or
 visitor profile adoption. Increment this version whenever wire formats or shared
 simulation contracts become incompatible; matching version numbers alone do not
@@ -193,8 +193,8 @@ Malformed batches, duplicate identities, wrong factions and stale travel epochs
 are rejected before scene updates.
 
 This remains partial shared NPC combat. Visitor ship fire is now resolved by
-the host as described below; NPC attacks against visitors, shared weapon effects
-and visitor access to host wrecks still need integration. Ground NPCs,
+the host as described below. Host NPCs also target and damage visiting pilots;
+shared weapon effects and visitor access to host wrecks still need integration. Ground NPCs,
 owned fleets and economic simulation remain local. Steam transport still requires
 an AppID and native integration verification.
 
@@ -215,7 +215,30 @@ wanted status and reputation. A surviving police ship reports each visitor's
 first assault once. Host world destruction and debris persist without crediting
 the host for the visitor's kill. Ship snapshots then remove destroyed replicas.
 
-This path covers ship weapons, not on-foot visitor weapons. NPC targeting still
-focuses on the host and its fleet; visitor retaliation, shared wreck access and
-fully authoritative player inventories remain unfinished. Pose reports still
+This path covers ship weapons, not on-foot visitor weapons. Shared wreck access
+and fully authoritative player inventories remain unfinished. Pose reports still
 come from clients, so this is not an anti-cheat movement system.
+
+
+## NPC attacks against visitors
+
+Protocol 4 allows the host to deliver NPC damage to a fresh flying visitor.
+Pirates select nearby detectable visiting ships alongside the host and its fleet.
+Police select visitors who attacked that patrol; a peaceful visitor does not
+inherit the host commander's wanted status. Targets must have a flying pose no
+older than one second. Stale, disconnected, hidden and on-foot visitors are not
+eligible. Shared visitor heat is not yet available, so detection currently uses
+the nominal 300 K, 40-square-metre radiator signature (800 m unobstructed range).
+
+The host's normal weapon ray resolves scenery and hull obstructions before
+sending damage only to the struck visitor. This does not require PvP consent:
+that consent continues to govern player weapons against player ships. Switching
+off ship systems does not grant immunity. Guest shields, hull and insurance
+rescue use the existing damage path. Stale travel epochs and non-finite or
+out-of-range damage are rejected.
+
+Damage and player rescue remain client-applied, not tamper-proof host-owned
+health. Visitors walking inside coasting ships currently publish a non-flying
+pose and are excluded; shared exterior damage while aboard needs further work.
+Police memory of visitor assaults belongs to the current patrol/session; full
+shared law enforcement and all-viewer weapon effects remain unfinished.

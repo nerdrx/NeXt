@@ -128,6 +128,7 @@ func _ready() -> void:
 	session.npc_ships_received.connect(_receive_npc_ships)
 	session.npc_shot_requested.connect(_visitor_npc_shot)
 	session.npc_hit_received.connect(_receive_npc_hit)
+	session.npc_damage_received.connect(_receive_npc_damage)
 	session.pvp_damage_received.connect(_receive_pvp_damage)
 	session.pvp_hit_confirmed.connect(_receive_pvp_hit)
 	session.pvp_occlusion_check = _pvp_clear_shot
@@ -1023,6 +1024,9 @@ func _ship_detectable(observer: Node3D, candidate: Node3D) -> bool:
 	var emission: float
 	if candidate == pilot or candidate == coasting_hull:
 		emission = ThermalSignature.emitted_power_w(state.drive_temperature_k, state.radiator_area_m2())
+	elif candidate.get_meta("npc_target_active", false):
+		# Visitor heat is not replicated yet; use the nominal 300 K sensor signature.
+		emission = ThermalSignature.BASELINE_POWER_W
 	elif candidate is ShipActor:
 		if candidate.hp <= 0.0 or bool(candidate.get_meta("spatial_culled", false)): return false
 		emission = candidate.thermal_emission_w()
@@ -1041,6 +1045,8 @@ func _ship_detectable(observer: Node3D, candidate: Node3D) -> bool:
 	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 func _update_combat_targets() -> void:
+	for peer_id: int in remote_ships:
+		remote_ships[peer_id].set_meta("npc_target_active", session.is_visitor_flying(peer_id) and remote_ships[peer_id].visible)
 	var player_ship: Node3D = coasting_hull if aboard and is_instance_valid(coasting_hull) else (pilot if pilot.flying else null)
 	for actor in actors:
 		if not actor is ShipActor or actor.get_meta("network_npc", false): continue
@@ -1061,7 +1067,13 @@ func _update_combat_targets() -> void:
 			if fleet_target != null and (actor.target == null or actor.position.distance_squared_to(fleet_target.position) < actor.position.distance_squared_to(player_ship.position)):
 				actor.target = fleet_target
 		else:
-			actor.target = player_ship if _ship_detectable(actor, player_ship) else null
+			if actor.faction == "police": actor.hostile = PlayerFaction.police_hostile(state.faction, str(world.data.faction), state.wanted)
+			actor.target = player_ship if actor.hostile and _ship_detectable(actor, player_ship) else null
+		if actor.faction in ["pirate", "police"]:
+			var visitor := _nearest_hostile_visitor(actor)
+			if visitor != null and (actor.target == null or actor.position.distance_squared_to(visitor.position) < actor.position.distance_squared_to(actor.target.position)):
+				actor.target = visitor
+				actor.hostile = true
 		actor.observe_target(actor.target)
 
 func refit_hull_family(family_id: String) -> String:
@@ -1345,6 +1357,9 @@ func _enemy_fire(actor: Node3D, origin: Vector3, direction: Vector3) -> void:
 	var endpoint: Vector3 = hit.get("position", origin + direction * 180)
 	_beam(origin, endpoint, Color("ff9673"))
 	var struck: Object = hit.get("collider")
+	if actor is ShipActor and actor.faction in ["pirate", "police"] and struck is Node and struck.has_meta("peer_id"):
+		session.send_npc_damage(int(struck.get_meta("peer_id")), damage)
+		return
 	if actor is ShipActor and is_instance_valid(coasting_hull) and struck == coasting_hull:
 		_apply_ship_hit(damage, "Ship under attack! Return to the helm or continue your escape route.")
 		return
@@ -3242,3 +3257,24 @@ func _receive_npc_hit(faction: String, killed: bool, assault: bool) -> void:
 		notify("Pirate neutralized. Bounty credited." if faction == "pirate" else "Security casualty recorded. Wanted status updated.")
 	if (assault or killed) and not save_commander(false):
 		notify("Combat outcome NOT SAVED. Check storage and save again.")
+
+
+func _nearest_hostile_visitor(actor: ShipActor) -> Node3D:
+	if not session.connected or not session.is_host: return null
+	var nearest: Node3D = null
+	var distance := ThermalSignature.MAX_RANGE_M
+	for peer_id: int in remote_ships:
+		if not session.is_visitor_flying(peer_id): continue
+		if actor.faction == "police" and peer_id not in actor.get_meta("visitor_assaults", []): continue
+		var candidate: Node3D = remote_ships[peer_id]
+		if not candidate.visible or not _ship_detectable(actor, candidate): continue
+		var candidate_distance := actor.global_position.distance_to(candidate.global_position)
+		if candidate_distance < distance:
+			nearest = candidate
+			distance = candidate_distance
+	return nearest
+
+
+func _receive_npc_damage(damage: float) -> void:
+	if not session.connected or session.is_host or not pilot.flying or aboard or not is_finite(damage) or damage <= 0: return
+	_apply_ship_hit(damage, "Ship hit by hostile patrol.")

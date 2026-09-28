@@ -11,9 +11,10 @@ signal pvp_hit_confirmed(attacker: int, target: int, origin_data: Dictionary, en
 signal npc_ships_received(records: Array)
 signal npc_shot_requested(attacker: int, direction: Vector3, damage: float)
 signal npc_hit_received(faction: String, killed: bool, assault: bool)
+signal npc_damage_received(damage: float)
 
 # Increment when wire payloads or shared simulation contracts become incompatible.
-const PROTOCOL_VERSION: int = 3
+const PROTOCOL_VERSION: int = 4
 const JOIN_TIMEOUT: float = 20.0
 const DEFAULT_PORT: int = 27840
 const MAX_PLAYERS: int = 8
@@ -858,6 +859,32 @@ func _rpc_npc_hit_confirmed(faction: String, killed: bool, assault: bool, epoch:
 	if is_host or not connected or epoch != _pvp_epoch: return
 	if faction not in ["pirate", "police"] or (assault and faction != "police"): return
 	npc_hit_received.emit(faction, killed, assault)
+
+
+func is_visitor_flying(peer_id: int) -> bool:
+	if not is_host or not connected or peer_id <= 1 or not presence.has(peer_id): return false
+	if not presence[peer_id].get("flying", false): return false
+	return _remote_pose_is_fresh(peer_id, Time.get_ticks_msec())
+
+
+func send_npc_damage(peer_id: int, damage: float) -> void:
+	if not is_visitor_flying(peer_id) or not _valid_npc_damage(damage): return
+	_rpc_npc_damage.rpc_id(peer_id, damage, _pvp_epoch)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _rpc_npc_damage(damage: float, epoch: int) -> void:
+	if is_host or not connected or epoch != _pvp_epoch or not _local_flying or not _valid_npc_damage(damage): return
+	npc_damage_received.emit(damage)
+
+
+func _remote_pose_is_fresh(peer_id: int, now: int) -> bool:
+	var stamp := int(_last_remote_pose_msec.get(peer_id, -10000))
+	return now - stamp >= 0 and now - stamp <= 1000
+
+
+func _valid_npc_damage(damage: float) -> bool:
+	return is_finite(damage) and damage > 0.0 and damage <= 1000000.0
 
 
 @rpc("any_peer", "call_remote", "reliable")
