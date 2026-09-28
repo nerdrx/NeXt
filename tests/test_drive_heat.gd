@@ -34,7 +34,7 @@ func _run() -> void:
 	assert(state.drive_temperature_k < cooler, "continued cooling is monotonic")
 	state.drive_temperature_k = 300.0
 	state.cool_drive(1.0)
-	assert(state.drive_temperature_k == 300.0, "drive cooling has a 300 K floor")
+	assert(state.drive_temperature_k > 300.0, "powered systems warm the drive above ambient")
 	state.drive_temperature_k = 600.0
 	for invalid_delta: float in [-1.0, 0.0, 1.01, NAN, INF]:
 		var temperature: float = state.drive_temperature_k

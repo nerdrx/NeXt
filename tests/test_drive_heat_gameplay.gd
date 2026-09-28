@@ -25,6 +25,11 @@ func _run() -> void:
 	pilot.restore_flight_velocity(Vector3.ZERO)
 	game.state.fuel = 100.0
 	game.state.drive_temperature_k = 300.0
+	game._physics_process(1.0)
+	assert(game.state.drive_temperature_k > 300.0 and game.state.fuel == 100.0 and pilot.flight_velocity() == Vector3.ZERO,
+		"powered systems warm while idle without spending propellant or changing momentum")
+	assert("POWERED SYSTEMS HEAT" in game.deck._ship_stats_line(game.state), "shipyard exposes waste heat")
+	game.state.drive_temperature_k = 300.0
 	game._refresh_propulsion_limits()
 	Input.action_press("move_forward")
 	pilot._fly(0.1)

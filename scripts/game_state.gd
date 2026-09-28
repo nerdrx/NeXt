@@ -139,12 +139,9 @@ func radiator_area_m2() -> float:
 
 func cool_drive(delta: float) -> void:
 	if not is_finite(delta) or delta <= 0.0 or delta > 1.0: return
-	if not is_finite(drive_temperature_k): return
-	# Tuned shared drive loop: 2.5 MJ/K, layout-dependent area, emissivity 0.8.
-	# 300 K is a regulated floor, not the temperature of space.
-	var area := radiator_area_m2()
-	var watts := ThermalSignature.emitted_power_w(drive_temperature_k, area) - ThermalSignature.emitted_power_w(300.0, area)
-	drive_temperature_k = maxf(300.0, drive_temperature_k - maxf(0.0, watts) * delta / 2.5e6)
+	var stats := _stats_for(ship_modules)
+	var heat_w := float(stats.systems_heat_w) if hull > 0.0 else 0.0
+	drive_temperature_k = ThermalSignature.step_temperature(drive_temperature_k, radiator_area_m2(), heat_w, delta)
 
 func consume_propulsion(before: Vector3, commanded: Vector3) -> Vector3:
 	if not before.is_finite(): return Vector3.ZERO
@@ -1163,8 +1160,8 @@ func _connected(modules: Array[Dictionary]) -> bool:
 	return seen.size() == modules.size()
 
 func _stats_for(modules: Array[Dictionary]) -> Dictionary:
-	# Power values are abstract ratings; generation serves nominal systems before boost headroom.
-	var result := {"cargo_capacity": 20, "max_hull": 100.0, "max_shield": 100.0, "speed": 10.0, "damage": 10, "mass": 0, "dry_mass_kg": 0, "thrust_newtons": 0, "power_balance": 0, "power_generation": 0, "power_demand": 0, "engine_power_demand": 0, "boost_multiplier": 1.0, "crew_capacity": 2, "walkable": false}
+	# Power ratings are abstract; 1500 W per supplied non-engine unit is heat tuning, not reactor physics.
+	var result := {"cargo_capacity": 20, "max_hull": 100.0, "max_shield": 100.0, "speed": 10.0, "damage": 10, "mass": 0, "dry_mass_kg": 0, "thrust_newtons": 0, "power_balance": 0, "power_generation": 0, "power_demand": 0, "engine_power_demand": 0, "systems_heat_w": 0.0, "boost_multiplier": 1.0, "crew_capacity": 2, "walkable": false}
 	var habitat_count: int = 0
 	for m: Dictionary in modules:
 		var spec: Dictionary = MODULES.get(str(m.get("kind", "")), {})
@@ -1187,6 +1184,7 @@ func _stats_for(modules: Array[Dictionary]) -> Dictionary:
 	result.crew_capacity = mini(12, 2 + habitat_count * 4)
 	if int(result.engine_power_demand) > 0:
 		result.boost_multiplier = clampf(1.0 + maxf(float(result.power_balance), 0.0) / float(result.engine_power_demand), 1.0, 2.0)
+	result.systems_heat_w = 1500.0 * minf(float(result.power_generation), maxf(0.0, float(result.power_demand - result.engine_power_demand)))
 	result.walkable = habitat_count > 0 and modules.size() >= 8
 	if crew_paid: result.damage += _paid_crew_count("gunner") * 5
 	return result

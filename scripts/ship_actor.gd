@@ -17,10 +17,11 @@ var shield_delay: float = 0.0
 var speed: float = 65.0
 var drive_temperature_k: float = 450.0
 var radiator_area_m2: float = 40.0
+# Generic NPC tuning; family hulls replace this with their blueprint value.
+var systems_heat_w: float = 6000.0
 var actor_id: String = ""
 var hostile: bool = true
 const CONTACT_SEARCH_SECONDS: float = 15.0
-const DRIVE_HEAT_CAPACITY_J_K: float = 2500000.0
 var dry_mass_kg: float = 40000.0
 var cargo_mass_kg: float = 0.0
 var thrust_newtons: float = 1200000.0
@@ -79,6 +80,7 @@ func _ready() -> void:
 		acceleration_limit_mps2 = 3.0 * FlightDynamics.STANDARD_GRAVITY
 		speed = float(stats.speed)
 		radiator_area_m2 = float(stats.radiator_area_m2)
+		systems_heat_w = float(stats.systems_heat_w)
 		var family_visual := ShipVisual.new()
 		_visual = family_visual
 		add_child(_visual)
@@ -139,9 +141,7 @@ func _physics_process(delta: float) -> void:
 	var offset := destination - global_position
 	var distance := offset.length()
 	var desired_speed := speed * (0.55 if attacking and hp < 30.0 else 1.0)
-	var baseline_w := ThermalSignature.emitted_power_w(300.0, radiator_area_m2)
-	var cooling_w := maxf(0.0, thermal_emission_w() - baseline_w)
-	drive_temperature_k = maxf(300.0, drive_temperature_k - cooling_w * delta / DRIVE_HEAT_CAPACITY_J_K)
+	drive_temperature_k = ThermalSignature.step_temperature(drive_temperature_k, radiator_area_m2, systems_heat_w if hp > 0.0 else 0.0, delta)
 	var heat_factor := clampf((700.0 - drive_temperature_k) / 200.0, 0.0, 1.0)
 	var mass := maxf(1.0, dry_mass_kg + cargo_mass_kg)
 	var acceleration := minf(acceleration_limit_mps2, thrust_newtons * heat_factor / mass)

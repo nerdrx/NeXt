@@ -25,7 +25,9 @@ func _run() -> void:
 	assert(state.drive_temperature_k == base_temperature, "refit preserves drive temperature")
 	state.cool_drive(0.5)
 	assert(base_temperature - state.drive_temperature_k > baseline_cooling, "larger radiator area cools drive faster")
-	assert(is_equal_approx((base_temperature - state.drive_temperature_k) / baseline_cooling, 65.0 / 40.0), "heat rejection scales with exposed area")
+	var baseline_rejection: float = baseline_cooling + float(base.systems_heat_w) * 0.5 / 2500000.0
+	var installed_rejection: float = base_temperature - state.drive_temperature_k + float(installed.systems_heat_w) * 0.5 / 2500000.0
+	assert(is_equal_approx(installed_rejection / baseline_rejection, 65.0 / 40.0), "radiative rejection scales with area after accounting for powered-system heat")
 	state.drive_temperature_k = base_temperature
 
 	assert(state.add_module("habitat", Vector3i(0, 2, 1)) == "", "neighbor can cover radiator face")
