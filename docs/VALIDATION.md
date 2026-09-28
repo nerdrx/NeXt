@@ -2190,3 +2190,8 @@ the HUD; the final fixture keeps the scene intact and zeros planetary gravity
 when isolating the primary.
 Headless editor import and hidden-Gamescope stellar-gravity execution pass
 without script/engine errors.
+
+Clean Windows export and hidden-Gamescope Proton integration pass at `0a13586`:
+`build/windows-validation-dd5c267/build/proton-smoke.pcFOwu`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Dedicated field and live free-fall assertions ran natively;
+the packaged smoke checks general gameplay, not relativistic accuracy or FPS.
