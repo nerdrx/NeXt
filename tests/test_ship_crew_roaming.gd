@@ -10,17 +10,24 @@ func _initialize() -> void:
 func _run() -> void:
 	var scene := Node3D.new()
 	root.add_child(scene)
-	var blueprint: Dictionary = ShipBlueprintScript.family("merchant")
+	var family_id := "ranger" if "--ranger" in OS.get_cmdline_user_args() else "merchant"
+	var blueprint: Dictionary = ShipBlueprintScript.family(family_id)
+	if family_id == "ranger":
+		assert(blueprint.layout.rooms.get("0,0,-3") == "lounge", "Ranger default layout includes bow lounge")
+		assert(blueprint.layout.rooms.get("-1,0,0") == "medical", "Ranger default layout includes medical bay")
+		assert(blueprint.layout.rooms.get("0,0,1") == "workshop", "Ranger default layout includes workshop")
 	var cabin := ShipInterior.new()
 	scene.add_child(cabin)
 	cabin.build(blueprint.modules, blueprint.layout)
 	await physics_frame
 	await physics_frame
 	var positions: Array[Vector3] = cabin.crew_positions(12)
-	var route := _find_same_deck_route(cabin, positions)
+	var route := _find_bow_to_aft_route(cabin, positions) if family_id == "ranger" else _find_same_deck_route(cabin, positions)
 	assert(not route.is_empty(), "built family cabin offers connected crew stops on one deck")
 	var start: Vector3 = route[0]
 	var target: Vector3 = route[1]
+	if family_id == "ranger":
+		assert(start.distance_to(target) > ShipInterior.CELL.z * 6.0, "Ranger roaming route spans long bow to aft hull")
 	var path: PackedVector3Array = cabin.crew_path(start, target)
 	assert(not path.is_empty() and path[-1].distance_to(target) < 0.5, "crew navigation returns a complete cabin-local route")
 	assert(cabin.crew_path(start, target + Vector3.UP * ShipInterior.CELL.y).is_empty(), "crew navigation rejects another deck")
@@ -72,7 +79,14 @@ func _run() -> void:
 	crew.roaming_enabled = true
 	crew._room_wait = 0.0
 	var arrived := false
-	for _frame: int in 720:
+	var remaining_path: PackedVector3Array = cabin.crew_path(crew.position, target)
+	var remaining_distance := 0.0
+	var previous := crew.position
+	for point: Vector3 in remaining_path:
+		remaining_distance += previous.distance_to(point)
+		previous = point
+	var arrival_frame_budget := maxi(720, ceili(remaining_distance / crew.speed * Engine.physics_ticks_per_second * 1.5) + 120)
+	for _frame: int in arrival_frame_budget:
 		await physics_frame
 		if crew.position.distance_to(target) < 0.85:
 			arrived = true
@@ -114,6 +128,21 @@ func _find_same_deck_route(cabin: ShipInterior, positions: Array[Vector3]) -> Ar
 			if absf(from.y - to.y) > 0.5 or from.distance_to(to) < 1.5: continue
 			if not cabin.crew_path(from, to).is_empty(): return [from, to]
 	return []
+
+
+func _find_bow_to_aft_route(cabin: ShipInterior, positions: Array[Vector3]) -> Array[Vector3]:
+	var best_route: Array[Vector3] = []
+	var best_distance := 0.0
+	for from: Vector3 in positions:
+		if roundi(from.x / ShipInterior.CELL.x) != 0 or roundi(from.z / ShipInterior.CELL.z) != -4: continue
+		for to: Vector3 in positions:
+			if abs(roundi(to.x / ShipInterior.CELL.x)) != 2 or roundi(to.z / ShipInterior.CELL.z) != 3: continue
+			var distance := from.distance_to(to)
+			var candidate_path := cabin.crew_path(from, to)
+			if distance <= best_distance or candidate_path.is_empty(): continue
+			best_route = [from, to]
+			best_distance = distance
+	return best_route
 
 
 func _crew_capsule_clear(cabin: ShipInterior, crew: ShipCrew) -> bool:

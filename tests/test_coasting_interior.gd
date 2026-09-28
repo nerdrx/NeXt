@@ -15,7 +15,11 @@ func _run() -> void:
 	save_path = "user://coasting-interior-%d.json" % OS.get_process_id()
 	game.save_path = save_path
 	game.state.credits = 50000
-	assert(game.state.add_module("habitat", Vector3i(0, 0, 3)).is_empty())
+	var ranger := "--ranger" in OS.get_cmdline_user_args()
+	if ranger:
+		assert(game.state.refit_hull_family("ranger").is_empty())
+	else:
+		assert(game.state.add_module("habitat", Vector3i(0, 0, 3)).is_empty())
 	game.apply_ship_stats()
 	game.pilot.set_flight(true)
 	var anchor := Vector3(4090, 1800, 1000)
@@ -40,7 +44,17 @@ func _run() -> void:
 	Input.action_press("move_forward")
 	await create_timer(0.4).timeout
 	Input.action_release("move_forward")
-	assert(game.interior.to_local(game.pilot.position).z < local_start.z - 1, "passenger walks relative to moving frame")
+	var walked: Vector3 = game.interior.to_local(game.pilot.position) - local_start
+	assert(walked.dot(game.interior.entry_direction(game.interior_deck)) > 1.0, "passenger walks through the entry doorway relative to moving frame")
+	if ranger:
+		Input.action_press("move_forward")
+		await create_timer(1.8).timeout
+		Input.action_release("move_forward")
+		assert(game.pilot.is_on_floor())
+		assert(game.interior.to_local(game.pilot.position).z > 0.0, "Ranger's bow connects physically through the lounge and radiator bay into the main deck")
+		if DisplayServer.get_name() != "headless":
+			await RenderingServer.frame_post_draw
+			assert(root.get_texture().get_image().save_png("user://ranger-moving-interior.png") == OK)
 	var address := SectorPosition.new(game.flight_origin.sector, game.coasting_hull.position)
 	assert(address.relative_to(SectorPosition.new(), 60000).x > anchor.x + 100)
 	assert(game.save_commander(false))
@@ -97,7 +111,7 @@ func _run() -> void:
 	game.queue_free()
 	await process_frame
 	await process_frame
-	print("COASTING_INTERIOR_OK: relative walking, stationary passenger, origin rebase, save address, momentum return, collision damage and insured wreck recovery")
+	print("COASTING_INTERIOR_OK: ", "ranger" if ranger else "custom", " relative walking, stationary passenger, origin rebase, save address, momentum return, collision damage and insured wreck recovery")
 	quit()
 
 func _button(node: Node, title: String) -> Button:

@@ -7,6 +7,7 @@ var navigation_mesh: NavigationMesh
 var map := RID()
 var region := RID()
 var bake_bounds := AABB(Vector3(-90, -2, -100), Vector3(180, 5.8, 170))
+var cell_size := 0.25
 
 func add_box(mesh: BoxMesh, transform: Transform3D) -> void:
 	var h := mesh.size * 0.5
@@ -43,7 +44,7 @@ func path(from: Vector3, to: Vector3) -> PackedVector3Array:
 
 func _bake() -> void:
 	navigation_mesh = NavigationMesh.new()
-	navigation_mesh.cell_size = 0.25
+	navigation_mesh.cell_size = cell_size
 	navigation_mesh.cell_height = 0.1
 	navigation_mesh.agent_radius = 0.5
 	navigation_mesh.agent_height = 1.8

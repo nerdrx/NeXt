@@ -135,6 +135,8 @@ func _create_deck_navigation() -> void:
 			low_z = minf(low_z, z - CELL.z * 0.5 - 0.4)
 			high_z = maxf(high_z, z + CELL.z * 0.5 + 0.4)
 		var navigation := PortNavigation.new()
+		# Tight cabin doorways need finer sampling than open port streets.
+		navigation.cell_size = 0.1
 		navigation.bake_bounds = AABB(Vector3(low_x, float(deck) * CELL.y - 0.15, low_z), Vector3(high_x - low_x, 2.65, high_z - low_z))
 		_deck_navigation[deck] = navigation
 
@@ -260,10 +262,11 @@ func _equipment(center: Vector3, kind: String, room_type: String) -> void:
 func _room_furnishing(center: Vector3, room_type: String) -> void:
 	match room_type:
 		"lounge":
-			for z in [-0.75, 0.75]:
-				_box(center + Vector3(-0.88, 0.38, z), Vector3(0.48, 0.72, 0.94), Color("46535a"), true)
-				_box(center + Vector3(-0.88, 0.77, z), Vector3(0.47, 0.12, 0.9), Color("74827e"))
-			_box(center + Vector3(0.38, 0.42, 0), Vector3(0.85, 0.12, 1.2), Color("384951"), true)
+			# Corner seating and a side table leave both doorway axes clear for capsules.
+			for z in [-0.98, 0.98]:
+				_box(center + Vector3(-0.98, 0.38, z), Vector3(0.48, 0.72, 0.7), Color("46535a"), true)
+				_box(center + Vector3(-0.98, 0.77, z), Vector3(0.47, 0.12, 0.66), Color("74827e"))
+			_box(center + Vector3(0.95, 0.42, 0.95), Vector3(0.5, 0.12, 0.6), Color("384951"), true)
 		"medical":
 			_box(center + Vector3(-0.82, 0.46, 0), Vector3(0.74, 0.16, 1.85), Color("9aa5a0"), true)
 			_box(center + Vector3(-0.82, 0.56, 0), Vector3(0.68, 0.08, 1.32), Color("607b7c"))
