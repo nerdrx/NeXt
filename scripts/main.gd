@@ -2714,6 +2714,16 @@ func approach_wreck(id: String) -> void:
 		_start_address_cruise(address)
 		return
 
+func scan_salvage_signals() -> String:
+	if session.connected: return "Leave the multiplayer visit before surveying salvage signals."
+	if not pilot.flying or aboard or surface_index != -1 or manual_planet >= 0:
+		return "Launch into space to scan salvage signals."
+	if not state.systems_online: return "Restart main systems to use the salvage scanner."
+	var error := ShipRecovery.scan_derelict(state)
+	if error.is_empty(): rebuild_wrecks()
+	return error
+
+
 func recover_wreck(id: String, salvage: bool = false, good: String = "", amount: int = 0) -> String:
 	if aboard: return "Return to the helm or approach the wreck on foot."
 	var error: String = ShipRecovery.salvage_wreck(state, id, surface_index, pilot.position, 80.0 if pilot.flying else 8.0, flight_origin.to_save()) if salvage else ShipRecovery.recover_cargo(state, id, surface_index, pilot.position, 80.0 if pilot.flying else 8.0, flight_origin.to_save(), good, amount)

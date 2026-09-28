@@ -137,6 +137,38 @@ static func abandon_fleet_cargo(state: GameState, ship_id: String, position: Vec
 	return _report(true, "Fleet cargo abandoned in a recovery wreck.", {"wreck_id": wreck_id, "ship_id": ship_id, "cargo": cargo})
 
 
+static func scan_derelict(state: GameState) -> String:
+	if not validate_data(state.recovery): return "Recovery record is invalid."
+	var key := "%d:-1" % state.system_index
+	var flag := "derelict-survey-v1"
+	var flags: Array = state.world_flags.get(key, [])
+	if flag in flags: return "This system's derelict has already been catalogued."
+	if flags.size() >= 10000 or (not state.world_flags.has(key) and state.world_flags.size() >= GameState.MAX_WORLD_FLAGS):
+		return "World record limit reached."
+	var rng := Universe._rng(state.system_index, 1701)
+	if rng.randi_range(0, 2) != 0: return "No unregistered salvage signals found in this system."
+	var family := "pathfinder" if rng.randi_range(0, 1) == 0 else "merchant"
+	var modules: Array = ShipBlueprint.family(family).modules.duplicate(true)
+	if not _valid_blueprint(state, modules): return "Derelict blueprint is invalid."
+	# Outer local-space band, beyond the current compact planetary layout.
+	var angle := rng.randf_range(0.0, TAU)
+	var position := Vector3(cos(angle) * 18000.0, rng.randf_range(1800.0, 2600.0), sin(angle) * 18000.0)
+	var cargo: Dictionary = {}
+	for good: String in GameState.GOODS: cargo[good] = 0
+	cargo.electronics = rng.randi_range(1, 3)
+	cargo.fuel = rng.randi_range(2, 6)
+	var stored := _store_cargo_cache(state, position, SectorPosition.new().to_save(), cargo)
+	if not stored.ok: return stored.message
+	var wreck: Dictionary = state.recovery.wrecks.back()
+	wreck.modules = modules
+	wreck.salvaged = false
+	wreck.salvage_value = maxi(100, ceili(_ship_value(modules) * 0.08))
+	flags = flags.duplicate()
+	flags.append(flag)
+	state.world_flags[key] = flags
+	return ""
+
+
 static func combat_debris(state: GameState, position: Vector3, dry_mass_kg: float, origin_data: Dictionary = {}) -> Dictionary:
 	if not validate_data(state.recovery) or not _valid_location(state.system_index, -1, position):
 		return _report(false, "Recovery location or record is invalid.")

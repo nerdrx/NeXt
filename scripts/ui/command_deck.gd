@@ -983,6 +983,8 @@ func _recovery() -> void:
 	var debt: int = int(recovery.get("debt", 0))
 	_button("PAY RESCUE DEBT / %d CR" % mini(debt, s.credits), _act.bind(ShipRecovery.repay_debt.bind(s, mini(debt, s.credits)), "Rescue debt payment recorded."), debt <= 0 or s.credits <= 0)
 	_text("Disabled local fleet ships leave recoverable freight caches. Repairs do not restore that cargo. Crew rescue and hull repair remain service abstractions.", 16, InterfaceTheme.MUTED)
+	_button("SCAN SALVAGE SIGNALS", _act.bind(game.scan_salvage_signals, "Derelict beacon catalogued. Approach it to recover cargo and salvage."), not game.pilot.flying or game.aboard or game.surface_index != -1 or game.manual_planet >= 0 or game.session.connected or not s.systems_online)
+	_text("Some systems contain unregistered derelicts. Scan in space, then approach the recorded beacon.", 15, InterfaceTheme.MUTED)
 	_text("WRECK BEACONS", 13, InterfaceTheme.CYAN)
 	var wrecks: Array = recovery.get("wrecks", [])
 	if wrecks.is_empty(): _text("No wreck beacons recorded.", 16, InterfaceTheme.MUTED)

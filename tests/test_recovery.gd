@@ -105,6 +105,23 @@ func _initialize() -> void:
 	state.recovery.wrecks[0].salvaged = true
 	var reclaimed: Dictionary = Recovery.destroy_ship(state, Vector3.ZERO, 0)
 	assert(reclaimed.ok and state.recovery.wrecks.size() == Recovery.MAX_WRECKS, "completed wreck is pruned to make room")
+	var survey := GameState.new()
+	for system in range(100):
+		if Universe._rng(system, 1701).randi_range(0, 2) == 0:
+			survey.system_index = system
+			break
+	var twin := GameState.new()
+	twin.system_index = survey.system_index
+	assert(Recovery.scan_derelict(survey).is_empty() and Recovery.scan_derelict(twin).is_empty())
+	assert(survey.recovery.wrecks == twin.recovery.wrecks, "survey generation is deterministic")
+	assert(Recovery.validate_data(survey.recovery))
+	var discovered: Dictionary = survey.recovery.wrecks[0]
+	assert(not discovered.modules.is_empty() and discovered.salvage_value > 0)
+	assert(not Recovery.scan_derelict(survey).is_empty() and survey.recovery.wrecks.size() == 1)
+	discovered.salvaged = true
+	discovered.cargo_recovered = true
+	for good in discovered.cargo: discovered.cargo[good] = 0
+	assert(not Recovery.scan_derelict(survey).is_empty(), "completed exploration wreck cannot regenerate")
 	var selective := GameState.new()
 	selective.cargo = {"ore": 10, "medicine": 4}
 	selective.hull = 0.0

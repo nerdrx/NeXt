@@ -143,6 +143,33 @@ func _run() -> void:
 	assert(game.save_commander(false))
 	assert(restored.load_save(save_path).is_empty() and restored.world_flags[game._location_key()].has(failing_enemy.actor_id))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
+	for system in range(100):
+		if Universe._rng(system, 1701).randi_range(0, 2) == 0:
+			game.state.system_index = system
+			break
+	game._build_system()
+	game._clear_actors()
+	game.pilot.set_flight(true)
+	game.state.systems_online = false
+	assert(not game.scan_salvage_signals().is_empty(), "offline scanner is rejected")
+	game.state.systems_online = true
+	game.open_menu("recovery")
+	var scan_button: Button
+	for candidate in game.deck.find_children("*", "Button", true, false):
+		if candidate.text == "SCAN SALVAGE SIGNALS": scan_button = candidate
+	assert(scan_button != null and not scan_button.disabled)
+	count = game.state.recovery.wrecks.size()
+	scan_button.pressed.emit()
+	assert(game.state.recovery.wrecks.size() == count + 1)
+	assert(restored.load_save(save_path).is_empty() and restored.recovery.wrecks.size() == count + 1)
+	assert(not ShipRecovery.scan_derelict(restored).is_empty(), "saved discovery marker prevents repeat reward")
+	var derelict: Dictionary = game.state.recovery.wrecks.back()
+	var derelict_position: Vector3 = game._wreck_position(derelict)
+	assert(derelict_position.length() > 18000.0)
+	await physics_frame
+	await physics_frame
+	assert(not _ray(game, derelict_position).is_empty(), "discovered derelict materializes with collision")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
 	game.sound.shutdown()
 	game.session.leave()
 	game.queue_free()

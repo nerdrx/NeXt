@@ -140,3 +140,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Replace conservative wreck module-box and freight-cache collision with authored damaged-hull collision. Retain obstacle layer 1, visual transform alignment, unpowered exhaust and hull-to-cache transition when salvage precedes cargo recovery.
 
 - [ ] Give NPC combat alloy debris a distinct damaged-material cache visual. It currently reuses the freight-cache placeholder and beacon; preserve saved recovery records, collision, range and one-time collection.
+
+- [ ] Author abandoned Pathfinder/Merchant damage variants for procedural salvage surveys. Preserve the shared module collision envelope and deterministic discovery record; current derelicts use tilted, unpowered intact placeholder hulls.
