@@ -1637,3 +1637,5 @@ Inbound traders now sell the quantity a destination market can receive, retainin
 Partial unloading requires no return-jump fuel and does not change the ship's system, flight record or inbound phase. It still requires local-arrival readiness when represented and pays the normal attempt wage. The final unload/return remains coupled to the existing fuel gate; decoupled unloading and departure, alternate market selection and predictive route planning remain unfinished.
 
 `test_partial_trade.gd` passes headless and under hidden Gamescope: zero-fuel partial unloading, unavailable-local-actor gating, full-market waits, stock/credit/escrow conservation, exact invoice allocation through save/load and final sale, and unknown legacy basis. Existing cost-basis, local-trade and station-supply regressions pass without script errors. The new check is registered in Windows CI.
+
+Clean Windows export and hidden-Gamescope Proton smoke passed at `d34c454`: `build/proton-smoke.63udzG` in the validation checkout, `NEXT_INTEGRATION_OK`, wrapper exit 0 and no script/runtime errors. Exact partial-sale assertions are native; the packaged smoke covers the general gameplay loop.
