@@ -1961,3 +1961,8 @@ Follow-up review found remembered pursuit bypassed the immediate home-return
 order when a previously acquired target crossed the pursuit radius. Chasing
 now retains the leash condition; the contact fixture passes an additional
 acquire-then-leave-radius assertion.
+
+The corrected code at `5d7d653` passes both native ground fixtures and a fresh
+Windows/Proton integration run under hidden Gamescope:
+`build/windows-validation-dd5c267/build/proton-smoke.CgmFH5`, wrapper exit 0,
+`NEXT_INTEGRATION_OK`.
