@@ -297,4 +297,13 @@ Piloted ships, moving walkable hulls and loaded NPC vessels now lose momentum in
 
 The model uses `D = 0.5 * density * area * speed^2` with a fixed drag coefficient of one, following the [NASA drag-equation form](https://www1.grc.nasa.gov/beginners-guide-to-aeronautics/drag-equation/). For each fixed-density step, velocity is divided by `1 + 0.5 * density * area * speed * dt / mass`, avoiding numerical reversal. Density is a gameplay approximation: 1.225 kg/m3 at the reference sphere, a 40-local-metre exponential scale height, smoothly tapered from 180 to 220 local metres. These values match the compressed flight bodies, not the physical catalog radii or planet-specific compositions. World-local sampling preserves density through origin rebasing. Airless worlds and space above the layer apply no drag.
 
-This is still air with a bounding-box reference area. Lift, winds, rotating atmosphere, Mach-dependent coefficients, aerodynamic heating and crew injury from deceleration remain unfinished. Remote fleet orders and replicated visitor poses are not integrated by this local model. Legacy separate surface scenes have no free-flight atmosphere field.
+This is still air with a bounding-box reference area. Lift, winds, rotating atmosphere, Mach-dependent coefficients, predictive aerodynamic heating and crew injury from deceleration remain unfinished. The energy-based heat approximation below now couples drag to the ship thermal loop. Remote fleet orders and replicated visitor poses are not integrated by this local model. Legacy separate surface scenes have no free-flight atmosphere field.
+
+
+## Aerodynamic heat approximation
+
+Each drag step now deposits 10% of its lost kinetic energy, `0.1 * 0.5 * loaded_mass * (speed_before^2 - speed_after^2)`, into the existing ship heat store. The remaining energy is treated as transferred to the surrounding air. The fixed fraction is gameplay tuning, not a material- or speed-dependent re-entry prediction. This uses only loss caused by drag; thrust, collision impulses and changes of reference frame are not counted as aerodynamic heating.
+
+Heat is applied immediately to piloted ships, moving walkable hulls and loaded NPC vessels. No deferred heat queue can be discarded by saving or changing seats. Radiation and system waste heat keep their existing time-step update. Once the shared store reaches 700 K, excess energy damages hull directly while leaving shields unchanged; fatal exposure uses existing wreck/rescue handling. Player rescue is deferred once on a fatal transition so a moving body's signal cannot rebuild its own scene mid-step or repeatedly retry a failed recovery. The flight HUD shows AIR HEAT in kW separately from drag acceleration.
+
+This is one aggregate heat store, not separate skin/cabin/engine temperatures. Ablation, plasma, shock layers, heat-shield construction and atmospheric convection remain unfinished.

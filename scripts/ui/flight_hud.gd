@@ -75,6 +75,8 @@ func _draw() -> void:
 		var thrust_g: float = pilot.thrust_g if pilot.flying else game.coasting_hull.thrust_g
 		var aerodynamic_g: float = pilot.aerodynamic_g if pilot.flying else game.coasting_hull.aerodynamic_g
 		if aerodynamic_g >= 0.01: _word(Vector2(w - 250, h - 152), "AIR DRAG %.2f g" % aerodynamic_g, 14, InterfaceTheme.GOLD)
+		var aerodynamic_heat_w: float = pilot.aerodynamic_heat_w if pilot.flying else game.coasting_hull.aerodynamic_heat_w
+		if aerodynamic_heat_w >= 1000.0: _word(Vector2(w - 250, h - 173), "AIR HEAT %.0f kW" % (aerodynamic_heat_w / 1000.0), 14, InterfaceTheme.GOLD)
 		_word(Vector2(w - 250, h - 131), "THRUST %.1f g" % thrust_g, 14, InterfaceTheme.GOLD)
 	_word(Vector2(w - 250, h - 78), "CARGO  %d / %d" % [state.cargo_total() if inspected.is_empty() else state._fleet_cargo_total(inspected), int(stats.cargo_capacity) if inspected.is_empty() else int(inspected.capacity)], 14, InterfaceTheme.MUTED)
 	_word(Vector2(w - 250, h - 54), ("BRAKING" if pilot.braking else ("CRUISE AUTOPILOT" if pilot.autopilot_active else ("FLIGHT ASSIST  ON" if pilot.flight_assist_enabled else "INERTIAL FLIGHT"))) if pilot.flying else "MAG BOOTS  ACTIVE", 13, InterfaceTheme.MUTED)

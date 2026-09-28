@@ -1589,3 +1589,9 @@ Windows/Proton smoke at `1587af3` passed from the clean validation checkout: `bu
 Existing inertial-flight and coasting-navigation checks passed. The actor regression initially failed its timer-based firing assertion both here and on unchanged `1587af3`; replacing elapsed-time waits with actual physics-frame waits fixes the harness without changing combat behavior.
 
 Atmospheric-drag build `97a4c5e` passed clean Windows export and Proton smoke (`build/proton-smoke.5SDqfV` in the Windows validation checkout): `NEXT_INTEGRATION_OK`, wrapper exit 0 and no script/runtime errors. The final atmospheric gameplay test also passed headless for CI. This does not establish aerodynamic realism, frame-rate targets or multiplayer interoperability.
+
+### Drag energy and ship heat
+
+`test_aerodynamic_heat.gd` checks the kinetic-energy fraction, split-loss conservation, finite-input guards, heat capacity and capped-store overflow. `test_aerodynamic_heat_gameplay.gd` passes headless and under hidden Gamescope: real pilot/coasting drag heats the shared ship state immediately, temperature survives save/load, vacuum adds none, NPC excess heat bypasses shields and creates debris without a free player kill, and fatal player exposure triggers deferred rescue. The AIR HEAT/AIR DRAG HUD capture was inspected; it is a telemetry check, not an art acceptance image.
+
+GameState, atmospheric-drag gameplay, thermal-overflow unit and thermal-overflow gameplay regressions passed. The heat partition is a fixed 10% gameplay approximation, not validation of real re-entry temperatures or material failure.

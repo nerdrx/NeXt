@@ -93,6 +93,7 @@ func _ready() -> void:
 	pilot.autopilot_arrived.connect(_cruise_arrived)
 	pilot.autopilot_blocked.connect(_cruise_blocked)
 	pilot.flight_impact.connect(_flight_impact)
+	pilot.aerodynamic_heat.connect(_absorb_aerodynamic_heat)
 	sound = Soundscape.new()
 	sound.muted = automation
 	add_child(sound)
@@ -1623,6 +1624,15 @@ func _sample_stellar_heat() -> float:
 	# Public hangar and remote surface-transition parking remain sheltered abstractions.
 	return 0.0
 
+func _absorb_aerodynamic_heat(energy_j: float) -> void:
+	var hull_before := state.hull
+	state.absorb_heat_j(energy_j)
+	if state.hull < hull_before:
+		hud.flash = maxf(hud.flash, 0.2)
+		# Rebuild outside the moving body callback, once per fatal transition.
+		if state.hull <= 0.0: _rescue.call_deferred()
+
+
 func _physics_process(delta: float) -> void:
 	stellar_heat_w = _sample_stellar_heat()
 	var hull_before := state.hull
@@ -2513,6 +2523,7 @@ func enter_interior(fleet_id: String = "") -> void:
 		coasting_hull.acceleration_mps2 = pilot.acceleration_mps2
 		coasting_hull.propulsion_limiter = _consume_ship_propulsion
 		coasting_hull.atmospheric_density_source = world.atmospheric_density
+		coasting_hull.aerodynamic_heat.connect(_absorb_aerodynamic_heat)
 		coasting_hull.drag_mass_kg = pilot.drag_mass_kg
 		coasting_hull.drag_dimensions = _thermal_dimensions
 		_coasting_deck_bodies.clear()

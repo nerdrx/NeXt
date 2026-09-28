@@ -1,6 +1,8 @@
 class_name Pilot
 extends CharacterBody3D
 
+signal aerodynamic_heat(joules: float)
+
 signal fired(origin: Vector3, direction: Vector3)
 signal autopilot_arrived
 signal autopilot_blocked
@@ -27,6 +29,7 @@ var atmospheric_density_source: Callable
 var drag_mass_kg: float = 40000.0
 var drag_dimensions := Vector3.ONE
 var aerodynamic_g: float = 0.0
+var aerodynamic_heat_w: float = 0.0
 
 var _pitch: float = 0.0
 var _fire_cooldown: float = 0.0
@@ -187,6 +190,9 @@ func _fly(delta: float) -> void:
 	var density: float = atmospheric_density_source.call(global_position) if atmospheric_density_source.is_valid() else 0.0
 	_flight_velocity = AtmosphericFlight.drag_velocity(_flight_velocity, density, drag_dimensions, camera.global_basis, drag_mass_kg, delta)
 	aerodynamic_g = FlightDynamics.thrust_load(before_drag, _flight_velocity, delta)
+	var heat_j := AtmosphericFlight.drag_heat_j(before_drag, _flight_velocity, drag_mass_kg)
+	aerodynamic_heat_w = heat_j / delta if delta > 0.0 else 0.0
+	if heat_j > 0.0: aerodynamic_heat.emit(heat_j)
 	if provisional_arrival and _flight_velocity.is_zero_approx():
 		autopilot_active = false
 		autopilot_arrived.emit()
@@ -265,6 +271,8 @@ func reset_view() -> void:
 
 
 func set_flight(value: bool) -> void:
+	aerodynamic_g = 0.0
+	aerodynamic_heat_w = 0.0
 	braking = false
 	thrust_g = 0.0
 	if value: set_walk_up(Vector3.UP)
@@ -409,6 +417,8 @@ func restore_flight_velocity(value: Vector3) -> void:
 	velocity = value
 
 func teleport(pos: Vector3) -> void:
+	aerodynamic_g = 0.0
+	aerodynamic_heat_w = 0.0
 	braking = false
 	global_position = pos
 	cancel_autopilot()

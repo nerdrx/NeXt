@@ -159,6 +159,12 @@ func cool_drive(delta: float, external_heat_w: float = 0.0) -> void:
 	hull = maxf(0.0, hull - ThermalSignature.overflow_damage(drive_temperature_k, area, heat_w + external_heat_w, delta))
 	drive_temperature_k = ThermalSignature.step_temperature(drive_temperature_k, area, heat_w + external_heat_w, delta)
 
+func absorb_heat_j(energy_j: float) -> void:
+	var absorbed := ThermalSignature.absorb_heat_j(drive_temperature_k, energy_j)
+	drive_temperature_k = float(absorbed.temperature_k)
+	hull = maxf(0.0, hull - float(absorbed.hull_damage))
+
+
 func consume_propulsion(before: Vector3, commanded: Vector3) -> Vector3:
 	if not before.is_finite(): return Vector3.ZERO
 	if not systems_online: return before

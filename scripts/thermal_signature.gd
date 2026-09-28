@@ -4,6 +4,8 @@ extends RefCounted
 const EMISSIVITY: float = 0.8
 const STEFAN_BOLTZMANN: float = 5.670374419e-8
 const BASELINE_POWER_W: float = EMISSIVITY * STEFAN_BOLTZMANN * 40.0 * pow(300.0, 4.0)
+const HEAT_CAPACITY_J_K: float = 2500000.0
+const DAMAGE_ENERGY_J: float = 25000000.0
 
 # Detection tuning: 800 m at the baseline emission, capped at 6000 m. These
 # values are gameplay tuning, not specifications for a real sensor.
@@ -19,7 +21,19 @@ static func step_temperature(temperature_k: float, area_m2: float, heat_w: float
 	if not is_finite(heat_w) or heat_w < 0.0 or not is_finite(delta) or delta < 0.0 or delta > 1.0:
 		return temperature_k
 	var emitted_above_baseline := emitted_power_w(temperature_k, area_m2) - emitted_power_w(300.0, area_m2)
-	return clampf(temperature_k + (heat_w - emitted_above_baseline) * delta / 2500000.0, 300.0, 700.0)
+	return clampf(temperature_k + (heat_w - emitted_above_baseline) * delta / HEAT_CAPACITY_J_K, 300.0, 700.0)
+
+
+static func absorb_heat_j(temperature_k: float, energy_j: float) -> Dictionary:
+	if not is_finite(temperature_k) or temperature_k < 300.0 or temperature_k > 700.0 or not is_finite(energy_j) or energy_j < 0.0:
+		return {"temperature_k": temperature_k, "hull_damage": 0.0}
+	var capacity_remaining_j := (700.0 - temperature_k) * HEAT_CAPACITY_J_K
+	var absorbed_j := minf(energy_j, capacity_remaining_j)
+	var excess_j := energy_j - absorbed_j
+	return {
+		"temperature_k": minf(700.0, temperature_k + absorbed_j / HEAT_CAPACITY_J_K),
+		"hull_damage": excess_j / DAMAGE_ENERGY_J,
+	}
 
 
 static func emitted_power_w(temperature_k: float, area_m2: float) -> float:
@@ -41,7 +55,7 @@ static func overflow_damage(temperature_k: float, area_m2: float, heat_w: float,
 	if not is_finite(area_m2) or area_m2 < 0.0 or area_m2 > 3040.0: return 0.0
 	if not is_finite(heat_w) or heat_w < 0.0 or not is_finite(delta) or delta <= 0.0 or delta > 1.0: return 0.0
 	var cooling := emitted_power_w(temperature_k, area_m2) - emitted_power_w(300.0, area_m2)
-	var storage := (700.0 - temperature_k) * 2500000.0
+	var storage := (700.0 - temperature_k) * HEAT_CAPACITY_J_K
 	# Gameplay abstraction: energy beyond the capped thermal loop damages structure.
 	# 25 MJ per hull point is tuning, not a material failure model.
-	return maxf(0.0, (heat_w - cooling) * delta - storage) / 25000000.0
+	return maxf(0.0, (heat_w - cooling) * delta - storage) / DAMAGE_ENERGY_J

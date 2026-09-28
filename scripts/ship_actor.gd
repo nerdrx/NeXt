@@ -33,6 +33,7 @@ var travel_target := Vector3.ZERO
 var propulsion_limiter: Callable
 var atmospheric_density_source: Callable
 var aerodynamic_g: float = 0.0
+var aerodynamic_heat_w: float = 0.0
 var stellar_heat_source: Callable
 var stellar_heat_w: float = 0.0
 var thermal_retreat: bool = false
@@ -185,6 +186,14 @@ func _physics_process(delta: float) -> void:
 	var density: float = atmospheric_density_source.call(global_position) if atmospheric_density_source.is_valid() else 0.0
 	velocity = AtmosphericFlight.drag_velocity(velocity, density, _thermal_dimensions, global_basis, mass, delta)
 	aerodynamic_g = FlightDynamics.thrust_load(before_drag, velocity, delta)
+	var heat_j := AtmosphericFlight.drag_heat_j(before_drag, velocity, mass)
+	aerodynamic_heat_w = heat_j / delta
+	if heat_j > 0.0:
+		var absorbed := ThermalSignature.absorb_heat_j(drive_temperature_k, heat_j)
+		drive_temperature_k = float(absorbed.temperature_k)
+		if float(absorbed.hull_damage) > 0.0:
+			take_damage(float(absorbed.hull_damage), true)
+			if _destroyed: return
 	move_and_slide()
 	_desired_velocity = velocity
 	_visual.set_thrust(clampf(actual_dv.length() / maxf(acceleration * delta, 0.000001), 0.0, 1.0))

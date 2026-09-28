@@ -5,10 +5,12 @@ const SEA_LEVEL_DENSITY := 1.225
 const SCALE_HEIGHT_LOCAL_M := 40.0
 const TAPER_START_LOCAL_M := 180.0
 const VACUUM_LOCAL_M := 220.0
+const HEAT_FRACTION := 0.1
 
 # Cd = 1 is a tuning value; drag follows the standard equation form.
 # https://www1.grc.nasa.gov/beginners-guide-to-aeronautics/drag-equation/
-# Model uses compressed-scale local metres, still air, and no lift, heating, or real atmospheric composition.
+# Model uses compressed-scale local metres, still air, no lift, and no real atmospheric composition.
+# HEAT_FRACTION partitions lost kinetic energy for gameplay; it does not predict aerodynamic or plasma heating.
 static func density(altitude: float) -> float:
 	if not is_finite(altitude) or altitude >= VACUUM_LOCAL_M:
 		return 0.0
@@ -19,6 +21,25 @@ static func density(altitude: float) -> float:
 		var smooth := t * t * (3.0 - 2.0 * t)
 		result *= 1.0 - smooth
 	return result
+
+static func drag_heat_j(before: Vector3, after: Vector3, mass_kg: float) -> float:
+	if not before.is_finite() or not after.is_finite() or not is_finite(mass_kg) or mass_kg <= 0.0:
+		return 0.0
+	var before_speed_squared := before.length_squared()
+	var after_speed_squared := after.length_squared()
+	if not is_finite(before_speed_squared) or not is_finite(after_speed_squared):
+		return 0.0
+	var speed_squared_lost := before_speed_squared - after_speed_squared
+	if not is_finite(speed_squared_lost) or speed_squared_lost <= 0.0:
+		return 0.0
+	var energy_j := 0.5 * mass_kg
+	if not is_finite(energy_j):
+		return 0.0
+	energy_j *= speed_squared_lost
+	if not is_finite(energy_j):
+		return 0.0
+	energy_j *= HEAT_FRACTION
+	return energy_j if is_finite(energy_j) else 0.0
 
 static func drag_velocity(velocity: Vector3, density_kg_m3: float, dimensions: Vector3, orientation: Basis, mass_kg: float, delta: float) -> Vector3:
 	if not velocity.is_finite():
