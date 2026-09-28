@@ -1934,3 +1934,8 @@ health and creates no ship wreck. The fixture is registered in CI.
 Walking-gravity jump measurements and medical-bay treatment regressions pass.
 The impact threshold/damage curve is gameplay tuning; EVA, biomechanics, ground
 NPC injuries and impact sound/animation work remain open.
+
+Clean Windows export and hidden-Gamescope Proton integration pass at `9308cd1`:
+`build/windows-validation-dd5c267/build/proton-smoke.U7YYHJ`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Dedicated drop/injury assertions ran natively; packaged
+smoke covers general gameplay.
