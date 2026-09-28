@@ -1376,3 +1376,12 @@ Actual-main hidden Gamescope checks passed automatic save creation after NPC des
 Recovery caches now list each remaining commodity with TAKE 1 and TAKE UP TO available-capacity controls. Recover Cargo still collects all available goods in the existing order. Optional commodity and quantity arguments share the existing distance, capacity and one-time recovery rules; invalid selections and unavailable goods return errors before mutation. Full holds disable recovery controls.
 
 Domain checks passed selected medicine recovery without touching ore, requested-quantity and remaining-capacity limits, and invalid selection rejection. Hidden Gamescope actual-menu checks passed the one-unit button, immediate save of commander cargo plus remaining cache quantity, and subsequent completion. The scrolled controls were visually inspected. Existing wreck physics, NPC debris, failure/retry and route checks also passed. Seven Texture RID shutdown warnings remain in this graphical harness.
+
+
+## Combined combat/recovery Windows validation — 2026-09-28
+
+The initial Windows smoke at `c06cda5` failed its obsolete assertion that insured rescue creates the world's only wreck. Earlier pirate combat now leaves debris. The integration check now requires pirate debris creation, measures the rescue's added record, verifies prior records remain unchanged and recovers the new rescue wreck by its index. Native full integration passed.
+
+Clean Windows source `ab92e4d69052794a70a559fe6748035a8e83bae4` then passed `NEXT_INTEGRATION_OK` under hidden Gamescope/Proton Experimental. Wrapper, Proton and isolated-prefix cleanup returned 0. Evidence: `build/windows-validation-dd5c267/build/proton-smoke.BXFDRV`. SDR white-level and Gamescope teardown warnings remain; no script errors appeared. This does not establish live Steam interoperability, native Windows-host behavior or target performance.
+
+Refreshed local development `build/NeXt-Windows.zip` from that tested EXE/PCK pair, with BUILD_INFO. ZIP CRC and exact member-byte verification passed. Size 40,287,489 bytes; SHA-256 `ef9085dfb5f93762a90dc48ebcd02fc1b2967393a23a495398bc8a83f97f733a`. EXE SHA-256 `4a9eaded8955ef789ab02651ed9d2dde80328fbb342bd2a6db4db33e86305668`; PCK SHA-256 `967b1ae000a8f9ab935f69e6c51d58012224772df8be2a4efedd9ec569184259`. Not a GitHub release asset.
