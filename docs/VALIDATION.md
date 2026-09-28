@@ -2442,3 +2442,26 @@ cooldown, travel epochs, grounded/offline/stale-pose rejection and target-only
 outcome delivery. Protocol compatibility, network power, locked loadout and
 NPC replication regressions also pass. No runtime changes followed the Windows
 smoke commit.
+
+
+### Host NPC retaliation against visitors (2026-09-28)
+
+Protocol 4 loopback passes target-only damage delivery, fresh flying eligibility,
+grounded/stale rejection, offline-ship vulnerability, travel epochs and finite
+bounded damage checks. An intentional forged client RPC produces Godot's
+expected authority rejection; the test verifies no damage delivery and exits 0.
+Join, power, visitor-fire and consensual PvP transport regressions pass. Editor
+import and the existing visitor-fire scene checks also pass.
+
+Clean Windows export and hidden-Gamescope Proton smoke pass at `ba7334d`:
+`build/windows-validation-dd5c267/build/proton-smoke.fML2ZV`, wrapper exit 0,
+`NEXT_INTEGRATION_OK` and no logged script errors. This packaged smoke checks
+general gameplay, not complete co-op, native Steam transport or frame-rate goals.
+
+The retaliation scene passes headless and hidden Gamescope with two actual ENet
+visitors. Checks cover pirate selection, peaceful-versus-attacking police
+selection, stale/grounded exclusion, wall occlusion, weapon ray collision,
+damage only to the struck visitor and shield-before-hull application. Graphics
+shutdown retains the known seven texture RID leak warning after the success
+marker. Dedicated scene/protocol checks ran natively; the Windows smoke is a
+separate general-gameplay check.
