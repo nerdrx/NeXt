@@ -1313,3 +1313,10 @@ Clean Windows release export at `4c63820` passed without script/export errors. N
 Added optional hull-local painted shoulder and flank bands to the shared surface shader; only family exterior hulls opt in. Pathfinder uses grey-green identification paint and Merchant uses ochre. Paint retains panel joints, dirt and physical surface response. Geometry, pressure rooms and collisions are unchanged.
 
 The six existing family capture views completed under hidden Gamescope; Pathfinder exterior and Merchant rear were visually inspected after reducing initially excessive stripe contrast and width. Shader compilation succeeded. The silhouettes and repeated roof fittings remain blockout quality, well below the requested cinematic reference. Moving-camera aliasing and final art acceptance remain open.
+
+
+## Power-aware engine appearance — 2026-09-28
+
+Local and visiting ShipVisual exhaust now darkens when reported systems are offline, and restores on restart. Rebuilding a visual preserves its power mode. Exhaust uses a separate material from navigation lights and weapon fittings; thrust no longer changes those lights through a shared material. NPC thrust still controls online exhaust intensity. This is an engine visual approximation, not per-room lighting or a simulated exhaust plume.
+
+Actual-main gameplay passed in hidden Gamescope for local shutdown/restart and visiting visual shutdown, rebuild and restart. The final headless extension also passed immediate local rebuild preservation and independent navigation-light brightness. No live Steam, fresh Proton or refreshed development ZIP is claimed.

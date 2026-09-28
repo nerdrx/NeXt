@@ -998,6 +998,7 @@ func rebuild_player_ship() -> void:
 	ship_display = ShipVisual.new()
 	add_child(ship_display)
 	ship_display.build(state.ship_modules, "player", state.ship_layout)
+	ship_display.set_systems_online(state.systems_online)
 	var low := Vector3(16, 16, 16)
 	var high := Vector3(-16, -16, -16)
 	for module: Dictionary in state.ship_modules:
@@ -1037,6 +1038,7 @@ func apply_ship_stats() -> void:
 		session.ship_layout = state.ship_layout.duplicate(true)
 
 func _refresh_propulsion_limits() -> void:
+	if is_instance_valid(ship_display): ship_display.set_systems_online(state.systems_online)
 	if session != null: session.set_systems_online(state.systems_online)
 	_last_stats = state.ship_stats()
 	pilot.flight_speed = float(_last_stats.speed)
@@ -1859,6 +1861,7 @@ func _sync_visitors() -> void:
 			visual.build(profile.ship_modules, "player", profile.get("ship_layout", {}))
 			_build_peer_collision(visual, profile.ship_modules, peer_id)
 			visual.set_meta("design_hash", design_hash)
+		visual.set_systems_online(profile.get("systems_online", true))
 
 func _update_remote_positions() -> void:
 	for peer_id: int in remote_ships:

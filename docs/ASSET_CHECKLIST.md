@@ -134,3 +134,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Review replacement hull/cabin materials at close, mid, far and grazing views using `tests/capture_surface_distance.gd`. Preserve screen-footprint filtering: small fasteners disappear before wider panel joints; seal dirt and paint noise must not remain as subpixel speckles. Add moving-camera review before final acceptance.
 
 - [ ] Replace the family shader shoulder/flank paint bands with authored livery masks and registration graphics. Current Pathfinder grey-green and Merchant ochre paint stays hull-local and uses filtered edges; this is only a color-blocking pass, not final hull art.
+
+- [ ] Replace engine luminous discs with authored nozzle interiors and exhaust effects. Preserve `ShipVisual.set_systems_online` and `set_thrust`: shutdown darkens exhaust without changing independent navigation-light materials, including visitor ships and rebuilt hulls.

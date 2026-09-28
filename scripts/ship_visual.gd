@@ -3,6 +3,9 @@ extends Node3D
 
 const CELL_SIZE: float = ShipBlueprint.CELL_SIZE
 
+var _systems_online := true
+var _thrust := 0.0
+
 var _engines: Array[MeshInstance3D] = []
 var _engine_glow: Array[StandardMaterial3D] = []
 
@@ -20,6 +23,8 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 	var dark_mat := _material(Color("111e2b"), 0.8, 0.0)
 	var accent_mat := _material(accent.darkened(0.3), 0.52, 0.0)
 	var warm_mat := _material(Color("ffbd74"), 0.25, 2.5)
+	# Exhaust must not share emission state with navigation lights or weapon fittings.
+	var exhaust_mat := _material(Color("ffbd74"), 0.25, 0.45)
 	var canopy_mat := _material(Color("12252c"), 0.16, 0.0)
 	var glass_trim := _material(Color("758189"), 0.36, 0.0)
 	var armor_panel := _material(Color("86949c"), 0.38, 0.0)
@@ -133,12 +138,12 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 					mount.rotation.x = PI * 0.5
 					var nozzle := _add_cylinder(p + Vector3(float(side) * 0.72, 0.45, 1.96), 0.3, 0.1, plate_mat)
 					nozzle.rotation.x = PI * 0.5
-					var core := _add_cylinder(p + Vector3(float(side) * 0.72, 0.45, 2.02), 0.2, 0.045, warm_mat)
+					var core := _add_cylinder(p + Vector3(float(side) * 0.72, 0.45, 2.02), 0.2, 0.045, exhaust_mat)
 					core.rotation.x = PI * 0.5
 					var ring := _add_torus(p + Vector3(float(side) * 0.72, 0.45, 2.02), 0.23, 0.29, accent_mat)
 					ring.rotation.x = PI * 0.5
 					_engines.append(core)
-					_engine_glow.append(warm_mat)
+					_engine_glow.append(exhaust_mat)
 			"reactor":
 				# Shielded service cover and heat-exchanger louvers, not an exposed glowing core.
 				_add_bevelled_plate(deck + Vector3(0, 0.12, 0), Vector3(1.55, 0.22, 1.9), plate_mat, 0.055)
@@ -179,6 +184,7 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 	_add_box(Vector3(-0.52, 0.05, -bounds.z * 0.49), Vector3(0.065, 0.04, 0.13), warm_mat)
 	_add_box(Vector3(0.52, 0.05, -bounds.z * 0.49), Vector3(0.065, 0.04, 0.13), warm_mat)
 	_add_box(Vector3(0, -0.12, bounds.z * 0.49), Vector3(bounds.x * 0.34, 0.09, 0.12), dark_mat)
+	_apply_engine_glow()
 
 
 # Mount configurable fittings onto the actual armor triangle instead of the grid face.
@@ -293,10 +299,22 @@ func _face_box_size(u: Vector3, v: Vector3, normal: Vector3, width: float, heigh
 		absf(u.z) * width + absf(v.z) * height + absf(normal.z) * depth)
 
 
+func set_systems_online(online: bool) -> void:
+	if _systems_online == online: return
+	_systems_online = online
+	_apply_engine_glow()
+
+
 func set_thrust(amount: float) -> void:
-	var level := clampf(amount, 0.0, 1.0)
+	_thrust = clampf(amount, 0.0, 1.0) if is_finite(amount) else 0.0
+	_apply_engine_glow()
+
+
+func _apply_engine_glow() -> void:
+	var level := _thrust if _systems_online else 0.0
 	for index in range(_engines.size()):
-		_engine_glow[index].emission_energy_multiplier = 0.45 + level * 3.0
+		_engine_glow[index].emission_energy_multiplier = (0.45 + level * 3.0) if _systems_online else 0.0
+		_engine_glow[index].albedo_color = Color("ffbd74") if _systems_online else Color("20252a")
 		_engines[index].scale = Vector3(1.0, 1.0 + level * 0.35, 1.0)
 
 
