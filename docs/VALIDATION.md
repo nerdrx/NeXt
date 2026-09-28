@@ -1320,3 +1320,10 @@ The six existing family capture views completed under hidden Gamescope; Pathfind
 Local and visiting ShipVisual exhaust now darkens when reported systems are offline, and restores on restart. Rebuilding a visual preserves its power mode. Exhaust uses a separate material from navigation lights and weapon fittings; thrust no longer changes those lights through a shared material. NPC thrust still controls online exhaust intensity. This is an engine visual approximation, not per-room lighting or a simulated exhaust plume.
 
 Actual-main gameplay passed in hidden Gamescope for local shutdown/restart and visiting visual shutdown, rebuild and restart. The final headless extension also passed immediate local rebuild preservation and independent navigation-light brightness. No live Steam, fresh Proton or refreshed development ZIP is claimed.
+
+
+## Windows package refresh — 2026-09-28
+
+Clean source `25b48c346963397cdee0c76238307d8873a88450` exported and passed the normal-entrypoint integration under Proton Experimental in hidden Gamescope (`NEXT_INTEGRATION_OK`). Wrapper exit, Proton exit and isolated wineserver cleanup all returned 0. Evidence: `build/windows-validation-dd5c267/build/proton-smoke.u5rYQq`. The Windows SDR white-level warning and Gamescope window/Wayland shutdown messages remain; no script errors appeared. This smoke covers existing integrated gameplay, not all focused network-power assertions, real Steam interoperability, native Windows-host behavior or the target frame rate.
+
+Refreshed local `build/NeXt-Windows.zip` from the exact tested executable/PCK pair. Contains `NeXt.exe`, `NeXt.pck` and `BUILD_INFO.txt`; ZIP CRC and byte-for-byte member checks passed. Archive size: 40,273,887 bytes. SHA-256: `1e2df58920fc4144704c7c3290794a764ca27f6714edb2032cf2e8cb4759afa6`. Executable SHA-256: `4a9eaded8955ef789ab02651ed9d2dde80328fbb342bd2a6db4db33e86305668`. PCK SHA-256: `2203a65cddc0704bc861c5e10b3befa5aefbefab2a58056e397b4d4b37b32ad6`. This local development package is not a GitHub release asset.
