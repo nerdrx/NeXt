@@ -1843,3 +1843,8 @@ and an actual waiting crew trade unloading after daily demand frees capacity.
 Calendar, adaptive trade and partial delivery regressions pass. Hidden Gamescope
 passes the flow fixture, and its exchange screenshot was inspected for readable
 flow labels and order buttons. The flow fixture is registered in CI.
+
+Clean Windows export and hidden-Gamescope Proton integration pass at `f61dd11`:
+`build/windows-validation-dd5c267/build/proton-smoke.iTL5wN`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Market-flow assertions were native; the packaged run
+covers general integration, not shared market authority or frame-rate targets.
