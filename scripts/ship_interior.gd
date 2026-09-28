@@ -116,7 +116,7 @@ func _floor(center: Vector3, room_type: String, panels: Dictionary) -> void:
 	var label := Label3D.new()
 	label.text = room_type.to_upper() + "  /  DECK " + str(int(round(center.y / CELL.y)))
 	label.font_size = 40
-	label.pixel_size = 0.003
+	label.pixel_size = 0.0015
 	label.position = center + Vector3(0, 2.2, -1.22)
 	label.modulate = Color("89d5dc")
 	add_child(label)

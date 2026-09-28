@@ -85,6 +85,8 @@ func _run() -> void:
 		capture_camera.position = (member.position / ShipInterior.CELL).round() * ShipInterior.CELL + Vector3(0.6, 1.65, 0.9)
 		capture_camera.look_at(member.global_position + member.global_basis.y * 1.2, game.interior.global_basis.y)
 		capture_camera.make_current()
+		# Review identification after transient HUD notifications expire.
+		game.hud._process(6.0)
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png("res://build/ship-crew-aboard.png")
 		game.pilot.camera.make_current()
@@ -137,6 +139,8 @@ func _capture_walking_crew(member: ShipCrew) -> void:
 	capture_camera.position = (member.position / ShipInterior.CELL).round() * ShipInterior.CELL + Vector3(0.6, 1.65, 0.9)
 	capture_camera.look_at(member.global_position + member.global_basis.y * 1.2, game.interior.global_basis.y)
 	capture_camera.make_current()
+	# Review identification after transient HUD notifications expire.
+	game.hud._process(6.0)
 	await RenderingServer.frame_post_draw
 	root.get_texture().get_image().save_png("res://build/ship-crew-walking.png")
 	game.pilot.camera.make_current()

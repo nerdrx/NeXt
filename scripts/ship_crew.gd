@@ -36,10 +36,12 @@ func _ready() -> void:
 	super._ready()
 	_crew_label = Label3D.new()
 	_crew_label.name = "DutyLabel"
-	_crew_label.position.y = 2.1
+	_crew_label.position.y = 1.95
 	_crew_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_crew_label.font_size = 32
-	_crew_label.pixel_size = 0.004
+	_crew_label.pixel_size = 0.0013
+	_crew_label.outline_size = 4
+	_crew_label.shaded = false
 	_crew_label.modulate = Color("c7e9ed")
 	add_child(_crew_label)
 	update_duty("On duty")

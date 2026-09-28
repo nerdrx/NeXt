@@ -86,7 +86,7 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 ## Named crew aboard
 
 - [ ] Replace `scripts/ship_crew.gd` inherited procedural humanoids with authored crew suits, faces, idle animations and walking cycles. Preserve the 0.42 m radius / 1.75 m height collision capsule, local deck gravity and persistent crew identity.
-- [ ] Author diegetic name/role identification and duty indicators; the current billboard label sits 2.1 m above the feet.
+- [ ] Author diegetic name/role identification and duty indicators; the current compact billboard label sits 1.95 m above the feet, with roughly 4 cm glyph height.
 - [ ] Add bridge, engineering and habitation workstations with authored standing/seated sockets. Current placement queries clear floor space, distributes bodies across rooms with role preferences, faces them inward and keeps module centers available for passage.
 
 ## Planet weather

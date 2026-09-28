@@ -1136,3 +1136,9 @@ Unassigned engineers and traders walk between clear stops on their current deck,
 This is local room circulation, not a full work schedule: crew do not traverse lifts or avoid each other yet. Animation remains a replaceable procedural walk cycle.
 
 Native checks passed cabin-local routing, deck/disconnected rejection, pitch/yaw/roll support, raised capsule wall-clearance probes, pause/resume, arrival and rebuild invalidation. Existing standing crew, placement, port navigation and glass collision regressions passed. The actual-main test passed headlessly and in hidden Gamescope at default walking speed, checking engineers/traders move while the cabin turns and remain stationary locally during a menu pause. The capture was inspected: crew are visible inside the cabin, but oversized labels overlap the HUD and the models remain rough placeholders. Windows export passed; this increment has no fresh Proton runtime result.
+
+## Cabin identification scale — 2026-09-28
+
+Crew identification now uses approximately 4 cm glyphs with a narrower outline, centered 1.95 m above the feet. Room signs use approximately 6 cm glyphs. This reduces the oversized text visible in the preceding crew capture without changing identity, duty or interaction behavior. The art checklist records the new label placement.
+
+The actual-main crew regression passed in hidden Gamescope. Captures were inspected both with active notifications and after advancing the HUD notification timer to expiry: identification remains readable close up, while temporary banners can still obscure it. No whole-scene visual quality claim is made. Windows export passed with no script errors; the known seven-texture shutdown warning remains in the graphical run. No fresh Proton runtime check was performed.
