@@ -660,7 +660,9 @@ func load_save(path: String) -> String:
 	if not FileAccess.file_exists(path): return "Save file does not exist."
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
 	if not parsed is Dictionary: return "Save data is malformed."
-	var data: Dictionary = parsed
+	return load_data(parsed)
+
+func load_data(data: Dictionary) -> String:
 	var candidate: GameState = GameState.new()
 	var version: Variant = data.get("version")
 	if version == 1:

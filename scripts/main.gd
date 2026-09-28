@@ -11,6 +11,8 @@ var deck: CommandDeck
 var sound: Soundscape
 var session: NetworkSession
 var remote_ships: Dictionary = {}
+var _save_recovery_error: String = ""
+var _home_return_failed: bool = false
 var home_state: GameState
 var home_save_path: String = ""
 var interior: ShipInterior
@@ -79,6 +81,7 @@ func _ready() -> void:
 	if automation: save_path = "user://integration_commander-%d.json" % OS.get_process_id()
 	_input_actions()
 	state = GameState.new()
+	if not automation: _save_recovery_error = VisitSave.recover(save_path)
 	if not automation and FileAccess.file_exists(save_path):
 		var error: String = state.load_save(save_path)
 		if not error.is_empty(): push_warning(error)
@@ -129,6 +132,7 @@ func _ready() -> void:
 	apply_ship_stats()
 	_restore_flight_location()
 	deck.show_page("overview")
+	if not _save_recovery_error.is_empty(): notify("Pending visit save needs recovery. Saving is disabled: " + _save_recovery_error)
 	if not automation and steam_app_id() > 0 and steam_available():
 		var steam_error: String = session.enable_steam(steam_app_id())
 		if not steam_error.is_empty(): notify(steam_error)
@@ -1727,7 +1731,7 @@ func _physics_process(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	if pilot == null or state == null: return
-	if home_state != null and not session.connected: _return_home()
+	if home_state != null and not session.connected and not _home_return_failed: _return_home()
 	_register_spatial_nodes()
 	_rebase_flight()
 	_update_planet_terrain()
@@ -1800,24 +1804,32 @@ func _process(delta: float) -> void:
 		_update_remote_positions()
 
 func save_commander(show_message: bool = true) -> bool:
+	if not _save_recovery_error.is_empty():
+		notify("Reload the commander after resolving pending visit recovery: " + _save_recovery_error)
+		return false
 	_capture_fleet_flights()
 	_capture_flight_location()
-	var error: String = state.save(save_path)
+	var error := ""
+	if home_state != null:
+		_copy_carried_ship(state, home_state)
+		error = VisitSave.commit(home_state, home_save_path, state, save_path)
+	else:
+		error = VisitSave.recover(save_path)
+		if error.is_empty(): error = state.save(save_path)
 	if not error.is_empty():
 		notify(error)
 		return false
-	if home_state != null:
-		_copy_carried_ship(state, home_state)
-		var home_error: String = home_state.save(home_save_path)
-		if not home_error.is_empty():
-			notify("Visit saved, but home ship could not be saved: " + home_error)
-			return false
+	_home_return_failed = false
 	if show_message: notify("Commander, ship, enterprise and world changes saved locally.")
 	return true
 
 func load_commander() -> void:
-	if session.connected:
+	if session.connected or home_state != null:
 		notify("Leave the multiplayer visit before loading a commander.")
+		return
+	_save_recovery_error = VisitSave.recover(save_path)
+	if not _save_recovery_error.is_empty():
+		notify(_save_recovery_error)
 		return
 	var error: String = state.load_save(save_path)
 	if not error.is_empty():
@@ -1833,6 +1845,7 @@ func quit_game() -> void:
 	if home_state != null:
 		session.leave()
 		_return_home()
+		if home_state != null: return
 	if save_commander(false):
 		session.leave()
 		sound.shutdown()
@@ -2727,6 +2740,11 @@ func leave_visit() -> void:
 func _return_home() -> void:
 	if home_state == null: return
 	var saved: bool = save_commander(false)
+	if not saved:
+		_home_return_failed = true
+		open_menu()
+		notify("Return home paused: visit save failed. Save again to retry; your visit remains in memory.")
+		return
 	_copy_carried_ship(state, home_state)
 	state = home_state
 	home_state = null
@@ -2736,7 +2754,7 @@ func _return_home() -> void:
 	apply_ship_stats()
 	_restore_flight_location()
 	open_menu()
-	notify("Returned home with your ship and cargo. World finances stayed separate." if saved else "Returned home; previous save failed. Save again before quitting.")
+	notify("Returned home with your ship and cargo. World finances stayed separate.")
 
 func cruise_to(point: Vector3) -> void:
 	var address := flight_origin.clone()

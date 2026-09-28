@@ -80,6 +80,15 @@ func _run() -> void:
 	var visiting_layout: Dictionary = main.state.ship_layout.duplicate(true)
 	var visitor_credits: int = main.state.credits
 	var visiting_modules: Array[Dictionary] = main.state.ship_modules.duplicate(true)
+	var good_home_path: String = main.home_save_path
+	main.home_save_path = "user://missing-visit-dir-%d/home.json" % OS.get_process_id()
+	main.leave_visit()
+	if not _check(main.home_state != null and main.state.world_id == remote_id and main._home_return_failed,
+		"failed visit save retains unsaved visitor state instead of discarding its economy"): return
+	main.load_commander()
+	if not _check(main.state.credits == visitor_credits and main.state.world_id == remote_id,
+		"reload cannot replace the unsaved failed-return profile"): return
+	main.home_save_path = good_home_path
 	main.leave_visit()
 	if not _check(main.state.ephemeris_seconds == 123.0, "return preserves home physical epoch"): return
 	if not _check(main.state.day_progress == 320.0, "return restores home calendar without importing visiting time"): return

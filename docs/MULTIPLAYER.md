@@ -138,3 +138,21 @@ same build for the extended RPC payloads.
 The host fixes each participant's normalized module grid and room/hull layout at join. Pose packets may update position, orientation and flight status but cannot replace that design, even while grounded or opted out of PvP. A packet attempting a different design is rejected before changing presence or refreshing its timestamp. The host's own publication path follows the same rule. System travel does not unlock refits; leave, refit and reconnect to negotiate a new design. This matches the existing ship architect restriction during visits.
 
 This closes mid-session weapon and hitbox replacement through pose messages. It does not prove ownership of a joining design, validate movement authority or make health and rescue authoritative. Those require additional host-owned state and services.
+
+
+## Recoverable visitor saves
+
+Saving during a visit writes a journal beside the home save containing validated
+home and visitor snapshots, then replaces both profiles and removes the journal.
+Startup and commander reload replay a pending journal before loading home. Recovery
+is idempotent; malformed snapshots leave both profiles untouched and retain the
+journal for repair. The visitor destination is derived from a validated world ID,
+not an arbitrary path supplied by journal data.
+
+If saving fails while returning home, the visitor profile stays in memory and the
+return waits for a successful save/retry. Loading or quitting cannot silently discard
+that pending return. Startup recovery failures disable saves until recovery succeeds
+through commander reload. This protects against interrupted application writes;
+it does not establish power-loss durability on every filesystem, cross-process
+locking, host authority or tamper-proof ship ownership. Steam credentials and native
+transport configuration remain separate unfinished requirements.
