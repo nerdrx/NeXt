@@ -1152,3 +1152,11 @@ Studio and actual-cabin captures were inspected in hidden Gamescope. Early rende
 Ground actor behavior, crew support, room roaming and actual-main crew integration checks passed. The graphical integration retains the known seven-texture shutdown warning; the isolated studio capture exits without that warning. Windows export passed with no script errors. This increment has no fresh Proton runtime result.
 
 The new helmet regression checks 1,169 finite vertices across four surfaces, bounds, nondegenerate clockwise winding and a measured 3 mm faceplate offset. It passes headlessly without teardown warnings and runs in Windows CI. GPU inspection separately confirmed exterior faces render correctly.
+
+## Crew yielding and cabin collisions — 2026-09-28
+
+Shipboard crew now physically collide with one another and the aboard player. The player gains a dedicated occupant layer only inside a cabin, so crew exclude the enclosing coasting hull's layer. Exit removes the temporary player layer and crew collision mask. Placement queries also reject occupied spawn positions. Nearby people trigger cabin-local keep-right steering, slowdown and a Giving way duty label; the body turns toward its actual movement. Existing stuck-route handling pauses and retries passages that remain blocked.
+
+The new regression passed a 2 m corridor with opposing crew, recording minimum separation 0.8696 m. Both reached opposite stops. It also covered a translated/tilted cabin, an enclosing-hull layer probe, a stationary occupant blocking a narrow passage without overlap, and resumed walking after the occupant moved. This is local yielding, not a general crowd planner: complex queues and lift traversal remain unfinished.
+
+Existing crew identity/support, placement and room-roaming regressions passed. The actual-main integration passed natively and in hidden Gamescope, including coasting/turning support, menu pause and temporary player collision settings on entry/exit. Windows export passed with no script errors; the full-scene graphical run retains the known seven-texture shutdown warning. No fresh Proton runtime check was performed.

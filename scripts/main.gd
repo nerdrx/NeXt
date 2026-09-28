@@ -2382,6 +2382,9 @@ func enter_interior(fleet_id: String = "") -> void:
 			coasting_hull.add_collision_exception_with(body)
 	if fleet_id.is_empty(): ship_display.hide()
 	aboard = true
+	# Give the walking pilot a layer distinct from the enclosing coasting hull.
+	pilot.set_collision_layer_value(4, true)
+	pilot.set_collision_mask_value(3, true)
 	interior_deck = 0 if 0 in interior.decks else interior.decks[0]
 	pilot.set_flight(false)
 	pilot.reset_view()
@@ -2425,7 +2428,7 @@ func _populate_ship_crew() -> void:
 		facing.y = 0
 		if facing.length_squared() > 0.01: member.rotation.y = atan2(-facing.x, -facing.z)
 		cabin.add_child(member)
-		member.configure_roaming(cabin, room_stops)
+		member.configure_roaming(cabin, room_stops, pilot)
 		member.roaming_enabled = str(record.role) != "gunner"
 		member.destroyed.connect(_ship_crew_lost)
 		ship_crew.append(member)
@@ -2470,6 +2473,8 @@ func exit_interior() -> void:
 		coasting_hull = null
 	_coasting_deck_bodies.clear()
 	aboard = false
+	pilot.set_collision_layer_value(4, false)
+	pilot.set_collision_mask_value(3, false)
 	aboard_fleet_id = ""
 	crew_operations().occupied_ship_id = ""
 	interior.queue_free()

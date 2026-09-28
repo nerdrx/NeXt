@@ -23,6 +23,7 @@ func _run() -> void:
 	game.enter_interior()
 	await create_timer(0.5).timeout
 	assert(game.ship_crew.size() == 3, "hired crew materialize aboard")
+	assert(game.pilot.get_collision_layer_value(4) and game.pilot.get_collision_mask_value(3), "aboard player collides with crew on its dedicated occupant layer")
 	var member: ShipCrew = game.ship_crew[0]
 	var member_id: String = member.actor_id
 	assert(member.display_name == game.state.crew[0].name and member.role == "gunner")
@@ -101,6 +102,7 @@ func _run() -> void:
 	assert(saved.load_save(path).is_empty() and saved.crew.size() == 2)
 	game.exit_interior()
 	assert(game.ship_crew.is_empty())
+	assert(not game.pilot.get_collision_layer_value(4) and not game.pilot.get_collision_mask_value(3), "cabin collision rules are removed on exit")
 	game.enter_interior()
 	game.exit_interior()
 	await physics_frame

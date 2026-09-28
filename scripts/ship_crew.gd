@@ -9,10 +9,13 @@ var _local_path := PackedVector3Array()
 var _room_wait: float = 8.0
 var _next_stop: int = 0
 var _stuck_time: float = 0.0
+var _occupant: Node3D
+var _yielding: bool = false
 
 
-func configure_roaming(cabin: ShipInterior, stops: Array[Vector3]) -> void:
+func configure_roaming(cabin: ShipInterior, stops: Array[Vector3], occupant: Node3D = null) -> void:
 	_cabin = cabin
+	_occupant = occupant
 	_stops = stops.duplicate()
 	_local_path.clear()
 	_room_wait = 8.0 + float(posmod(actor_id.hash(), 7))
@@ -21,6 +24,7 @@ func configure_roaming(cabin: ShipInterior, stops: Array[Vector3]) -> void:
 
 
 func activity() -> String:
+	if _yielding and roaming_enabled: return "Giving way"
 	return "Checking rooms" if not _local_path.is_empty() and roaming_enabled else "On duty"
 
 
@@ -34,6 +38,9 @@ func _init() -> void:
 
 func _ready() -> void:
 	super._ready()
+	# World, crew and cabin occupant; layer 2 contains our own ship hull.
+	collision_mask = 1 | 4 | 8
+	add_to_group("ship_crew")
 	_crew_label = Label3D.new()
 	_crew_label.name = "DutyLabel"
 	_crew_label.position.y = 1.95
@@ -74,12 +81,14 @@ func _physics_process(delta: float) -> void:
 			offset.y = 0.0
 			if offset.length() > 0.18:
 				direction = offset.normalized() * minf(speed, offset.length() * 2.5)
-				rotation.y = lerp_angle(rotation.y, atan2(-offset.x, -offset.z), minf(1.0, delta * 5.0))
 				break
 			_local_path.remove_at(0)
 		if was_walking and _local_path.is_empty(): _room_wait = 8.0 + float(posmod(actor_id.hash(), 7))
 	else:
 		_local_path.clear()
+	direction = _yield_to_people(direction)
+	if direction.length_squared() > 0.01:
+		rotation.y = lerp_angle(rotation.y, atan2(-direction.x, -direction.z), minf(1.0, delta * 5.0))
 	velocity = (get_parent() as Node3D).global_basis * direction + up_direction * vertical
 	var previous := position
 	force_update_transform()
@@ -93,6 +102,30 @@ func _physics_process(delta: float) -> void:
 	else: _stuck_time = 0.0
 	_gait += delta * (7.0 if direction.length_squared() > 0.01 else 1.8)
 	_animate()
+
+
+func _yield_to_people(wanted: Vector3) -> Vector3:
+	_yielding = false
+	if wanted.length_squared() < 0.001 or not is_instance_valid(_cabin): return wanted
+	var forward := wanted.normalized()
+	var right := Vector3(-forward.z, 0, forward.x)
+	var forward_fraction := 1.0
+	var sideways := 0.0
+	var people: Array[Node] = get_tree().get_nodes_in_group("ship_crew")
+	if is_instance_valid(_occupant): people.append(_occupant)
+	for person: Node in people:
+		if person == self or person.is_queued_for_deletion(): continue
+		if person != _occupant and person.get_parent() != _cabin: continue
+		var offset: Vector3 = _cabin.to_local((person as Node3D).global_position) - position
+		if absf(offset.y) > 0.7: continue
+		offset.y = 0
+		var ahead := offset.dot(forward)
+		if ahead < -0.15 or ahead > 1.6 or absf(offset.dot(right)) > 0.95: continue
+		_yielding = true
+		forward_fraction = minf(forward_fraction, clampf((ahead - 0.85) / 0.75, 0, 1))
+		sideways = maxf(sideways, clampf((1.6 - ahead) / 0.75, 0, 1))
+	# Keep right when meeting another person; physical collisions retain wall clearance.
+	return (wanted * forward_fraction + right * sideways * speed).limit_length(speed)
 
 
 func update_duty(text: String) -> void:
