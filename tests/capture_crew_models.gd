@@ -52,16 +52,31 @@ func _capture() -> void:
 		{"faction": "police", "role": "guard", "name": "Police", "x": 0.0},
 		{"faction": "pirate", "role": "guard", "name": "Pirate", "x": 1.2},
 	]
+	var brace_capture := "--brace" in OS.get_cmdline_user_args()
+	if brace_capture:
+		actors = [
+			{"faction": "crew", "role": "engineer", "name": "On duty", "x": -0.7},
+			{"faction": "crew", "role": "engineer", "name": "Bracing", "x": 0.7},
+		]
 	for config: Dictionary in actors:
-		var actor := GroundActor.new()
+		var actor: GroundActor = ShipCrew.new() if brace_capture else GroundActor.new()
 		actor.faction = str(config.faction)
 		actor.role = str(config.role)
 		actor.display_name = str(config.name)
-		actor.hostile = config.faction != "company"
+		actor.hostile = config.faction != "company" and not brace_capture
+		if brace_capture: actor.actor_id = "brace-pose-reference"
 		actor.hold_position = true
 		actor.active = false
 		actor.position = Vector3(float(config.x), 0, 0)
 		studio.add_child(actor)
+		if brace_capture:
+			actor.set_physics_process(false)
+			actor.active = true
+			actor.walking_gravity_source = func(_point: Vector3) -> float: return 0.0
+			actor.set_cabin_load(3.0 if config.name == "Bracing" else 0.0)
+			for step in 20: actor._physics_process(1.0 / 60.0)
+			actor.active = false
+			actor.update_duty(config.name)
 
 	var camera := Camera3D.new()
 	camera.fov = 40.0
@@ -78,10 +93,10 @@ func _capture() -> void:
 	var output_dir := ProjectSettings.globalize_path("res://build")
 	DirAccess.make_dir_recursive_absolute(output_dir)
 	var image := root.get_texture().get_image()
-	var error := image.save_png(ProjectSettings.globalize_path("res://build/crew-models.png"))
+	var error := image.save_png(ProjectSettings.globalize_path("res://build/crew-bracing.png" if brace_capture else "res://build/crew-models.png"))
 	if error != OK:
 		push_error("Could not save crew model capture: %s" % error)
 		quit(1)
 		return
-	print("CREW_MODEL_CAPTURE_OK: res://build/crew-models.png")
+	print("CREW_MODEL_CAPTURE_OK: ", "crew-bracing.png" if brace_capture else "crew-models.png")
 	quit()

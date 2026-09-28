@@ -218,5 +218,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 
 ### Cabin maneuver response
 
-- [ ] Replace stationary crew bracing placeholder with handhold/stance animations
+- [ ] Replace articulated procedural crew bracing pose with authored handhold/stance animations
   matched to cabin load, retaining the route-pause behavior and 1.5/1.0 g hysteresis.

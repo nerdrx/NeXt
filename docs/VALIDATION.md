@@ -2322,3 +2322,14 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `23e0649`:
 `build/windows-validation-dd5c267/build/proton-smoke.tHyVSB`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Cabin-load assertions and the HUD capture ran natively
 under hidden Gamescope; packaged smoke covers general gameplay, not FPS or co-op.
+
+### Articulated crew bracing (2026-09-28)
+
+The procedural character rig now has elbow and knee pivots with unchanged rest
+mesh positions. Ship crew blend into a widened, bent-knee stance with raised
+forearms while bracing, then restore the walking pose. Native crew-roaming tests
+verify blend completion, joint release, route preservation and resumed movement;
+identity-palette and collision-capsule checks pass. Hidden-Gamescope side-by-side
+reference capture (`build/crew-bracing.png`) was visually inspected. This remains
+a simple procedural placeholder, not a finished character or handhold animation.
+Parallel review confirmed joint-local coordinate conversions and pose reset.

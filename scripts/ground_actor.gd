@@ -310,20 +310,24 @@ func _arm(pivot_position: Vector3, fabric: Material, ceramic: Material, dark: Ma
 	_visual.add_child(pivot)
 	_add_child_capsule(pivot, Vector3(0, -0.16, 0), 0.10, 0.34, fabric)
 	_add_child_sphere(pivot, Vector3(0, -0.33, 0), 0.09, ceramic, Vector3(0.9, 0.9, 0.9))
+	var elbow := Node3D.new()
+	elbow.name = "Elbow"
+	elbow.position.y = -0.33
+	pivot.add_child(elbow)
 	var forearm := CylinderMesh.new()
 	forearm.top_radius = 0.075
 	forearm.bottom_radius = 0.105
 	forearm.height = 0.27
 	forearm.radial_segments = 16
-	_add_child_mesh(pivot, forearm, Vector3(0, -0.47, -0.005), fabric)
-	_add_child_sphere(pivot, Vector3(0, -0.47, -0.005), 0.105, ceramic, Vector3(0.82, 1.2, 0.8))
-	_add_child_capsule(pivot, Vector3(0, -0.67, -0.015), 0.073, 0.18, rubber)
+	_add_child_mesh(elbow, forearm, Vector3(0, -0.14, -0.005), fabric)
+	_add_child_sphere(elbow, Vector3(0, -0.14, -0.005), 0.105, ceramic, Vector3(0.82, 1.2, 0.8))
+	_add_child_capsule(elbow, Vector3(0, -0.34, -0.015), 0.073, 0.18, rubber)
 	var cuff := CylinderMesh.new()
 	cuff.top_radius = 0.09
 	cuff.bottom_radius = 0.09
 	cuff.height = 0.055
 	cuff.radial_segments = 16
-	_add_child_mesh(pivot, cuff, Vector3(0, -0.60, 0), dark)
+	_add_child_mesh(elbow, cuff, Vector3(0, -0.27, 0), dark)
 	return pivot
 
 
@@ -333,12 +337,16 @@ func _leg(pivot_position: Vector3, fabric: Material, ceramic: Material, dark: Ma
 	_visual.add_child(pivot)
 	_add_child_capsule(pivot, Vector3(0, -0.22, 0), 0.145, 0.48, fabric)
 	_add_child_sphere(pivot, Vector3(0, -0.46, 0), 0.13, dark, Vector3(0.95, 0.9, 0.95))
-	_add_child_capsule(pivot, Vector3(0, -0.68, 0.015), 0.115, 0.48, fabric)
-	_add_child_sphere(pivot, Vector3(0, -0.65, -0.095), 0.11, ceramic, Vector3(0.72, 1.2, 0.27))
+	var knee := Node3D.new()
+	knee.name = "Knee"
+	knee.position.y = -0.46
+	pivot.add_child(knee)
+	_add_child_capsule(knee, Vector3(0, -0.22, 0.015), 0.115, 0.48, fabric)
+	_add_child_sphere(knee, Vector3(0, -0.19, -0.095), 0.11, ceramic, Vector3(0.72, 1.2, 0.27))
 	var boot := CapsuleMesh.new()
 	boot.radius = 0.12
 	boot.height = 0.36
-	var boot_mesh := _add_child_mesh(pivot, boot, Vector3(0, -0.842, -0.08), rubber, Vector3(0.9, 1.0, 0.65))
+	var boot_mesh := _add_child_mesh(knee, boot, Vector3(0, -0.382, -0.08), rubber, Vector3(0.9, 1.0, 0.65))
 	boot_mesh.rotation.x = PI / 2.0
 	return pivot
 

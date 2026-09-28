@@ -56,9 +56,12 @@ func _run() -> void:
 	var braced_path := crew._local_path.duplicate()
 	for _frame: int in 20: await physics_frame
 	assert(crew.position.distance_to(braced_at) < 0.03 and crew._local_path == braced_path, "bracing stops roaming while preserving route")
+	assert(crew._brace_blend > 0.99 and crew._left_arm.get_node("Elbow").rotation.x > 1.0, "bracing blends into articulated arm pose")
+	assert(crew._left_leg.get_node("Knee").rotation.x < -0.5 and crew._right_leg.rotation.z > 0.09, "bracing bends knees and widens stance")
 	crew.set_cabin_load(0.0)
 	for _frame: int in 20: await physics_frame
 	assert(crew.position.distance_to(braced_at) > 0.1, "crew resumes route after maneuver")
+	assert(crew._brace_blend == 0.0 and crew._left_arm.get_node("Elbow").rotation.x == 0.0 and crew._left_leg.rotation.z == 0.0 and crew._visual.position.y == 0.0, "release restores rest joints")
 
 	crew.active = false
 	var paused_at: Vector3 = crew.position

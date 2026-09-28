@@ -558,5 +558,6 @@ crew stop roaming at 1.5 g and resume their preserved routes below or at 1 g;
 their duty label reports bracing. Returning to the helm clears cabin movement
 restrictions. The HUD displays maneuver load separately from net acceleration.
 These are fictional comfort/gameplay thresholds, not a biological tolerance
-model. No blackout, injury, tumbling, animated handhold or fleet-crew health
+model. Crew blend into a procedural bent-knee/raised-forearm stance over 0.25 seconds.
+No blackout, injury, tumbling, animated handhold or fleet-crew health
 simulation is implied. Normal flight controls and thrust limits are unchanged.

@@ -4,6 +4,7 @@ extends GroundActor
 var _crew_label: Label3D
 var roaming_enabled: bool = true
 var bracing: bool = false
+var _brace_blend: float = 0.0
 var _cabin: ShipInterior
 var _stops: Array[Vector3] = []
 var _local_path := PackedVector3Array()
@@ -135,7 +136,21 @@ func _physics_process(delta: float) -> void:
 			_stuck_time = 0.0
 	else: _stuck_time = 0.0
 	_gait += delta * (7.0 if direction.length_squared() > 0.01 else 1.8)
+	_brace_blend = move_toward(_brace_blend, 1.0 if bracing else 0.0, delta * 4.0)
 	_animate()
+
+
+func _animate() -> void:
+	super._animate()
+	# Replaceable procedural pose; the collision capsule and route stay unchanged.
+	_visual.position.y = -0.035 * _brace_blend
+	for arm: Node3D in [_left_arm, _right_arm]:
+		arm.rotation.x = lerpf(arm.rotation.x, 0.25, _brace_blend)
+		arm.get_node("Elbow").rotation.x = 1.05 * _brace_blend
+	for leg: Node3D in [_left_leg, _right_leg]:
+		leg.rotation.x = lerpf(leg.rotation.x, 0.28, _brace_blend)
+		leg.rotation.z = (-0.10 if leg == _left_leg else 0.10) * _brace_blend
+		leg.get_node("Knee").rotation.x = -0.56 * _brace_blend
 
 
 func _yield_to_people(wanted: Vector3) -> Vector3:
