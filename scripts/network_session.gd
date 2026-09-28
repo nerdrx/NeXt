@@ -27,6 +27,7 @@ var display_name: String = "Pilot"
 var is_host: bool = false
 var connected: bool = false
 var presence: Dictionary = {}
+var visitors_open: bool = true
 
 var _peer: MultiplayerPeer
 var _steam_session: SteamSession
@@ -117,6 +118,8 @@ func _start_host(peer: MultiplayerPeer, status: String) -> void:
 	multiplayer.multiplayer_peer = _peer
 	is_host = true
 	connected = true
+	visitors_open = true
+	_peer.refuse_new_connections = false
 	system_index = clampi(system_index, 0, MAX_SYSTEM_INDEX)
 	world_seed = _seed_for(system_index)
 	_last_clock_sent_msec = -1000
@@ -209,6 +212,7 @@ func leave() -> void:
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	connected = false
 	is_host = false
+	visitors_open = true
 	_join_sent = false
 	presence.clear()
 	_pending_systems_online.clear()
@@ -310,7 +314,7 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	if is_host:
 		if presence.erase(peer_id):
 			for remote_id: int in multiplayer.get_peers():
-				_rpc_peer_left.rpc_id(remote_id, peer_id)
+				if remote_id != peer_id: _rpc_peer_left.rpc_id(remote_id, peer_id)
 			peers_changed.emit()
 	elif peer_id != 1 and presence.erase(peer_id):
 		peers_changed.emit()
@@ -345,6 +349,14 @@ func _rpc_join_request(raw_name: String, raw_modules: Array, raw_layout: Variant
 		return
 	var sender := multiplayer.get_remote_sender_id()
 	if sender <= 1 or sender > 0x7fffffff or presence.has(sender) or presence.size() >= MAX_PLAYERS:
+		return
+	if not visitors_open:
+		_rpc_reject.rpc_id(sender, "The host has closed this world to new visitors.")
+		# Allow the reliable rejection to flush before removing an uncooperative transport.
+		var rejected_transport := _peer
+		get_tree().create_timer(0.2).timeout.connect(func():
+			if _peer == rejected_transport and is_host and not presence.has(sender) and sender in multiplayer.get_peers():
+				_peer.disconnect_peer(sender))
 		return
 	if raw_name.length() > 64 or raw_modules.size() > MAX_MODULES or not raw_layout is Dictionary or raw_layout.size() > 3:
 		_rpc_reject.rpc_id(sender, "Join data is too large.")
@@ -794,3 +806,20 @@ func _receive_pvp_damage(attacker: int, damage: float, epoch: int) -> void:
 	if not connected or epoch != _pvp_epoch or not _local_pvp_allowed or not _local_flying: return
 	if attacker == local_id or not presence.has(attacker) or not is_finite(damage) or damage <= 0.0: return
 	pvp_damage_received.emit(attacker, damage)
+
+
+func set_visitors_open(allowed: bool) -> String:
+	if not connected or not is_host or _peer == null: return "Only the connected host can change admission."
+	visitors_open = allowed
+	_peer.refuse_new_connections = not allowed
+	session_message.emit("World open to new visitors." if allowed else "New visits closed; current visitors may remain.")
+	return ""
+
+func remove_visitor(peer_id: int) -> String:
+	if not connected or not is_host or _peer == null: return "Only the connected host can remove a visitor."
+	if peer_id <= 1 or not presence.has(peer_id): return "Select a connected visitor."
+	# Forced transport removal does not emit peer_disconnected; clear and broadcast explicitly.
+	_peer.disconnect_peer(peer_id, true)
+	_on_peer_disconnected(peer_id)
+	session_message.emit("Visitor removed. Close new visits to prevent rejoining.")
+	return ""

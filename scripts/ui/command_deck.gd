@@ -15,6 +15,7 @@ var navigation_chart: GalaxyChart
 var navigation_address: SpinBox
 var journal_page_index: int = 0
 var journal_pending_only: bool = false
+var _visit_menu_state: Array = []
 var _clock_label := ""
 var balance_label: Label
 var survey_catalog: Dictionary = {}
@@ -130,6 +131,7 @@ func show_page(value: String = "overview") -> void:
 func _process(_delta: float) -> void:
 	if visible:
 		_update_clock()
+		if page == "settings" and _visit_menu_state != _visit_status(): show_page("settings")
 		if page == "fleet_layout" and is_instance_valid(fleet_layout_designer) and is_instance_valid(fleet_room_refit) and is_instance_valid(fleet_panel_refit) and is_instance_valid(fleet_module_refit):
 			var occupied := false
 			for module: Dictionary in fleet_layout_designer.modules:
@@ -628,6 +630,7 @@ func _station_rooms(index: int, station: Dictionary) -> void:
 	if blocked: _text("Room construction requires this system, outside the station and outside a multiplayer visit.", 14, InterfaceTheme.MUTED)
 
 func _settings() -> void:
+	_visit_menu_state = _visit_status()
 	heading.text = "FLIGHT SETTINGS"
 	_button("SHUT DOWN MAIN SYSTEMS" if game.state.systems_online else "RESTART MAIN SYSTEMS", _act.bind(game.set_ship_systems_online.bind(not game.state.systems_online), "Ship power mode updated."), game.jump_charge > 0 or not game.aboard_fleet_id.is_empty()).name = "ShipPowerToggle"
 	_text("Shutdown preserves momentum and stops powered-system heat, thrust, ship weapons, hyperdrive and shield recharge. Stored heat still radiates; existing shield charge remains. Walking, suit weapons and emergency controls stay available.", 15, InterfaceTheme.MUTED)
@@ -691,9 +694,23 @@ func _settings() -> void:
 	consent.toggled.connect(func(allowed: bool): game.session.set_pvp_allowed(allowed))
 	content.add_child(consent)
 	_text("Both pilots must opt in and be flying. Consent resets when leaving or changing systems. The host checks shot range and obstructions; local ship damage and rescue still use your commander save.", 14, InterfaceTheme.MUTED)
+	if game.session.connected and game.session.is_host:
+		var admission := CheckButton.new()
+		admission.name = "VisitorsOpen"
+		admission.text = "Allow new visitors"
+		admission.button_pressed = game.session.visitors_open
+		admission.toggled.connect(func(allowed: bool):
+			var error: String = game.session.set_visitors_open(allowed)
+			note(error if not error.is_empty() else ("New visitors allowed." if allowed else "New visitors blocked; current visitors may remain.")))
+		content.add_child(admission)
 	for peer_id: int in game.session.presence:
 		var peer: Dictionary = game.session.presence[peer_id]
 		_text("%s  /  %s  /  %s" % [peer.name, "PvP enabled" if peer.get("pvp", false) else "Protected", "Systems online" if peer.get("systems_online", true) else "Systems offline"], 14)
+		if game.session.is_host and peer_id != game.session.multiplayer.get_unique_id():
+			_button("REMOVE VISITOR: %s" % peer.name, func():
+				var error: String = game.session.remove_visitor(peer_id)
+				show_page("settings")
+				note(error if not error.is_empty() else "Visitor removed. Close new visits to prevent rejoining.")).name = "RemoveVisitor%d" % peer_id
 	var connection := _row()
 	var name_field := LineEdit.new()
 	name_field.placeholder_text = "Pilot callsign"
@@ -1111,3 +1128,11 @@ func _journal_page(index: int) -> void:
 func _journal_course(system: int) -> void:
 	show_page("navigation")
 	_select_destination(system)
+
+
+func _visit_status() -> Array:
+	var status: Array = [game.session.connected, game.session.is_host]
+	for id: int in game.session.presence:
+		var peer: Dictionary = game.session.presence[id]
+		status.append([id, peer.name, peer.get("pvp", false), peer.get("systems_online", true)])
+	return status

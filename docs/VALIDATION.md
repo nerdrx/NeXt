@@ -1561,3 +1561,11 @@ Navigation now opens a browsable world-local survey journal. Records show planet
 Domain checks passed numeric order, non-overlapping pages, filtering, empty and out-of-range pages, and archive immutability. Hidden Gamescope gameplay passed empty state, actual paging/filter buttons, course selection and unchanged location/credits/archive while browsing. The journal capture was visually inspected. The scan/sale persistence regression also passed. Both new tests are registered in Windows CI. Known Texture RID shutdown warnings remain in the journal harness; no script/shader errors were logged.
 
 Clean Windows release export at `c54a87c` passed without script or parse errors. Dedicated journal rendering ran natively under hidden Gamescope; the last full Proton integration smoke remains `219a682`.
+
+## Host visitor admission and removal — 2026-09-28
+
+Connected hosts can close/reopen new visitor admission and remove an admitted guest from Settings. Existing guests remain when admission closes. The transport gate is backed by the validated join-request gate, including already-connected pending arrivals. Reliable rejection gets a brief flush window before transport cleanup. Forced removal explicitly clears presence and broadcasts departure to remaining guests, excluding the removed peer. Settings refreshes when session membership/consent/power status changes. These are per-session controls, not persistent identity bans or property access permissions.
+
+Real loopback ENet checks passed established-guest retention, locked admission, transport-connected late-join rejection, reopening, removal/client disconnect, remaining-peer presence cleanup and host/guest role restrictions. Existing multi-process network/layout/travel/departure regression passed. Hidden Gamescope menu checks passed host-only visibility, actual toggle wiring, live refresh and leave reset; the capture was inspected. Both new tests are registered in Windows CI. Known Texture RID shutdown warnings remain in the UI harness.
+
+Transport behavior follows the documented [MultiplayerPeer admission and disconnect APIs](https://docs.godotengine.org/en/4.7/classes/class_multiplayerpeer.html). Steam transport extension behavior, live invites/relay, property replication and authoritative shared economics remain unverified or unfinished.
