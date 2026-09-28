@@ -4,6 +4,7 @@ extends Node3D
 const SKY_SHADER: Shader = preload("res://shaders/deep_space_sky.gdshader")
 const PLANET_SHADER: Shader = preload("res://shaders/planet_surface.gdshader")
 const CLOUD_SHADER: Shader = preload("res://shaders/planet_clouds.gdshader")
+const CORONA_SHADER: Shader = preload("res://shaders/stellar_corona.gdshader")
 const STAR_SHADER: Shader = preload("res://shaders/star_surface.gdshader")
 
 const PRIMARY_POSITION := Vector3(-1700, 1150, -4100)
@@ -61,6 +62,16 @@ func stellar_heat(global_point: Vector3, orientation: Basis, dimensions: Vector3
 	# Keep the placeholder photosphere center from becoming a zero-direction cold spot.
 	if toward_star.is_zero_approx(): toward_star = Vector3.ONE
 	return StellarExposure.absorbed_power(flux, dimensions, toward_star)
+
+static func stellar_display_color(temp_k: float) -> Color:
+	# A compact artistic ramp, not a spectral or black-body rendering model.
+	var temperature := clampf(temp_k if is_finite(temp_k) else 5772.0, 1800.0, 30000.0)
+	var warm_orange := Color("ff743d")
+	var warm_white := Color("fff0dc")
+	var blue_white := Color("b8d7ff")
+	if temperature <= 5772.0:
+		return warm_orange.lerp(warm_white, inverse_lerp(1800.0, 5772.0, temperature))
+	return warm_white.lerp(blue_white, inverse_lerp(5772.0, 30000.0, temperature))
 
 func _build_environment() -> void:
 	_world_environment = WorldEnvironment.new()
@@ -259,9 +270,10 @@ func _build_terminal(label: String, pos: Vector3, color: Color) -> void:
 
 func _build_star() -> void:
 	var star_type: String = data.star_type
-	var star_color: Color = data.star_color
+	var display_kind: String = str(stellar_profile.get("kind", "Yellow Star"))
+	var star_color := stellar_display_color(float(stellar_profile.get("temperature_k", 5772.0)))
 	var light := DirectionalLight3D.new()
-	light.light_color = star_color.lerp(Color("fff0dc"), 0.9)
+	light.light_color = star_color
 	light.light_energy = 1.2 if star_type != "Black Hole" else 0.2
 	light.shadow_enabled = true
 	light.rotation_degrees = Vector3(-28, -34, 0)
@@ -284,8 +296,24 @@ func _build_star() -> void:
 		var star_material := ShaderMaterial.new()
 		star_material.shader = STAR_SHADER
 		star_material.set_shader_parameter("star_color", star_color)
-		star_material.set_shader_parameter("star_kind", float(Universe.STAR_TYPES.find(star_type)))
-		_sphere("System primary", 250, PRIMARY_POSITION, star_color, 2.3, 0.15, star_material)
+		star_material.set_shader_parameter("star_kind", float(Universe.STAR_TYPES.find(display_kind)))
+		var primary := _sphere("System primary", 250, PRIMARY_POSITION, star_color, 2.3, 0.15, star_material)
+		(primary.mesh as SphereMesh).radial_segments = 128
+		(primary.mesh as SphereMesh).rings = 64
+		var corona := MeshInstance3D.new()
+		corona.name = "Stellar corona"
+		var halo_mesh := QuadMesh.new()
+		halo_mesh.size = Vector2(1000, 1000)
+		corona.mesh = halo_mesh
+		corona.position = PRIMARY_POSITION
+		corona.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var halo_material := ShaderMaterial.new()
+		halo_material.shader = CORONA_SHADER
+		halo_material.set_shader_parameter("star_color", star_color)
+		corona.material_override = halo_material
+		# Shader rotates the quad toward the camera, so retain a conservative culling box.
+		corona.custom_aabb = AABB(Vector3.ONE * -500, Vector3.ONE * 1000)
+		add_child(corona)
 		if star_type == "Neutron Star":
 			for side in [-1.0, 1.0]:
 				_box("Pulsar beam", Vector3(20, 1100, 20), Vector3(-1700, 1150 + side * 630, -4100), _emissive(Color("81d8ff"), 1.5))
