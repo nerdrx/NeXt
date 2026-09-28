@@ -2480,3 +2480,9 @@ versus external-wall occlusion, NPC/PvP shield and hull damage, parked exclusion
 helm momentum continuity and lethal rescue with a persisted wreck. This scene
 reported no Godot errors or texture cleanup warnings. It does not establish
 shared cabin occupancy or anti-cheat enforcement of helm ownership.
+
+Clean Windows export and hidden-Gamescope Proton smoke pass at `a946267`:
+`build/windows-validation-dd5c267/build/proton-smoke.xOu1Bu`, wrapper exit 0,
+`NEXT_INTEGRATION_OK` and no logged script errors. The packaged smoke covers
+general gameplay; dedicated aboard multiplayer assertions ran natively and in
+hidden Gamescope. This does not establish complete Steam or shared-cabin play.
