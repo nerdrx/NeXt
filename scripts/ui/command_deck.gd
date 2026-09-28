@@ -932,6 +932,27 @@ func _fleet() -> void:
 		else:
 			quote_label.text += " Replacing that fuel at origin: %d CR. Estimated margin after wages and jump fuel: %+d CR." % [quote.fuel_replacement_cost, quote.estimated_operating_margin]
 		quote_label.text += " Current prices only; local thrust, waiting wages and repairs cost extra.")
+	var discoveries := VBoxContainer.new()
+	discoveries.name = "TradeDiscoveries"
+	var discover := _button("FIND PROFITABLE ROUTES", func():
+		for child in discoveries.get_children():
+			discoveries.remove_child(child)
+			child.queue_free()
+		var suggestions: Array[Dictionary] = game.crew_operations().discover_trade_routes(str(ship_choice.get_selected_metadata()), int(quantity.value), int(destination_field.value))
+		if suggestions.is_empty():
+			discoveries.add_child(InterfaceTheme.label("No affordable positive-margin routes in this address range. Use an idle vessel with an empty hold; check quantity, funds and fuel stock.", 14))
+		for suggestion: Dictionary in suggestions:
+			var choice := InterfaceTheme.button("%s to system %d / %d units / estimated margin +%d CR" % [str(suggestion.good).capitalize(), suggestion.destination, suggestion.quantity, suggestion.estimated_operating_margin], func():
+				destination_field.value = int(suggestion.destination)
+				for index in goods_choice.item_count:
+					if goods_choice.get_item_metadata(index) == suggestion.good: goods_choice.select(index)
+				quantity.value = int(suggestion.quantity)
+				quote_label.text = "Route selected. Quote again for current prices, then issue Trade Route. Nothing purchased or reserved.")
+			choice.set_meta("trade_suggestion", suggestion)
+			discoveries.add_child(choice))
+	discover.disabled = s.fleet_ships.is_empty()
+	_text("Searches 32 system addresses from the selected address, showing up to five positive estimates after wages and replacement jump fuel. Selecting a result fills the order form; prices can change.", 14, InterfaceTheme.MUTED)
+	content.add_child(discoveries)
 	var orders := _row()
 	var trade := InterfaceTheme.button("TRADE ROUTE", func():
 		_act(game.crew_operations().assign_trade_route.bind(str(crew_choice.get_selected_metadata()), str(ship_choice.get_selected_metadata()), str(goods_choice.get_selected_metadata()), int(destination_field.value), int(quantity.value)), "Trade route ordered."))

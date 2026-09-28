@@ -312,6 +312,29 @@ func route_quote(good: String, destination: int, quantity: int, ship_id: String 
 		"round_trip_wages": wages, "round_trip_fuel": 20.0, "fuel_replacement_cost": fuel_cost if fuel_cost >= 0 else null,
 		"estimated_operating_margin": sale - purchase - wages - fuel_cost if fuel_cost >= 0 else null}
 
+# Read-only market discovery over a bounded address range, not a galaxy-wide optimum.
+func discover_trade_routes(ship_id: String, quantity: int, first_destination: int = 0) -> Array[Dictionary]:
+	var results: Array[Dictionary] = []
+	var vessel := _ship(ship_id)
+	if vessel.is_empty() or _ship_busy(ship_id) or float(vessel.hull) <= 0.0 or _cargo_total(vessel) > 0: return results
+	if quantity < 1 or quantity > mini(100, int(vessel.capacity) - _cargo_total(vessel)): return results
+	if first_destination < 0 or first_destination >= GameState.SYSTEM_LIMIT: return results
+	for destination in range(first_destination, mini(first_destination + 32, GameState.SYSTEM_LIMIT)):
+		if destination == int(vessel.system): continue
+		for good: String in GameState.GOODS:
+			var quote := route_quote(good, destination, quantity, ship_id)
+			if not quote.ok or quote.estimated_operating_margin == null: continue
+			if int(quote.estimated_operating_margin) <= 0: continue
+			if int(quote.escrow) + int(quote.round_trip_wages) + int(quote.fuel_replacement_cost) > state.credits: continue
+			results.append(quote)
+	results.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if a.estimated_operating_margin != b.estimated_operating_margin: return a.estimated_operating_margin > b.estimated_operating_margin
+		if a.destination != b.destination: return a.destination < b.destination
+		return str(a.good) < str(b.good))
+	if results.size() > 5: results.resize(5)
+	return results
+
+
 # Fleet menu calls this only when the ship is at the player's current dock.
 func unload_fleet_cargo(ship_id: String, good: String, quantity: int) -> String:
 	var ship: Dictionary = _ship(ship_id)
