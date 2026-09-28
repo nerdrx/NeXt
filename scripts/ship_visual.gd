@@ -32,6 +32,8 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 	var radiator_body := _surface_material(Color("202b34"), 0.65, 0.12)
 	var radiator_fin := _surface_material(Color("53616a"), 0.32, 0.85)
 	var radiator_channel := _surface_material(Color("303d45"), 0.44, 0.7)
+	var nozzle_metal := _surface_material(Color("626b72"), 0.31, 0.85)
+	var nozzle_lining := _surface_material(Color("29282a"), 0.66, 0.45)
 	var cells: Array[Vector3i] = []
 	var kinds: Dictionary = {}
 	for item in modules:
@@ -83,6 +85,7 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 		paint.set_shader_parameter("livery_paint", {"pathfinder": Color("89958f"), "merchant": Color("957946"), "ranger": Color("9b5b38")}.get(family_id, Color("89958f")))
 		shell.material_override = paint
 		add_child(shell)
+	var exhaust_columns: Dictionary = {}
 	# Connected pressure modules form the hull; avoid a broad hidden keel that reads as a wing.
 	for cell in cells:
 		var kind: String = kinds.get(cell, "hull")
@@ -136,18 +139,17 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 			"engine":
 				if joined_hull:
 					_add_family_engine_housing(p, hull_mat, dark_mat)
-				for side in [-1, 1]:
-					_add_box(p + Vector3(float(side) * 0.72, 0.96, 1.20), Vector3(0.62, 0.26, 1.7), hull_mat, Vector3(-0.05, 0, 0))
-					var mount := _add_cylinder(p + Vector3(float(side) * 0.72, 0.45, 1.56), 0.43, 0.76, dark_mat)
-					mount.rotation.x = PI * 0.5
-					var nozzle := _add_cylinder(p + Vector3(float(side) * 0.72, 0.45, 1.96), 0.3, 0.1, plate_mat)
-					nozzle.rotation.x = PI * 0.5
-					var core := _add_cylinder(p + Vector3(float(side) * 0.72, 0.45, 2.02), 0.2, 0.045, exhaust_mat)
-					core.rotation.x = PI * 0.5
-					var ring := _add_torus(p + Vector3(float(side) * 0.72, 0.45, 2.02), 0.23, 0.29, accent_mat)
-					ring.rotation.x = PI * 0.5
-					_engines.append(core)
-					_engine_glow.append(exhaust_mat)
+				# Engines feed aft outlets at the end of their occupied column.
+				# A covered engine face must not extrude a bell into another room.
+				var outlet := cell
+				while cells.has(outlet + Vector3i(0, 0, 1)): outlet += Vector3i(0, 0, 1)
+				if not exhaust_columns.has(outlet):
+					exhaust_columns[outlet] = true
+					var outlet_center := Vector3(outlet) * CELL_SIZE - center
+					var first_nozzle := get_child_count()
+					for side in [-1, 1]:
+						_add_engine_nozzle(outlet_center + Vector3(float(side) * 0.67, 0.2, 1.5), nozzle_metal, nozzle_lining, dark_mat, exhaust_mat)
+					if joined_hull: _fit_surface_fittings(first_nozzle, outlet_center + Vector3.UP * 0.2, "+z", hull_faces)
 			"reactor":
 				# Shielded service cover and heat-exchanger louvers, not an exposed glowing core.
 				_add_bevelled_plate(deck + Vector3(0, 0.12, 0), Vector3(1.55, 0.22, 1.9), plate_mat, 0.055)
@@ -380,6 +382,39 @@ func _add_box(pos: Vector3, size: Vector3, material: Material, angles: Vector3 =
 	mesh.position = pos
 	mesh.rotation = angles
 	return mesh
+
+
+func _add_engine_nozzle(origin: Vector3, metal: Material, lining: Material, dark: Material, glow: StandardMaterial3D) -> void:
+	# Open, thick-walled bell: the luminous throat is behind the flared mouth.
+	var shell := MeshInstance3D.new()
+	shell.name = "EngineBell%d" % get_child_count()
+	shell.mesh = HullGeometry.lathe_z(PackedVector2Array([
+		Vector2(0.35, 0.0), Vector2(0.41, 0.16), Vector2(0.45, 0.48),
+		Vector2(0.55, 0.76), Vector2(0.55, 0.82), Vector2(0.48, 0.82)]), 32)
+	shell.material_override = metal
+	add_child(shell)
+	shell.position = origin
+	var liner := MeshInstance3D.new()
+	liner.name = "EngineLining%d" % get_child_count()
+	liner.mesh = HullGeometry.lathe_z(PackedVector2Array([
+		Vector2(0.48, 0.82), Vector2(0.39, 0.51), Vector2(0.24, 0.22), Vector2(0.16, 0.13)]), 32)
+	liner.material_override = lining
+	add_child(liner)
+	liner.position = origin
+	var backing := _add_cylinder(origin + Vector3(0, 0, 0.10), 0.33, 0.045, dark)
+	backing.rotation.x = PI * 0.5
+	var core := _add_cylinder(origin + Vector3(0, 0, 0.15), 0.16, 0.035, glow)
+	core.name = "EngineThroat%d" % get_child_count()
+	core.rotation.x = PI * 0.5
+	var collar := _add_torus(origin + Vector3(0, 0, 0.08), 0.34, 0.40, metal)
+	collar.rotation.x = PI * 0.5
+	for index in 8:
+		var angle := TAU * float(index) / 8.0
+		var radial := Vector3(cos(angle), sin(angle), 0)
+		var rib := _add_box(origin + radial * 0.445 + Vector3(0, 0, 0.36), Vector3(0.075, 0.055, 0.43), metal)
+		rib.rotation.z = angle
+	_engines.append(core)
+	_engine_glow.append(glow)
 
 
 func _add_family_engine_housing(cell_pos: Vector3, material: Material, vent_material: Material) -> void:

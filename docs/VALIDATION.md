@@ -1597,3 +1597,9 @@ Atmospheric-drag build `97a4c5e` passed clean Windows export and Proton smoke (`
 GameState, atmospheric-drag gameplay, thermal-overflow unit and thermal-overflow gameplay regressions passed. The heat partition is a fixed 10% gameplay approximation, not validation of real re-entry temperatures or material failure.
 
 Clean Windows export and Proton smoke passed at `542ae8b`: validation checkout evidence `build/proton-smoke.SAbkD8`, `NEXT_INTEGRATION_OK`, wrapper exit 0 and no script/runtime errors. Exact drag-heating assertions run in the native tests; the Windows smoke covers the general gameplay loop.
+
+### Open engine bells and aft outlets
+
+ShipVisual now uses shared lathed geometry for thick flared mouths, dark interior liners and recessed luminous throats. Engines in one contiguous module column share an external aft outlet pair, including the starter engine ahead of its cargo room. Power and thrust still control the recessed glow. This is visual outlet routing, not simulated duct clearance or damage; cosmetic nozzle extensions do not add separate collision shapes.
+
+Native geometry and outlet checks passed, including surface normals, invalid profiles, FleetShipVisual placement, shared outlets, starter exhaust and shutdown. The existing ship-power gameplay regression passed. Three-family captures completed under hidden Gamescope; front views and the Ranger engine close-up were inspected. The hulls remain blocky placeholders and do not meet the cinematic visual target. Both new tests are registered in Windows CI.

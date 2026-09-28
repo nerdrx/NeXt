@@ -1,6 +1,29 @@
 class_name HullGeometry
 extends RefCounted
 
+
+static func lathe_z(profile: PackedVector2Array, segments: int = 32) -> ArrayMesh:
+	if profile.size() < 2 or segments < 3 or segments > 128:
+		return ArrayMesh.new()
+	for point in profile:
+		if not point.is_finite() or point.x < 0.0:
+			return ArrayMesh.new()
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for layer in range(profile.size() - 1):
+		st.set_smooth_group(layer)
+		for segment in segments:
+			var a0 := TAU * float(segment) / segments
+			var a1 := TAU * float(segment + 1) / segments
+			var p00 := Vector3(cos(a0) * profile[layer].x, sin(a0) * profile[layer].x, profile[layer].y)
+			var p01 := Vector3(cos(a1) * profile[layer].x, sin(a1) * profile[layer].x, profile[layer].y)
+			var p10 := Vector3(cos(a0) * profile[layer + 1].x, sin(a0) * profile[layer + 1].x, profile[layer + 1].y)
+			var p11 := Vector3(cos(a1) * profile[layer + 1].x, sin(a1) * profile[layer + 1].x, profile[layer + 1].y)
+			st.add_vertex(p00); st.add_vertex(p11); st.add_vertex(p01)
+			st.add_vertex(p00); st.add_vertex(p10); st.add_vertex(p11)
+	st.generate_normals()
+	return st.commit()
+
 static func prism(points: Array, y0: float, y1: float) -> ArrayMesh:
 	var vertices := PackedVector2Array(points)
 	if Geometry2D.is_polygon_clockwise(vertices): vertices.reverse()

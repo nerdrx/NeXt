@@ -70,6 +70,11 @@ func _capture() -> void:
 		_frame_camera(camera, Vector3.ZERO, extent, Vector3(1.25, 0.9, 1.6))
 		camera.make_current()
 		await _save_capture("family-%s-rear.png" % family_id)
+		var bell := visual.find_child("EngineBell*", false, false) as MeshInstance3D
+		if bell != null:
+			var bay_center := bell.position + bell.basis.x * 0.67 + bell.basis.z * 0.35
+			_frame_camera(camera, bay_center, Vector3(3.4, 2.4, 2.6), Vector3(0.7, 0.4, 1.8))
+			await _save_capture("family-%s-engine-detail.png" % family_id)
 
 		visual.hide()
 		interior.show()

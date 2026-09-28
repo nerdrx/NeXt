@@ -311,24 +311,11 @@ func _vertical_prism(points: Array, x0: float, x1: float, material: Material) ->
 
 
 func _lathe_z(origin: Vector3, profile: PackedVector2Array, material: Material, segments: int) -> MeshInstance3D:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for layer in range(profile.size() - 1):
-		st.set_smooth_group(layer)
-		for segment in segments:
-			var a0 := TAU * float(segment) / segments
-			var a1 := TAU * float(segment + 1) / segments
-			var p00 := origin + Vector3(cos(a0) * profile[layer].x, sin(a0) * profile[layer].x, profile[layer].y)
-			var p01 := origin + Vector3(cos(a1) * profile[layer].x, sin(a1) * profile[layer].x, profile[layer].y)
-			var p10 := origin + Vector3(cos(a0) * profile[layer + 1].x, sin(a0) * profile[layer + 1].x, profile[layer + 1].y)
-			var p11 := origin + Vector3(cos(a1) * profile[layer + 1].x, sin(a1) * profile[layer + 1].x, profile[layer + 1].y)
-			st.add_vertex(p00); st.add_vertex(p11); st.add_vertex(p01)
-			st.add_vertex(p00); st.add_vertex(p10); st.add_vertex(p11)
-	st.generate_normals()
 	var instance := MeshInstance3D.new()
-	instance.mesh = st.commit()
+	instance.mesh = HullGeometry.lathe_z(profile, segments)
 	instance.material_override = material
 	add_child(instance)
+	instance.position = origin
 	return instance
 
 
