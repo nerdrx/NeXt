@@ -111,6 +111,17 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 				var first_fitting := get_child_count()
 				_build_radiator_face(p, face, radiator_body, radiator_fin, radiator_channel)
 				if joined_hull: _fit_surface_fittings(first_fitting, p, face, hull_faces)
+		# Family shells need a little service structure on their broad exposed flanks.
+		# Keep it off authored panels, radiator faces, and cockpit modules.
+		if joined_hull and kind != "cockpit":
+			var radiator_faces: Array[String] = []
+			if kind == "radiator": radiator_faces = ShipLayout.exposed_radiator_faces(cell, kinds, panel_data)
+			for face: String in ["+x", "-x"]:
+				if cells.has(cell + ShipLayout.FACE_STEPS[face]) or panel_data.has(face) or face in radiator_faces: continue
+				var first_fitting := get_child_count()
+				var service_center := p + Vector3.UP * 0.35
+				_add_flank_service_strip(service_center, face, dark_mat, hull_mat, glass_trim)
+				_fit_surface_fittings(first_fitting, service_center, face, hull_faces)
 		var coordinate := cell
 		for neighbor: Vector3i in [coordinate + Vector3i.RIGHT, coordinate + Vector3i.UP, coordinate + Vector3i(0, 0, 1)]:
 			if joined_hull or not cells.has(neighbor):
@@ -213,6 +224,17 @@ func _fit_surface_fittings(first: int, center: Vector3, face: String, faces: Pac
 	for i in range(first,get_child_count()):
 		var fitting := get_child(i) as Node3D
 		fitting.transform = Transform3D(rotation_basis * fitting.basis, surface + rotation_basis * (fitting.position-previous_surface))
+
+
+func _add_flank_service_strip(center: Vector3, face: String, inset: Material, plate: Material, structure: Material) -> void:
+	var normal: Vector3 = Vector3(ShipLayout.FACE_STEPS[face])
+	var mount := center + normal * _surface_depth(normal, 0.035)
+	_add_box(mount - normal * 0.01, Vector3(0.035, 0.56, 1.88), inset)
+	# The beveled hatch is turned onto the x-facing plane; rails frame its service seam.
+	var hatch := _add_bevelled_plate(mount + normal * 0.035, Vector3(0.48, 0.045, 1.48), plate, 0.035)
+	hatch.rotation.z = PI * 0.5
+	for z in [-0.91, 0.91]:
+		_add_box(mount + normal * 0.052 + Vector3(0, 0, z), Vector3(0.055, 0.62, 0.08), structure)
 
 
 # Face-mounted equipment follows the pressure envelope, independent of grid pitch.
@@ -324,7 +346,7 @@ func _apply_engine_glow() -> void:
 		_engines[index].scale = Vector3(1.0, 1.0 + level * 0.35, 1.0)
 
 
-func _add_bevelled_plate(pos: Vector3, size: Vector3, material: Material, bevel_limit: float = INF) -> void:
+func _add_bevelled_plate(pos: Vector3, size: Vector3, material: Material, bevel_limit: float = INF) -> MeshInstance3D:
 	var half_x := size.x * 0.5
 	var half_z := size.z * 0.5
 	var bevel := minf(bevel_limit, minf(minf(size.x, size.z) * 0.1, size.y * 0.32))
@@ -355,6 +377,7 @@ func _add_bevelled_plate(pos: Vector3, size: Vector3, material: Material, bevel_
 	mesh.material_override = material
 	add_child(mesh)
 	mesh.position = pos
+	return mesh
 
 
 func _octagon(half_x: float, half_z: float, corner: float, y: float) -> PackedVector3Array:

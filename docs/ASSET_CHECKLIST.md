@@ -168,3 +168,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Replace shared procedural equipment finishes with authored material maps. Ship covers now share the filtered hull finish shader; canopy trim and radiator fins use exposed-metal response, while painted covers remain dielectric. Preserve exhaust emission and transparent glazing. This material pass does not resolve blocky hull silhouettes or establish reference-quality art.
 
 - [ ] Add atmospheric flight audio and restrained airflow cues. The flight HUD reports AIR DRAG in g and AIR HEAT in kW separately from thrust. Use the actual energy-based heating signal for restrained thermal cues; plasma and material-specific re-entry effects are not simulated. Preserve readability.
+
+- [ ] Replace procedural flank service strips and staggered coating seams with authored hull access panels, maintenance markings and material maps. Preserve exposed-face placement, configured windows/armor and radiator clearance; these details do not change pressure-room geometry.

@@ -1605,3 +1605,9 @@ ShipVisual now uses shared lathed geometry for thick flared mouths, dark interio
 Native geometry and outlet checks passed, including surface normals, invalid profiles, FleetShipVisual placement, shared outlets, starter exhaust and shutdown. The existing ship-power gameplay regression passed. Three-family captures completed under hidden Gamescope; front views and the Ranger engine close-up were inspected. The hulls remain blocky placeholders and do not meet the cinematic visual target. Both new tests are registered in Windows CI.
 
 Clean Windows export and hidden-Gamescope Proton smoke passed at `92160f6`: `build/proton-smoke.6Y9LyF` in the validation checkout, `NEXT_INTEGRATION_OK` and wrapper exit 0. Exact nozzle assertions run in native tests; the Windows smoke covers the general gameplay loop. A platform SDR-white-level warning remains; no script/runtime errors were logged.
+
+### Hull service detail and coating seams
+
+Exposed family flanks now carry compact four-mesh service strips on the upper armor slope. Occupied neighbor faces, cockpits, configured panels and exposed radiator faces are skipped. The shared surface shader staggers alternate panel rows and adds narrow filtered coating wear. It derives panel footprints before staggering, avoiding derivative spikes at row boundaries. Pressure volumes are unchanged.
+
+The first graphical run exposed an inferred typed-array mismatch in the optional radiator-face list; an explicit typed empty array fixes it. Subsequent three-family hidden-Gamescope captures completed without script/shader errors. Pathfinder exterior and Merchant rear were inspected; the detail breaks up blank flanks but remains repetitive placeholder art. Existing radiator and hull-family refit checks passed; the final refit rerun had no script errors.

@@ -41,6 +41,11 @@ void fragment() {
  else if (axis.z > axis.y) { surface = panel_position.xy; }
  vec2 pitch = max(panel_pitch, vec2(0.05));
  vec2 panel_uv = surface / pitch + vec2(0.5);
+ // Alternate half-length plates so seams do not form a toy-like square grid.
+ // Keep the footprint from continuous coordinates: row boundaries are discontinuous.
+ vec2 panel_footprint = fwidth(panel_uv);
+ float row = floor(panel_uv.y);
+ panel_uv.x += mod(row, 2.0) * 0.5;
  vec2 edge = min(fract(panel_uv), 1.0-fract(panel_uv)) * pitch;
  float edge_distance = min(edge.x, edge.y);
  float pixel = max(length(fwidth(surface)), 0.0001);
@@ -55,9 +60,14 @@ void fragment() {
  float bolt = (1.0-smoothstep(0.012-pixel*0.5, 0.012+pixel*0.5, bolt_radius)) * fastener_detail;
  float bolt_rim = (1.0-smoothstep(0.022-pixel*0.5, 0.022+pixel*0.5, bolt_radius)) * fastener_detail;
  float seal_dirt = (1.0-smoothstep(0.012, 0.075, edge_distance)) * industrial_detail * panel_strength * panel_detail;
- float tone_detail = 1.0-smoothstep(0.25, 1.0, length(fwidth(panel_uv)));
+ float tone_detail = 1.0-smoothstep(0.25, 1.0, length(panel_footprint));
  float panel_tone = mix(0.5, hash3(vec3(floor(panel_uv), 7.0)), tone_detail);
  float panel_height = smoothstep(0.0, 0.018, edge_distance) * 0.002 * panel_detail * panel_strength;
+ // Exposed coating edges catch light; narrow wear fades before it can shimmer.
+ float edge_wear = (1.0-smoothstep(0.004, 0.011, edge_distance))
+     * smoothstep(0.002, 0.004, edge_distance)
+     * (1.0-smoothstep(0.004, 0.018, pixel))
+     * smoothstep(0.45, 0.75, mottling) * industrial_detail * panel_strength;
  float finish_tone = mix(0.94 + 0.08 * mottling, 0.975 + 0.035 * mottling, panel_strength);
  ALBEDO = paint.rgb * finish_tone * (1.0 + (panel_tone-0.5)*0.065*panel_strength);
  // Broad painted shoulders establish a readable silhouette before fine detail.
@@ -73,7 +83,8 @@ void fragment() {
  ALBEDO = mix(ALBEDO, vec3(0.09), bolt_rim * 0.38);
  ALBEDO = mix(ALBEDO, vec3(0.19), bolt);
  ROUGHNESS = clamp(base_roughness + (mottling-0.5)*roughness_variation + (micro-0.5)*0.065 + abrasion*0.07 + groove*0.14 + seal_dirt*0.08, 0.12, 0.92);
- METALLIC = mix(metalness, 0.75, bolt);
+ ALBEDO = mix(ALBEDO, vec3(0.32, 0.34, 0.35), edge_wear);
+ METALLIC = mix(metalness, 0.75, max(bolt, edge_wear));
  SPECULAR = 0.5;
  CLEARCOAT = coating;
  CLEARCOAT_ROUGHNESS = 0.35;
