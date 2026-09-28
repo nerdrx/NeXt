@@ -1394,7 +1394,8 @@ func interaction_hint() -> String:
 	if not service.is_empty(): return str(service.label)
 	if aboard:
 		var member := _near_ship_crew()
-		return ("F: Talk to %s  /  " % member.display_name if member != null else "") + ("E: Return to concourse  /  PgUp/PgDn change deck" if not aboard_fleet_id.is_empty() else (("E: Return to helm" if return_flying else "E: Return outside") + "  /  PgUp/PgDn change deck")) + (("  /  Braking %d m/s" if coasting_hull.braking else ("  /  Cruise %d m/s" if aboard_cruise else "  /  Ship coasting %d m/s")) % roundi(coasting_hull.velocity.length()) if is_instance_valid(coasting_hull) else "")
+		var medical := aboard_fleet_id.is_empty() and is_instance_valid(interior) and interior.in_medical_bay(pilot.global_position)
+		return ("F: Medical treatment (1 medicine)  /  " if medical else ("F: Talk to %s  /  " % member.display_name if member != null else "")) + ("E: Return to concourse  /  PgUp/PgDn change deck" if not aboard_fleet_id.is_empty() else (("E: Return to helm" if return_flying else "E: Return outside") + "  /  PgUp/PgDn change deck")) + (("  /  Braking %d m/s" if coasting_hull.braking else ("  /  Cruise %d m/s" if aboard_cruise else "  /  Ship coasting %d m/s")) % roundi(coasting_hull.velocity.length()) if is_instance_valid(coasting_hull) else "")
 	var person: Node3D = _near_person()
 	if person != null: return "Talk to " + person.display_name
 	if _near_ship_boarding():
@@ -1633,6 +1634,12 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			if not ui_open: _interact()
 		KEY_F:
 			if aboard and not ui_open:
+				if aboard_fleet_id.is_empty() and is_instance_valid(interior) and interior.in_medical_bay(pilot.global_position):
+					var issue := treat_in_medbay()
+					if issue.is_empty():
+						notify("Treatment complete. Health restored." if save_commander(false) else "Treatment complete, but NOT SAVED. Check storage and save again.")
+					else: notify(issue)
+					return
 				var member := _near_ship_crew()
 				if member != null:
 					crew_focus_id = member.actor_id
@@ -1644,6 +1651,25 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_J: open_menu("navigation")
 		KEY_F5: save_commander(true)
 		KEY_F9: load_commander()
+
+func medical_treatment_issue() -> String:
+	if not aboard or not aboard_fleet_id.is_empty() or not is_instance_valid(interior): return "Enter your own ship's medical bay for treatment."
+	if not interior.in_medical_bay(pilot.global_position): return "Move inside your ship's medical bay for treatment."
+	if session.connected or jump_charge > 0: return "Treatment is unavailable during a world visit or hyperdrive charge."
+	if not state.systems_online: return "Restart ship systems to power the medical bay."
+	if suit_health <= 0 or state.hull <= 0 or _rescuing: return "Rescue is already required."
+	if suit_health >= 100: return "Health is already full."
+	if int(state.cargo.get("medicine", 0)) < 1: return "Load at least one medicine cargo unit for treatment."
+	return ""
+
+
+func treat_in_medbay() -> String:
+	var issue := medical_treatment_issue()
+	if not issue.is_empty(): return issue
+	state.cargo.medicine -= 1
+	suit_health = 100.0
+	return ""
+
 
 func set_ship_systems_online(enabled: bool) -> String:
 	if jump_charge > 0: return "Wait for hyperdrive charging to finish before switching main systems."

@@ -198,6 +198,12 @@ func _overview() -> void:
 	_text("COMMANDER'S LOG", 13, InterfaceTheme.CYAN)
 	_text("%s credits    •    %d systems visited    •    %d hostiles defeated" % [s.credits, s.visited.size(), s.kills])
 	_button("SUIT LOCKER", show_page.bind("wardrobe")).name = "OpenSuitLocker"
+	if game.aboard:
+		_text("HEALTH %d%%  /  MEDICINE %d" % [game.suit_health, int(s.cargo.get("medicine", 0))], 16)
+		var issue: String = game.medical_treatment_issue()
+		var treatment := _button("MEDICAL TREATMENT / 1 MEDICINE", _act.bind(game.treat_in_medbay, "Treatment complete. Health restored."), not issue.is_empty())
+		treatment.name = "MedicalTreatment"
+		treatment.tooltip_text = issue if not issue.is_empty() else "Restore health using your medical bay and one medicine cargo unit."
 	_text("SHIP MANIFEST", 13, InterfaceTheme.CYAN)
 	_text("%d modules  /  %d cargo capacity  /  %d m/s cruise\nPower balance: %s  •  Hull: %d / %d  •  Fuel: %d%%" % [s.ship_modules.size(), stats.cargo_capacity, stats.speed, stats.power_balance, s.hull, stats.max_hull, s.fuel])
 	var row := _row()

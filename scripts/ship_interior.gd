@@ -312,6 +312,14 @@ func _room_furnishing(center: Vector3, room_type: String) -> void:
 			_box(center + Vector3(-0.82, 0.56, 0), Vector3(0.68, 0.08, 1.32), Color("607b7c"))
 			_box(center + Vector3(0.92, 0.95, -0.78), Vector3(0.48, 1.9, 0.44), Color("42565d"), true)
 			_box(center + Vector3(0.66, 1.72, -0.78), Vector3(0.12, 0.18, 0.035), Color("93d5d5"), false, true)
+			var sign := Label3D.new()
+			sign.text = "MEDICAL\nF: TREATMENT\n1 MEDICINE"
+			sign.position = center + Vector3(0.67, 1.3, -0.78)
+			sign.rotation.y = -PI * 0.5
+			sign.font_size = 28
+			sign.pixel_size = 0.0015
+			sign.modulate = Color("b5e5da")
+			add_child(sign)
 		"workshop":
 			_box(center + Vector3(-0.82, 0.72, 0), Vector3(0.7, 0.16, 1.9), Color("52616a"), true)
 			_box(center + Vector3(-0.82, 1.23, 0), Vector3(0.62, 0.82, 0.16), Color("36474e"), true)
@@ -324,6 +332,17 @@ func _room_furnishing(center: Vector3, room_type: String) -> void:
 			_box(center + Vector3(1.0, 0.78, 0.82), Vector3(0.44, 1.52, 0.42), Color("354951"), true)
 			for y in [0.4, 0.8, 1.2]:
 				_box(center + Vector3(0.77, y, 0.59), Vector3(0.025, 0.11, 0.28), Color("69b9ba"), false, true)
+
+func in_medical_bay(world_position: Vector3) -> bool:
+	var local := to_local(world_position)
+	for module: Dictionary in modules:
+		var cell := Vector3i(module.x, module.y, module.z)
+		if str(_layout.rooms.get(ShipLayout.cell_key(cell), ShipLayout.default_room(str(module.kind)))) != "medical": continue
+		var offset := local - Vector3(cell) * CELL
+		if absf(offset.x) < 1.35 and absf(offset.z) < 1.35 and offset.y >= -0.2 and offset.y < WALL_HEIGHT:
+			return true
+	return false
+
 
 func entry_direction(deck: int) -> Vector3:
 	# Face an adjacent room when leaving the helm/lift instead of a closed bow wall.

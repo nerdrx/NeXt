@@ -1776,3 +1776,21 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `eadc098`:
 `build/windows-validation-dd5c267/build/proton-smoke.M8oHak`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Packaged smoke covers general gameplay; the dedicated
 acceleration assertions above ran natively. No performance or Steam claim follows.
+
+
+### Functional ship medical bays (2026-09-28)
+
+A configured medical room now restores the commander's existing session health
+to 100 using one medicine cargo unit. Treatment requires standing inside the
+room aboard the active ship, online systems and a living commander; fleet
+inspection, world visits and charging hyperdrive cannot use it. F prioritizes
+the medical terminal while inside the bay; the overview menu provides the same
+action, health, stock and disabled-reason tooltip. Full health consumes nothing.
+The medical cabinet has a replaceable treatment sign. This adds neither hunger
+nor thirst, a crafting recipe, crew injury simulation nor a persistent injury model.
+
+`test_medical_bay.gd` passes under hidden Gamescope: supply/power/rescue/fleet
+guards, adjacent-room and other-deck rejection, translated/rotated room bounds,
+keyboard and menu actions, repeated-use rejection and saved cargo debit. The
+treatment overview capture was inspected. Existing anchored-interior walking,
+rotated gravity, doorway, lift and saved-position regression also passes.
