@@ -612,6 +612,18 @@ func _stations() -> void:
 			game.rebuild_owned_stations())
 		_station_rooms(index, station)
 		var recipe: Dictionary = game.crew_operations().station_recipe(index)
+		var production_choice := OptionButton.new()
+		production_choice.name = "StationProduction%d" % index
+		for good: String in CrewOrders.PRODUCTION_INPUTS:
+			production_choice.add_item(good.capitalize())
+			production_choice.set_item_metadata(production_choice.item_count - 1, good)
+			if good == str(recipe.good): production_choice.select(production_choice.item_count - 1)
+		content.add_child(production_choice)
+		var configure := _button("SET PRODUCTION", func():
+			_act(game.set_station_production.bind(index, str(production_choice.get_selected_metadata())), "Station production configured."), game.session.connected)
+		configure.name = "SetStationProduction%d" % index
+		configure.tooltip_text = "Changing output restarts the current production cycle. Stored goods are retained."
+		_text("Changing output restarts the cycle; stored goods are retained.", 14, InterfaceTheme.MUTED)
 		var inputs: PackedStringArray = []
 		for good: String in recipe.inputs: inputs.append("%d %s" % [recipe.inputs[good], good])
 		_text("INDUSTRY / %s / up to %d units per 15 minutes with an assigned engineer" % [str(recipe.good).capitalize(), recipe.batch_limit], 15, InterfaceTheme.CYAN)

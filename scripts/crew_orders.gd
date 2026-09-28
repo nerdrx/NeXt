@@ -417,10 +417,21 @@ func deposit_station_stock(station_index: int, good: String, quantity: int) -> S
 	state.cargo[key] = int(state.cargo[key]) - quantity
 	return ""
 
+func set_station_production(station_index: int, good: String) -> String:
+	if station_index < 0 or station_index >= state.stations.size(): return "Owned station does not exist."
+	if not PRODUCTION_INPUTS.has(good): return "Unknown production recipe."
+	if str(station_recipe(station_index).good) == good: return ""
+	state.stations[station_index].production_good = good
+	for order: Dictionary in state.crew_orders.values():
+		if str(order.kind) == "station" and int(order.station_index) == station_index:
+			order.progress = 0.0
+	return ""
+
+
 func station_recipe(station_index: int) -> Dictionary:
 	if station_index < 0 or station_index >= state.stations.size(): return {}
 	var station: Dictionary = state.stations[station_index]
-	var good: String = str(PRODUCTION_INPUTS.keys()[int(station.system) % PRODUCTION_INPUTS.size()])
+	var good: String = str(station.get("production_good", PRODUCTION_INPUTS.keys()[int(station.system) % PRODUCTION_INPUTS.size()]))
 	return {"good": good, "inputs": PRODUCTION_INPUTS[good].duplicate(), "batch_limit": int(station.level)}
 
 # Station UI must gate this action on being docked at the owned station.

@@ -871,15 +871,18 @@ func _load_v2(data: Dictionary) -> String:
 	if over_capacity: return "Cargo exceeds hold capacity."
 	var loaded_stations: Array[Dictionary] = []
 	for value: Variant in data.stations:
-		if not value is Dictionary or not value.has_all(["name", "system", "level"]) or value.size() > 5 or not value.name is String or value.name.length() < 2 or value.name.length() > 40 or not _is_int(value.system) or not _is_int(value.level) or int(value.system) < 0 or int(value.system) >= SYSTEM_LIMIT or int(value.level) < 1 or int(value.level) > 100: return "Invalid station record."
+		if not value is Dictionary or not value.has_all(["name", "system", "level"]) or value.size() > 6 or not value.name is String or value.name.length() < 2 or value.name.length() > 40 or not _is_int(value.system) or not _is_int(value.level) or int(value.system) < 0 or int(value.system) >= SYSTEM_LIMIT or int(value.level) < 1 or int(value.level) > 100: return "Invalid station record."
 		for key: Variant in value:
-			if not str(key) in ["name", "system", "level", "stock", "rooms"]: return "Invalid station record."
+			if not str(key) in ["name", "system", "level", "stock", "rooms", "production_good"]: return "Invalid station record."
 		var station: Dictionary = {"name": value.name, "system": int(value.system), "level": int(value.level)}
 		if value.has("rooms"):
 			if not StationLayoutDomain.validate_data(value.rooms): return "Invalid station rooms."
 			var station_rooms: Array[String] = []
 			for room: Variant in value.rooms: station_rooms.append(room)
 			station.rooms = station_rooms
+		if value.has("production_good"):
+			if not value.production_good is String or not GOODS.has(value.production_good): return "Invalid station production recipe."
+			station.production_good = value.production_good
 		var stock: Dictionary = value.get("stock", {})
 		if not stock is Dictionary or stock.size() > GOODS.size(): return "Invalid station stock."
 		for good: Variant in stock:

@@ -2121,3 +2121,13 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `1c886b1`:
 `build/windows-validation-dd5c267/build/proton-smoke.LPwnIb`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Dedicated survey-cruise assertions ran natively; the
 packaged smoke checks general gameplay.
+
+### Station production choice (2026-09-28)
+
+`test_station_production_choice.gd` passes legacy defaults, same-recipe no-op,
+changed-recipe cycle reset, finite ore/fuel consumption into alloys after a full
+cycle, atomic invalid requests, saved selection, transactional malformed-save
+rejection and real Station Works dropdown/apply controls. The fixture is in CI.
+Supply and export logistics regressions pass. Hidden-Gamescope UI execution
+passes without engine errors; the resulting electronics configuration screenshot
+was inspected. Parallel review found no save-schema or economic defect.

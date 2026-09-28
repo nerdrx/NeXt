@@ -434,3 +434,17 @@ retains the normal autopilot cancellation behavior.
 The action rechecks flight/helm, location, hull, ship power, jump and local-world
 requirements when clicked. Completed or empty local systems have no next target.
 This is a local-system convenience, not an automatic multi-system survey bot.
+
+## Configurable owned-station production
+
+Owners can select any existing commodity recipe in Station Works. Manufactured
+outputs keep their stock input requirements, output capacity and engineer/wage
+rules. Changing the recipe resets that station manager's in-progress cycle,
+while retaining all stored goods and lifetime produced totals. Selecting the
+current recipe is a no-op. Production choice is remotely configurable in the
+owner's local world; connected visits cannot change it.
+
+The optional station `production_good` field is validated and saved. Legacy
+stations without it retain the regional recipe. Raw ore, food and fuel still
+use abstract extraction/farming; this does not add factories with physical
+machinery, resource-site restrictions or new recipes.
