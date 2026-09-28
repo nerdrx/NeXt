@@ -145,4 +145,4 @@ static func outer_hull(cells: Array[Vector3i]) -> ArrayMesh:
 		return HullGeometry.profile_offset(outline, [Vector2(-1.48, 0.12), Vector2(-0.25, 0.6), Vector2(PRESSURE_SIZE.y * 0.5, 0.03)])
 	var beam_scale := 1.2 if family_id == "pathfinder" else 1.16
 	var length_scale := 1.06 if family_id == "pathfinder" else 1.035
-	return HullGeometry.profile(outline, [Vector3(1.02, -1.48, 1.01), Vector3(beam_scale, -0.25, length_scale), Vector3(1.0, PRESSURE_SIZE.y * 0.5, 1.0)])
+	return HullGeometry.profile(outline, [Vector3(1.02, -1.48, 1.01), Vector3(beam_scale, -0.25, length_scale), Vector3(1.0, PRESSURE_SIZE.y * 0.5, 1.0)], 0.5 if family_id == "pathfinder" else 0.35)

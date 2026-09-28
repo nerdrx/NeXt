@@ -73,3 +73,11 @@ variation distinguish neighboring coatings. This is a modest surface readability
 change, not a replacement for designed hull geometry or authored wear. Family
 captures include a `distant` view at twice the exterior camera size to inspect
 filtering; inspect moving gameplay before claiming temporal stability.
+
+
+Pathfinder and Merchant now rake the foremost armor ring forward by 0.5 m and
+0.35 m respectively at shoulder height, tapering back to the unchanged roof.
+Cockpit glazing follows the resulting surface. This remains inside the existing
+flight collision and preserves all room clearances; blueprint containment and
+fleet-family checks pass, with hidden-Gamescope family captures inspected.
+This is a bow profile correction, not a completed silhouette redesign.

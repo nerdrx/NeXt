@@ -129,10 +129,12 @@ static func _add_oriented_triangle(st: SurfaceTool, a: Vector3, b: Vector3, c: V
 
 
 # Each section stores footprint X scale, height, and footprint Z scale.
-static func profile(outline: PackedVector2Array, sections: Array) -> ArrayMesh:
+static func profile(outline: PackedVector2Array, sections: Array, bow_sweep: float = 0.0) -> ArrayMesh:
 	var points := outline.duplicate()
 	if Geometry2D.is_polygon_clockwise(points): points.reverse()
 	var triangles := Geometry2D.triangulate_polygon(points)
+	var bow := INF
+	for point in points: bow = minf(bow, point.y)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st.set_smooth_group(-1)
@@ -141,10 +143,10 @@ static func profile(outline: PackedVector2Array, sections: Array) -> ArrayMesh:
 		var upper: Vector3 = sections[section+1]
 		for i in points.size():
 			var j := (i+1) % points.size()
-			var a := Vector3(points[i].x * lower.x, lower.y, points[i].y * lower.z)
-			var b := Vector3(points[j].x * lower.x, lower.y, points[j].y * lower.z)
-			var c := Vector3(points[j].x * upper.x, upper.y, points[j].y * upper.z)
-			var d := Vector3(points[i].x * upper.x, upper.y, points[i].y * upper.z)
+			var a := _profile_point(points[i], lower, bow, bow_sweep)
+			var b := _profile_point(points[j], lower, bow, bow_sweep)
+			var c := _profile_point(points[j], upper, bow, bow_sweep)
+			var d := _profile_point(points[i], upper, bow, bow_sweep)
 			var edge := points[j] - points[i]
 			var outward := Vector3(edge.y, 0, -edge.x)
 			_add_oriented_triangle(st,a,b,c,outward)
@@ -156,9 +158,18 @@ static func profile(outline: PackedVector2Array, sections: Array) -> ArrayMesh:
 			var a := points[triangles[i]]
 			var b := points[triangles[i+1]]
 			var c := points[triangles[i+2]]
-			_add_oriented_triangle(st,Vector3(a.x*section.x,section.y,a.y*section.z),Vector3(b.x*section.x,section.y,b.y*section.z),Vector3(c.x*section.x,section.y,c.y*section.z),normal)
+			_add_oriented_triangle(st,_profile_point(a,section,bow,bow_sweep),_profile_point(b,section,bow,bow_sweep),_profile_point(c,section,bow,bow_sweep),normal)
 	st.generate_normals()
 	return st.commit()
+
+
+# Forward armor rake applies only at the nose; roof and rooms retain their footprint.
+static func _profile_point(point: Vector2, section: Vector3, bow: float, sweep: float) -> Vector3:
+	var result := Vector3(point.x * section.x, section.y, point.y * section.z)
+	if is_equal_approx(point.y, bow):
+		var rake := clampf(1.0 - absf(section.y + 0.25) / 1.58, 0.0, 1.0)
+		result.z -= sweep * rake
+	return result
 
 
 # Sections are Vector2(height, outward offset). Offset rings must keep original vertex order.

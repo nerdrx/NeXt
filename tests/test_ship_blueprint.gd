@@ -21,6 +21,15 @@ func _run() -> void:
 		var shell := visual.get_node_or_null("FamilyPressureHull") as MeshInstance3D
 		assert(shell != null, "family cells produce one connected pressure skin")
 		_assert_closed_mesh(shell.mesh.get_faces())
+		if family_id in ["pathfinder", "merchant"]:
+			var roof_bow := INF
+			var shoulder_bow := INF
+			for vertex: Vector3 in shell.mesh.get_faces():
+				if is_equal_approx(vertex.y, ShipBlueprint.PRESSURE_SIZE.y * 0.5):
+					roof_bow = minf(roof_bow, vertex.z)
+				if is_equal_approx(vertex.y, -0.25):
+					shoulder_bow = minf(shoulder_bow, vertex.z)
+			assert(roof_bow - shoulder_bow > 0.35, "family bow must rake forward below the cockpit")
 		if family_id == "ranger":
 			var shell_arrays := shell.mesh.surface_get_arrays(0)
 			var sloped_sides := 0
