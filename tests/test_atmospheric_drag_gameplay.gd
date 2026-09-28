@@ -79,14 +79,16 @@ func _run() -> void:
 
 	pilot.teleport(game.world.to_global(local_vacuum))
 	pilot.restore_flight_velocity(Vector3(100, 0, 0))
+	var gravity: Vector3 = game.world.gravity_acceleration(pilot.global_position)
 	pilot._fly(0.1)
-	assert(pilot.flight_velocity().is_equal_approx(Vector3(100, 0, 0)) and pilot.aerodynamic_g == 0.0, "vacuum coasting preserves velocity")
-	assert(pilot.acceleration_vector.is_zero_approx(), "vacuum coasting clears net acceleration")
+	assert(pilot.flight_velocity().is_equal_approx(Vector3(100, 0, 0) + gravity * 0.1) and pilot.aerodynamic_g == 0.0, "vacuum coasting has gravity but no drag")
+	assert(pilot.acceleration_vector.is_equal_approx(gravity), "vacuum net acceleration is gravity")
 	planet["atmosphere"] = false
 	pilot.teleport(sea)
 	pilot.restore_flight_velocity(Vector3(100, 0, 0))
+	gravity = game.world.gravity_acceleration(pilot.global_position)
 	pilot._fly(0.1)
-	assert(pilot.flight_velocity().is_equal_approx(Vector3(100, 0, 0)), "airless coasting preserves velocity")
+	assert(pilot.flight_velocity().is_equal_approx(Vector3(100, 0, 0) + gravity * 0.1), "airless coasting retains gravity")
 	planet["atmosphere"] = true
 	game.state.credits = 50000
 	assert(game.state.add_module("habitat", Vector3i(0, 0, 3)).is_empty())

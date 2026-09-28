@@ -7,6 +7,14 @@ const STANDARD_GRAVITY := 9.80665
 const CRUISE_G := 3.0
 const BOOST_G := 6.0
 
+# Sample a world acceleration field once per integration step.
+static func gravity_step(source: Callable, point: Vector3, delta: float) -> Vector3:
+	if not source.is_valid() or not point.is_finite() or not is_finite(delta) or delta <= 0.0 or delta > 1.0: return Vector3.ZERO
+	var sampled: Variant = source.call(point)
+	if not sampled is Vector3 or not sampled.is_finite(): return Vector3.ZERO
+	var step: Vector3 = sampled * delta
+	return step if step.is_finite() else Vector3.ZERO
+
 static func command_velocity(current: Vector3, desired: Vector3, delta: float, boost: bool = false, acceleration: float = STANDARD_GRAVITY * CRUISE_G, boost_acceleration: float = -1.0) -> Vector3:
 	if not current.is_finite(): return Vector3.ZERO
 	if not desired.is_finite() or not is_finite(delta) or delta <= 0.0 or delta > 1.0: return current

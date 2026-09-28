@@ -25,6 +25,7 @@ var fire_interval: float = 0.16
 var autopilot_target: Vector3 = Vector3.ZERO
 var autopilot_active: bool = false
 var propulsion_limiter: Callable
+var gravity_source: Callable
 var atmospheric_density_source: Callable
 var drag_mass_kg: float = 40000.0
 var drag_dimensions := Vector3.ONE
@@ -158,6 +159,7 @@ func _fly(delta: float) -> void:
 	if autopilot_active and (local_direction.length_squared() > 0.001 or rolling):
 		cancel_autopilot()
 	var desired: Vector3
+	var gravity_velocity := FlightDynamics.gravity_step(gravity_source, global_position, delta)
 	var incoming_thrust := _flight_velocity
 	var provisional_arrival := false
 	var boosting := enabled and Input.is_action_pressed("boost") and not autopilot_active and not braking
@@ -179,17 +181,19 @@ func _fly(delta: float) -> void:
 		if not flight_assist_enabled and not braking:
 			# Inertial input requests thrust; released controls preserve momentum.
 			desired = incoming_thrust + camera.global_basis * local_direction * FlightDynamics.command_acceleration(acceleration_mps2, boosting, boost_acceleration_mps2) * delta
+	if flight_assist_enabled or autopilot_active or braking: desired -= gravity_velocity
 	var commanded := FlightDynamics.command_velocity(incoming_thrust, desired, delta, boosting, acceleration_mps2, boost_acceleration_mps2)
 	if autopilot_active:
 		_update_module_collision_basis()
 		var lookahead := maxf(5.0, FlightDynamics.braking_distance(incoming_thrust.length(), acceleration_mps2) + incoming_thrust.length() * delta + 2.0)
 		if lookahead > 0.0 and commanded.length_squared() > 0.0 and test_move(global_transform, commanded.normalized() * lookahead):
 			request_brake()
-			commanded = FlightDynamics.command_velocity(incoming_thrust, Vector3.ZERO, delta, false, acceleration_mps2)
+			commanded = FlightDynamics.command_velocity(incoming_thrust, -gravity_velocity, delta, false, acceleration_mps2)
 			provisional_arrival = false
 			autopilot_blocked.emit()
 	_flight_velocity = _limit_propulsion(incoming_thrust, commanded)
 	thrust_g = FlightDynamics.thrust_load(incoming_thrust, _flight_velocity, delta)
+	_flight_velocity += gravity_velocity
 	var before_drag := _flight_velocity
 	var density: float = atmospheric_density_source.call(global_position) if atmospheric_density_source.is_valid() else 0.0
 	_flight_velocity = AtmosphericFlight.drag_velocity(_flight_velocity, density, drag_dimensions, camera.global_basis, drag_mass_kg, delta)

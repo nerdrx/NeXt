@@ -31,6 +31,7 @@ var search_seconds_remaining: float = 0.0
 var travel_active: bool = false
 var travel_target := Vector3.ZERO
 var propulsion_limiter: Callable
+var gravity_source: Callable
 var atmospheric_density_source: Callable
 var aerodynamic_g: float = 0.0
 var aerodynamic_heat_w: float = 0.0
@@ -169,7 +170,8 @@ func _physics_process(delta: float) -> void:
 	var mass := maxf(1.0, dry_mass_kg + cargo_mass_kg)
 	var acceleration := minf(acceleration_limit_mps2, thrust_newtons * heat_factor / mass)
 	var command := _avoid_obstacles(offset.normalized() * FlightDynamics.approach_speed(distance, desired_speed, acceleration), acceleration)
-	var requested_dv := command - velocity
+	var gravity_velocity := FlightDynamics.gravity_step(gravity_source, global_position, delta)
+	var requested_dv := command - velocity - gravity_velocity
 	var dv_limit := minf(acceleration * delta, maxf(0.0, 700.0 - drive_temperature_k) / 20.0 * 5000000.0 / mass)
 	var actual_dv := requested_dv.limit_length(dv_limit)
 	if propulsion_limiter.is_valid():
@@ -182,6 +184,7 @@ func _physics_process(delta: float) -> void:
 		var forward: Vector3 = velocity.normalized() if velocity.length_squared() > 0.25 else offset.normalized()
 		var up: Vector3 = Vector3.FORWARD if absf(forward.dot(Vector3.UP)) > 0.98 else Vector3.UP
 		look_at(global_position + forward, up)
+	velocity += gravity_velocity
 	var before_drag := velocity
 	var density: float = atmospheric_density_source.call(global_position) if atmospheric_density_source.is_valid() else 0.0
 	velocity = AtmosphericFlight.drag_velocity(velocity, density, _thermal_dimensions, global_basis, mass, delta)

@@ -663,6 +663,7 @@ func _spawn_actors() -> void:
 			var actor := ShipActor.new()
 			actor.stellar_heat_source = world.stellar_heat
 			actor.atmospheric_density_source = world.atmospheric_density
+			actor.gravity_source = world.gravity_acceleration
 			actor.actor_id = id
 			actor.faction = "pirate"
 			actor.position = Vector3(-300 + i * 170, 90 + i * 35, -950 - i * 300)
@@ -675,6 +676,7 @@ func _spawn_actors() -> void:
 			var actor := ShipActor.new()
 			actor.stellar_heat_source = world.stellar_heat
 			actor.atmospheric_density_source = world.atmospheric_density
+			actor.gravity_source = world.gravity_acceleration
 			actor.actor_id = "security_%d" % i
 			if actor.actor_id in eliminated:
 				actor.free()
@@ -853,6 +855,7 @@ func _sync_fleet_actors() -> Array[String]:
 				var actor := ShipActor.new()
 				actor.stellar_heat_source = world.stellar_heat
 				actor.atmospheric_density_source = world.atmospheric_density
+				actor.gravity_source = world.gravity_acceleration
 				actor.actor_id = id
 				actor.faction = "player_fleet"
 				actor.hostile = false if is_trader else true
@@ -1063,6 +1066,7 @@ func apply_ship_stats() -> void:
 	pilot.set_suit_finish(CrewAppearance.SUITS[int(state.commander_appearance.suit)], CrewAppearance.ARMORS[int(state.commander_appearance.armor)])
 	pilot.propulsion_limiter = _consume_ship_propulsion
 	pilot.atmospheric_density_source = world.atmospheric_density
+	pilot.gravity_source = world.gravity_acceleration
 	pilot.drag_dimensions = _thermal_dimensions
 	pilot.configure_ship_collision(state.ship_modules)
 	_refresh_propulsion_limits()
@@ -2624,6 +2628,7 @@ func enter_interior(fleet_id: String = "", entry_cell: Variant = null) -> void:
 		coasting_hull.acceleration_mps2 = pilot.acceleration_mps2
 		coasting_hull.propulsion_limiter = _consume_ship_propulsion
 		coasting_hull.atmospheric_density_source = world.atmospheric_density
+		coasting_hull.gravity_source = world.gravity_acceleration
 		coasting_hull.aerodynamic_heat.connect(_absorb_aerodynamic_heat)
 		coasting_hull.drag_mass_kg = pilot.drag_mass_kg
 		coasting_hull.drag_dimensions = _thermal_dimensions

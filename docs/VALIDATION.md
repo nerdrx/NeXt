@@ -1871,3 +1871,21 @@ system before loading. Clean Windows export and hidden-Gamescope Proton
 integration pass at `06beb81`: `build/windows-validation-dd5c267/build/proton-smoke.e8atmy`,
 wrapper exit 0 and `NEXT_INTEGRATION_OK`. Export-specific assertions ran natively;
 the packaged smoke covers general integration.
+
+
+### Planetary flight gravity (2026-09-28)
+
+`test_planet_gravity.gd` passes surface and doubled-radius field samples, bounded
+interior/center behavior, rebasing, hidden/surface-world exclusion, constant-field
+free fall, powered coasting navigation, powerless guidance, real pilot hover fuel
+consumption, inertial/empty-tank falling and powerless NPC acceleration without
+false drag heat. Flight-safety, acceleration-vector, flight-dynamics and coasting
+navigation regressions pass. Moving-interior save/return checks now compare the
+actual gravity-modified velocity. The isolated inertial-control test disables its
+external field; actual gravity interaction is asserted in the new fixture.
+
+The atmospheric gameplay test passes under hidden Gamescope with vacuum and
+airless expectations including gravity but no drag. Its HUD capture was inspected:
+gravity and net acceleration are readable and separate. Coasting-interior and
+inertial-control regressions pass. NET ACCEL now includes gravity, superseding
+the earlier thrust/drag-only telemetry scope; it is not physiological g-load.

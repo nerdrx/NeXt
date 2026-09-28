@@ -57,6 +57,8 @@ func _run() -> void:
 			assert(root.get_texture().get_image().save_png("user://ranger-moving-interior.png") == OK)
 	var address := SectorPosition.new(game.flight_origin.sector, game.coasting_hull.position)
 	assert(address.relative_to(SectorPosition.new(), 60000).x > anchor.x + 100)
+	# Gravity changes drift; save and restore the actual current velocity.
+	motion = game.coasting_hull.velocity
 	assert(game.save_commander(false))
 	var saved := GameState.new()
 	assert(saved.load_save(save_path).is_empty())

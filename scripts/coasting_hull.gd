@@ -7,6 +7,7 @@ var braking: bool = false
 var thrust_g: float = 0.0
 var acceleration_mps2: float = FlightDynamics.STANDARD_GRAVITY * FlightDynamics.CRUISE_G
 var propulsion_limiter: Callable
+var gravity_source: Callable
 var atmospheric_density_source: Callable
 var drag_mass_kg: float = 40000.0
 var drag_dimensions := Vector3.ONE
@@ -81,6 +82,8 @@ func navigate(delta: float, target: Vector3, speed: float) -> Dictionary:
 	var provisional_arrival := distance <= 2.0 and velocity.length() <= FlightDynamics.usable_acceleration(acceleration_mps2) * delta
 	var direction := offset / distance if distance > 0.000001 else -velocity.normalized()
 	var desired := Vector3.ZERO if provisional_arrival else direction * FlightDynamics.approach_speed(distance, speed, acceleration_mps2)
+	var gravity_velocity := FlightDynamics.gravity_step(gravity_source, global_position, delta)
+	desired -= gravity_velocity
 	var incoming_thrust := velocity
 	var commanded := FlightDynamics.command_velocity(incoming_thrust, desired, delta, false, acceleration_mps2)
 	if delta == 0.0:
@@ -99,7 +102,7 @@ func navigate(delta: float, target: Vector3, speed: float) -> Dictionary:
 	velocity = _limit_propulsion(incoming_thrust, commanded)
 	var commanded_acceleration := FlightDynamics.acceleration_vector(incoming_thrust, velocity, delta)
 	var commanded_g := commanded_acceleration.length() / FlightDynamics.STANDARD_GRAVITY
-	if provisional_arrival and velocity.is_zero_approx():
+	if provisional_arrival and velocity.is_zero_approx() and gravity_velocity.is_zero_approx():
 		thrust_g = commanded_g
 		acceleration_vector = commanded_acceleration
 		result.arrived = true
@@ -107,6 +110,7 @@ func navigate(delta: float, target: Vector3, speed: float) -> Dictionary:
 	var movement := advance(delta)
 	acceleration_vector += commanded_acceleration
 	thrust_g = commanded_g
+	result.arrived = provisional_arrival and velocity.is_zero_approx()
 	result.displacement = movement.displacement
 	result.impact_speed = movement.impact_speed
 	return result
@@ -159,13 +163,15 @@ func advance(delta: float) -> Dictionary:
 		return result
 	if delta == 0.0:
 		return result
+	var gravity_velocity := FlightDynamics.gravity_step(gravity_source, global_position, delta)
 	var before_forces := velocity
 	if braking:
 		var before := velocity
-		var commanded := FlightDynamics.command_velocity(velocity, Vector3.ZERO, delta, false, acceleration_mps2)
+		var commanded := FlightDynamics.command_velocity(velocity, -gravity_velocity, delta, false, acceleration_mps2)
 		velocity = _limit_propulsion(before, commanded)
 		thrust_g = FlightDynamics.thrust_load(before, velocity, delta)
 		if velocity.is_zero_approx(): braking = false
+	velocity += gravity_velocity
 	var before_drag := velocity
 	var density: float = atmospheric_density_source.call(global_position) if atmospheric_density_source.is_valid() else 0.0
 	velocity = AtmosphericFlight.drag_velocity(velocity, density, drag_dimensions, global_basis, drag_mass_kg, delta)

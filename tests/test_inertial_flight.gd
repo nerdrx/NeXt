@@ -17,6 +17,8 @@ func _run() -> void:
 	game.pilot.teleport(Vector3(10000, 5000, 0))
 	game.close_menu()
 	var pilot = game.pilot
+	# Isolate control-axis thrust; planetary forces have their own fixture.
+	pilot.gravity_source = Callable()
 	var dt := 0.1
 
 	assert(pilot.flight_assist_enabled, "flight assist defaults to enabled")

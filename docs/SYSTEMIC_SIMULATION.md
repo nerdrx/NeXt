@@ -324,3 +324,21 @@ Same-system station-to-market routes retain local position and velocity between
 legs and require physical arrival before settlement. Inter-system transit and
 distant ships retain the existing strategic travel approximation. Production
 input delivery and output export can now run as separate recurring crew jobs.
+
+
+## Local planetary flight gravity
+
+Visible orbital-world planets now exert a summed inverse-square acceleration on
+player flight, coasting hulls and local NPC ships. Each well preserves the
+generated catalog surface gravity at the rendered planet radius. A linear
+interior extension avoids singular acceleration inside collision geometry.
+Flight assist, braking guidance and NPC steering request counter-thrust within
+the existing acceleration, fuel and thermal limits; unpowered ships fall.
+Gravity is applied before drag, so gravitational speed changes are not mistaken
+for aerodynamic heat. The HUD separates gravity from total net acceleration.
+
+This remains compressed-scale gameplay gravity around static rendered planets.
+It is not SI-scale orbital travel, moving ephemeris-driven collision geometry,
+stellar or black-hole gravity, N-body integration, or a physiological g-load
+model. Separate colony scenes and culled orbital worlds omit this field; walking
+and interior artificial gravity retain their existing behavior.

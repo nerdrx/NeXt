@@ -73,6 +73,8 @@ func _draw() -> void:
 	_word(Vector2(w - 250, h - 105), "%03d m/s" % int(displayed_speed), 30, InterfaceTheme.CYAN)
 	if pilot.flying or (game.aboard and is_instance_valid(game.coasting_hull)):
 		var acceleration: Vector3 = pilot.acceleration_vector if pilot.flying else game.coasting_hull.acceleration_vector
+		var field: Vector3 = game.world.gravity_acceleration(pilot.global_position if pilot.flying else game.coasting_hull.global_position)
+		_word(Vector2(w - 250, h - 215), "GRAVITY %.2f g" % (field.length() / FlightDynamics.STANDARD_GRAVITY), 14, InterfaceTheme.MUTED)
 		_word(Vector2(w - 250, h - 194), "NET ACCEL %.2f g" % (acceleration.length() / FlightDynamics.STANDARD_GRAVITY), 14, InterfaceTheme.MUTED)
 		var thrust_g: float = pilot.thrust_g if pilot.flying else game.coasting_hull.thrust_g
 		var aerodynamic_g: float = pilot.aerodynamic_g if pilot.flying else game.coasting_hull.aerodynamic_g

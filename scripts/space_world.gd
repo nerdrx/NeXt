@@ -33,7 +33,8 @@ func build(system_index: int) -> void:
 		child.queue_free()
 	self.system_index = clampi(system_index, 0, Universe.SYSTEM_LIMIT - 1)
 	data = Universe.system_data(self.system_index)
-	stellar_profile = CelestialSystem.generate(self.system_index).star
+	var catalog := CelestialSystem.generate(self.system_index)
+	stellar_profile = catalog.star
 	data["system_index"] = self.system_index
 	_rng.seed = int(data.station_seed)
 	planets.clear()
@@ -46,6 +47,7 @@ func build(system_index: int) -> void:
 		var style: int = (int(data.station_seed) + i * 17) % palette.size()
 		planet["color"] = palette[style]
 		planet["has_ocean"] = Universe.planet_has_ocean(data, i)
+		planet["surface_gravity_mps2"] = float(catalog.planets[i].surface_gravity_mps2)
 		planet["visual_radius"] = 850.0 if i == 0 else 170.0 + float(i) * 34.0
 		planet["position"] = Vector3(80.0 + float(i) * 500.0, 380.0 - float(i) * 100.0, -2200.0 - float(i) * 850.0)
 		planets.append(planet)
@@ -55,6 +57,23 @@ func build(system_index: int) -> void:
 	_build_star()
 	_build_planets()
 	_build_distant_stars()
+
+func gravity_acceleration(global_point: Vector3) -> Vector3:
+	if _surface_mode or not is_visible_in_tree() or not global_point.is_finite(): return Vector3.ZERO
+	var point := to_local(global_point)
+	var acceleration := Vector3.ZERO
+	for body: Dictionary in planets:
+		var offset := Vector3(body.position) - point
+		var distance := offset.length()
+		var radius := float(body.visual_radius)
+		if not is_finite(distance) or distance <= 0.00001 or radius <= 0.0: continue
+		# Preserve catalog surface gravity on compressed local planets. Outside is
+		# inverse-square; the inaccessible interior uses a bounded linear field.
+		var strength := float(body.get("surface_gravity_mps2", 0.0))
+		strength *= pow(radius / distance, 2.0) if distance >= radius else distance / radius
+		acceleration += offset / distance * strength
+	return global_basis * acceleration
+
 
 func atmospheric_density(global_point: Vector3) -> float:
 	if _surface_mode or not is_visible_in_tree() or not global_point.is_finite(): return 0.0
