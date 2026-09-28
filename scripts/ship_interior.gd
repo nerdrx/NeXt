@@ -91,14 +91,14 @@ func crew_lift_route(from_local: Vector3, to_local: Vector3) -> Dictionary:
 	var entry: Vector3 = lift_positions[from_deck]
 	var exit: Vector3 = lift_positions[to_deck]
 	# Static clearance decides connectivity; temporary occupants are checked at arrival.
-	if not crew_lift_clear(entry, RID(), 1) or not crew_lift_clear(exit, RID(), 1): return {}
+	if not lift_clear(entry, RID(), 1) or not lift_clear(exit, RID(), 1): return {}
 	var approach := crew_path(from_local, entry)
 	var onward := crew_path(exit, to_local)
 	if approach.is_empty() or onward.is_empty(): return {}
 	return {"entry": entry, "exit": exit, "approach": approach, "onward": onward}
 
 
-func crew_lift_clear(foot: Vector3, exclude: RID = RID(), mask: int = 13) -> bool:
+func lift_clear(foot: Vector3, exclude: RID = RID(), mask: int = 13, radius: float = 0.42, height: float = 1.75) -> bool:
 	if not foot.is_finite() or not is_inside_tree(): return false
 	# Node positions update immediately, before physics broadphase synchronizes two arrivals.
 	if mask & 4:
@@ -106,13 +106,13 @@ func crew_lift_clear(foot: Vector3, exclude: RID = RID(), mask: int = 13) -> boo
 			var body := person as PhysicsBody3D
 			if body == null or body.get_parent() != self or body.is_queued_for_deletion() or body.get_rid() == exclude: continue
 			var offset: Vector3 = body.position - foot
-			if absf(offset.y) < 1.75 and Vector2(offset.x, offset.z).length() < 0.84: return false
+			if offset.y < height and offset.y > -1.75 and Vector2(offset.x, offset.z).length() < radius + 0.42: return false
 	var capsule := CapsuleShape3D.new()
-	capsule.radius = 0.42
-	capsule.height = 1.75
+	capsule.radius = radius
+	capsule.height = height
 	var query := PhysicsShapeQueryParameters3D.new()
 	query.shape = capsule
-	query.transform = global_transform * Transform3D(Basis.IDENTITY, foot + Vector3.UP * 0.875)
+	query.transform = global_transform * Transform3D(Basis.IDENTITY, foot + Vector3.UP * height * 0.5)
 	query.collision_mask = mask
 	query.collide_with_areas = false
 	query.margin = 0.0

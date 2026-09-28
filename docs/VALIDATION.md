@@ -1200,3 +1200,11 @@ The furnished cargo-corridor regression exposed crates leaving only a 0.9 m aisl
 The new furnished two-deck cargo regression passed headlessly (16.9 s) and in hidden Gamescope: approach and onward travel, blocked exit, inactive/disabled pauses, immediate second-arrival rejection, transformed cabin and invalid/disconnected routes. The transfer marking capture was inspected. Same-deck roaming, crew placement and yielding regressions passed; actual-main crew gameplay passed in hidden Gamescope with the existing seven-texture teardown warning. The focused lift render had no script errors or teardown warnings.
 
 Clean detached Windows release export at `b53b7f5` passed without script/export errors. No fresh Proton lift runtime check was performed; the ZIP remains the earlier validated development package.
+
+## Player landing clearance — 2026-09-28
+
+PageUp/PageDown deck transfers now validate the destination before teleporting or changing the selected deck. The shared lift clearance query uses the player's 0.38 m radius / 1.8 m height capsule in the cabin's rotated frame, excludes the player, and checks static geometry and occupants. A blocked destination reports that the landing needs clearance. The pilot transform is flushed after a successful transfer.
+
+Transfers are rejected outside a cabin, during menus or jump charging, and for invalid directions/deck indices. Pressing past the first or last deck no longer teleports the player back to the same deck's landing or clears velocity. This retains the existing assisted-transfer control; it does not introduce a physical elevator.
+
+The new actual-main regression passed headlessly (2.5 s) and in hidden Gamescope: crew/static obstruction, atomic rejection preserving velocity, later success after clearance, minimum-deck no-op, menu/jump guards and supported landings with tilted gravity. It uses isolated test saves and explicit failure exits. Crew deck-transfer regression also passed. The existing anchored-interior regression passed both natively and graphically; its graphical run retains the seven-texture teardown warning. The focused player-lift run reported no script errors or teardown warnings.

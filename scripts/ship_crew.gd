@@ -75,7 +75,7 @@ func _physics_process(delta: float) -> void:
 			if position.distance_to(_lift_route.entry) > 0.4:
 				_lift_route.clear()
 				_room_wait = 3.0
-			elif _lift_wait >= 2.0 and _cabin.crew_lift_clear(_lift_route.exit, get_rid()):
+			elif _lift_wait >= 2.0 and _cabin.lift_clear(_lift_route.exit, get_rid()):
 				position = _lift_route.exit
 				force_update_transform()
 				vertical = 0.0

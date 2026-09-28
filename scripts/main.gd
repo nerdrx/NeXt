@@ -1487,13 +1487,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			elif ui_open: close_menu()
 			else: open_menu()
 		KEY_PAGEUP, KEY_PAGEDOWN:
-			if aboard and not ui_open:
-				var index: int = interior.decks.find(interior_deck)
-				index = clampi(index + (1 if event.keycode == KEY_PAGEUP else -1), 0, interior.decks.size() - 1)
-				interior_deck = interior.decks[index]
-				pilot.set_walk_up(interior.global_basis.y)
-				pilot.teleport(interior.spawn_on_deck(interior_deck))
-				notify("Lift arrived at deck %d." % interior_deck)
+			_change_interior_deck(1 if event.keycode == KEY_PAGEUP else -1)
 		KEY_E:
 			if not ui_open: _interact()
 		KEY_F:
@@ -1507,6 +1501,25 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_J: open_menu("navigation")
 		KEY_F5: save_commander(true)
 		KEY_F9: load_commander()
+
+func _change_interior_deck(direction: int) -> bool:
+	if not aboard or ui_open or jump_charge > 0 or not is_instance_valid(interior): return false
+	if direction != -1 and direction != 1: return false
+	var current := interior.decks.find(interior_deck)
+	var next := current + direction
+	if current < 0 or next < 0 or next >= interior.decks.size(): return false
+	var destination_deck: int = interior.decks[next]
+	var destination := interior.spawn_on_deck(destination_deck)
+	if not interior.lift_clear(interior.to_local(destination), pilot.get_rid(), 13, 0.38, 1.8):
+		notify("Deck %d landing is obstructed. Wait for clearance." % destination_deck)
+		return false
+	pilot.set_walk_up(interior.global_basis.y)
+	pilot.teleport(destination)
+	pilot.force_update_transform()
+	interior_deck = destination_deck
+	notify("Lift arrived at deck %d." % interior_deck)
+	return true
+
 
 func _physics_process(delta: float) -> void:
 	state.cool_drive(delta)
@@ -2424,7 +2437,7 @@ func _populate_ship_crew() -> void:
 	var room_stops: Array[Vector3] = cabin.crew_positions(12)
 	# Include every deck even when the twelve room stops favour a larger lower deck.
 	for landing: Vector3 in cabin.lift_positions.values():
-		if cabin.crew_lift_clear(landing, RID(), 1): room_stops.append(landing)
+		if cabin.lift_clear(landing, RID(), 1): room_stops.append(landing)
 	for index in mini(available.size(), berths.size()):
 		var record: Dictionary = available[index]
 		var member := ShipCrew.new()

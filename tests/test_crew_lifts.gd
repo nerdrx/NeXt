@@ -37,7 +37,7 @@ func _run() -> void:
 	arrival_probe.actor_id = "immediate-lift-clearance-probe"
 	arrival_probe.position = route.exit
 	cabin.add_child(arrival_probe)
-	assert(not cabin.crew_lift_clear(route.exit), "same-tick arrival clearance rejects a second crew capsule")
+	assert(not cabin.lift_clear(route.exit), "same-tick arrival clearance rejects a second crew capsule")
 	arrival_probe.position = Vector3(100.0, 0.08, 0.0)
 	arrival_probe.queue_free()
 
