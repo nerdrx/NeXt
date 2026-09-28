@@ -7,6 +7,7 @@ var hit_confirmation: float = 0.0
 var message: String = ""
 var message_time: float = 0.0
 var flight_time: float = 0.0
+var _marker_labels: Array[Rect2] = []
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -27,6 +28,7 @@ func _word(at: Vector2, text: String, font_size: int = 16, color: Color = Interf
 	draw_string(ThemeDB.fallback_font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
 
 func _draw() -> void:
+	_marker_labels.clear()
 	if game == null or game.state == null or game.pilot == null: return
 	var state: GameState = game.state
 	var pilot: Pilot = game.pilot
@@ -73,6 +75,7 @@ func _draw() -> void:
 	_word(Vector2(w - 250, h - 54), ("BRAKING" if pilot.braking else ("CRUISE AUTOPILOT" if pilot.autopilot_active else ("FLIGHT ASSIST  ON" if pilot.flight_assist_enabled else "INERTIAL FLIGHT"))) if pilot.flying else "MAG BOOTS  ACTIVE", 13, InterfaceTheme.MUTED)
 	_word(Vector2(w * 0.5 - 260, h - 24), "TAB  Command    E  Interact / dock    J  Navigation    F5  Save", 14, InterfaceTheme.MUTED)
 	if pilot.flying:
+		_marker_labels.append(Rect2(Vector2(w - 240, 120), Vector2(220, 225)))
 		var recovery_contacts: Array[Dictionary] = game.recovery_contacts()
 		_draw_radar(Vector2(w - 130, 220), recovery_contacts)
 		for contact: Dictionary in recovery_contacts:
@@ -139,9 +142,33 @@ func _draw_marker(point: Vector3, title: String, color: Color, camera: Camera3D)
 		draw_line(pos + Vector2(side * r, -r), pos + Vector2(side * r, r), color, 1)
 		draw_line(pos + Vector2(side * r, -r), pos + Vector2(side * (r - 5), -r), color, 1)
 		draw_line(pos + Vector2(side * r, r), pos + Vector2(side * (r - 5), r), color, 1)
-	_word(pos + Vector2(18, 0), title, 11, color)
 	var distance := camera.global_position.distance_to(point)
-	_word(pos + Vector2(18, 16), "%.1f km" % (distance / 1000.0) if distance >= 1000.0 else "%d m" % int(distance), 11, InterfaceTheme.MUTED)
+	var distance_text := "%.1f km" % (distance / 1000.0) if distance >= 1000.0 else "%d m" % int(distance)
+	var font := ThemeDB.fallback_font
+	var label_width := maxf(font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x, font.get_string_size(distance_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x)
+	var label := _place_marker_label(pos + Vector2(18, -12), Vector2(label_width + 8, 32))
+	if not label.has_area(): return
+	var baseline := label.position + Vector2(4, 12)
+	if absf(baseline.y - pos.y) > 2.0:
+		draw_line(pos + Vector2(r, 0), label.position + Vector2(0, 12), Color(color, 0.45), 1.0, true)
+	_word(baseline, title, 11, color)
+	_word(baseline + Vector2(0, 16), distance_text, 11, InterfaceTheme.MUTED)
+
+func _place_marker_label(anchor: Vector2, dimensions: Vector2) -> Rect2:
+	var safe := Rect2(Vector2(20, 110), size - Vector2(40, 280))
+	for offset: float in [0, 36, -36, 72, -72, 108, -108, 144, -144, 180, -180]:
+		var candidate := Rect2(Vector2(clampf(anchor.x, safe.position.x, maxf(safe.position.x, safe.end.x - dimensions.x)), anchor.y + offset), dimensions)
+		if not safe.encloses(candidate): continue
+		var occupied := false
+		for previous: Rect2 in _marker_labels:
+			if previous.grow(2).intersects(candidate):
+				occupied = true
+				break
+		if not occupied:
+			_marker_labels.append(candidate)
+			return candidate
+	return Rect2()
+
 
 func _draw_tracked_recovery(contact: Dictionary, camera: Camera3D) -> void:
 	var local: Vector3 = camera.to_local(contact.position)
@@ -157,6 +184,7 @@ func _draw_tracked_recovery(contact: Dictionary, camera: Camera3D) -> void:
 	var point := safe.get_center() + direction * travel
 	var side := Vector2(-direction.y, direction.x)
 	draw_colored_polygon(PackedVector2Array([point + direction * 9, point - direction * 6 + side * 6, point - direction * 6 - side * 6]), InterfaceTheme.GOLD)
+	_marker_labels.append(Rect2(point + Vector2(-65, 14), Vector2(210, 18)))
 	_word(point + Vector2(-65, 26), "SALVAGE %.1f km%s" % [float(contact.distance) / 1000.0, " / BEHIND" if local.z >= 0.0 else ""], 12, InterfaceTheme.GOLD)
 
 

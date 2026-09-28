@@ -1406,3 +1406,10 @@ Actual-main hidden Gamescope checks passed a discovered derelict entering the co
 Recovery rows expose TRACK/UNTRACK, returning to manual flight without starting cruise. Approach also selects its beacon. The tracked local contact takes priority within the eight-contact HUD limit and receives a labelled offscreen direction indicator, including a BEHIND cue. A small angular dead zone stabilizes directly-behind targets; indicator margins keep its label away from screen edges and the radar. Tracking is transient and clears when rebuilding a system; completed records no longer draw.
 
 Actual-main hidden Gamescope tests passed the real tracking button, no-autopilot behavior, toggle-off, and retention of a tracked contact outside the nearest-eight set. Front and behind captures were inspected; an initial behind-label overlap was corrected and recaptured. Existing survey/recovery checks passed. This uses the local recovery-contact range, not galaxy-wide target tracking. Dense unselected marker overlap remains an interface limitation.
+
+
+## Flight marker label spacing — 2026-09-28
+
+Screen-marker labels now use measured text bounds and bounded vertical placement to avoid each other, remain inside the flight HUD area and leave the radar clear. Displaced labels draw a guide line to their original brackets. When all nearby label slots are occupied, the bracket remains but its text is omitted. Tracked recovery contacts are processed first, and their offscreen annotation reserves space for following labels.
+
+The existing actual-main recovery/tracking harness passed under hidden Gamescope, and a capture with three tightly grouped recovery beacons was visually inspected: previously overlapping labels became separate readable rows. This is simple per-frame placement; camera-motion stability and large mixed-contact stress testing remain open.
