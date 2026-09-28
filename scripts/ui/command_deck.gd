@@ -454,6 +454,16 @@ func _company() -> void:
 		_button("WITHDRAW DIVIDEND", _act.bind(s.withdraw_company.bind(s.company_balance), "Company dividend withdrawn."), s.company_balance <= 0)
 	_button("CREW & FLEET OPERATIONS", show_page.bind("fleet"))
 	_text("CREW ROSTER", 13, InterfaceTheme.CYAN)
+	var repairs := CheckButton.new()
+	repairs.name = "FieldRepairs"
+	repairs.text = "Allow engineers to use cargo alloys for field repairs"
+	repairs.button_pressed = s.field_repairs_enabled
+	repairs.toggled.connect(func(value: bool):
+		s.field_repairs_enabled = value
+		var saved: bool = game.save_commander(false)
+		note(("Field repairs enabled." if value else "Field repairs disabled.") + ("" if saved else " Changes are NOT SAVED; check storage.")))
+	content.add_child(repairs)
+	_text("Each paid, unassigned engineer can use 1 alloy per day to restore up to 8 hull. A partial repair still uses one alloy. Full or destroyed hulls consume none. Cargo alloys available: %d." % int(s.cargo.get("alloys", 0)), 14, InterfaceTheme.MUTED)
 	for index in s.crew.size():
 		var member: Dictionary = s.crew[index]
 		var member_row := _row()

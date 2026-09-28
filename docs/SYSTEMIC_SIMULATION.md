@@ -219,3 +219,7 @@ Local Pathfinder and Merchant actors derive dry mass, thrust, cruise command spe
 
 
 Local AI obstacle sweeps now extend to the greater of the existing two-second horizon and estimated braking distance plus 0.25 seconds of travel. A separate sweep follows current velocity, so a clear requested turn cannot hide an imminent collision along the inertial path. This remains local heuristic steering with conservative hull bounds, not a global route planner or a guarantee under changing thrust/obstacles.
+
+## Resource-backed field repairs
+
+Passive engineer payroll no longer generates free hull points. An explicit, saved Enterprise policy permits paid, unassigned engineers to consume cargo alloys: at most one unit per engineer per day, up to eight hull points per unit, bounded by missing hull and available stock. A partial final repair consumes a whole unit. Full or destroyed hulls, unpaid crews and assigned engineers do not consume supplies. This is a daily material/labour approximation, not localized damage, animated repair work or component replacement. The policy defaults off, including older saves, so trade cargo is not silently allocated to maintenance.

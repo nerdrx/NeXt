@@ -74,6 +74,7 @@ var world_flags: Dictionary = {}
 var company_name: String = ""
 var company_balance: int = 0
 var crew_paid: bool = false
+var field_repairs_enabled: bool = false
 var contracts: Array[Dictionary] = []
 # Persist changed market stocks; there is no passive restock/consumption yet.
 var market_stocks: Dictionary = {}
@@ -678,6 +679,11 @@ func _load_v1(data: Dictionary) -> String:
 
 func _load_v2(data: Dictionary) -> String:
 	var expected: Array[String] = ["version", "system_index", "world_id", "location", "credits", "cargo", "hull", "shield", "fuel", "kills", "day", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout", "faction"]
+	var loaded_field_repairs: bool = false
+	if data.has("field_repairs_enabled"):
+		expected.append("field_repairs_enabled")
+		if not data.field_repairs_enabled is bool: return "Invalid field repair policy."
+		loaded_field_repairs = data.field_repairs_enabled
 	var has_shield_delay: bool = data.has("shield_delay")
 	if has_shield_delay: expected.append("shield_delay")
 	var loaded_shield_delay: float = 0.0
@@ -965,6 +971,7 @@ func _load_v2(data: Dictionary) -> String:
 	company_name = data.company_name
 	company_balance = int(data.company_balance)
 	crew_paid = data.crew_paid
+	field_repairs_enabled = loaded_field_repairs
 	contracts = loaded_contracts
 	fleet_ships = loaded_fleet
 	crew_orders = loaded_orders
@@ -1081,10 +1088,10 @@ func _normalize_location(value: Dictionary) -> Dictionary:
 	return result
 
 func _save_data() -> Dictionary:
-	return {"version": SAVE_VERSION, "system_index": system_index, "world_id": world_id, "ship_identity": ship_identity, "location": location, "credits": credits, "cargo": cargo, "hull": hull, "shield": shield, "shield_delay": shield_delay, "fuel": fuel, "drive_temperature_k": drive_temperature_k, "kills": kills, "day": day, "day_progress": day_progress, "ephemeris_seconds": ephemeris_seconds, "visited": visited, "reputation": reputation, "wanted": wanted, "ship_modules": ship_modules, "stations": stations, "shares": shares, "crew": crew, "world_flags": world_flags, "company_name": company_name, "company_balance": company_balance, "crew_paid": crew_paid, "contracts": contracts, "fleet_ships": fleet_ships, "crew_orders": crew_orders, "recovery": recovery, "ship_layout": ship_layout, "faction": faction, "market_stocks": market_stocks}
+	return {"version": SAVE_VERSION, "system_index": system_index, "world_id": world_id, "ship_identity": ship_identity, "location": location, "credits": credits, "cargo": cargo, "hull": hull, "shield": shield, "shield_delay": shield_delay, "fuel": fuel, "drive_temperature_k": drive_temperature_k, "kills": kills, "day": day, "day_progress": day_progress, "ephemeris_seconds": ephemeris_seconds, "visited": visited, "reputation": reputation, "wanted": wanted, "ship_modules": ship_modules, "stations": stations, "shares": shares, "crew": crew, "world_flags": world_flags, "company_name": company_name, "company_balance": company_balance, "crew_paid": crew_paid, "field_repairs_enabled": field_repairs_enabled, "contracts": contracts, "fleet_ships": fleet_ships, "crew_orders": crew_orders, "recovery": recovery, "ship_layout": ship_layout, "faction": faction, "market_stocks": market_stocks}
 
 func _copy_from(other: GameState) -> void:
-	for key: String in ["system_index", "world_id", "ship_identity", "location", "credits", "cargo", "hull", "shield", "shield_delay", "fuel", "drive_temperature_k", "kills", "day", "day_progress", "ephemeris_seconds", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout", "faction", "market_stocks"]:
+	for key: String in ["system_index", "world_id", "ship_identity", "location", "credits", "cargo", "hull", "shield", "shield_delay", "fuel", "drive_temperature_k", "kills", "day", "day_progress", "ephemeris_seconds", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "field_repairs_enabled", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout", "faction", "market_stocks"]:
 		set(key, other.get(key).duplicate(true) if other.get(key) is Array or other.get(key) is Dictionary else other.get(key))
 
 func _pay_crew_and_company() -> void:
@@ -1097,11 +1104,22 @@ func _pay_crew_and_company() -> void:
 	crew_paid = passive_count > 0 and credits >= wages
 	if crew_paid:
 		credits -= wages
-		hull = minf(float(ship_stats().max_hull), hull + 8.0 * _paid_crew_count("engineer"))
+		_field_repairs()
 		credits += 20 * _paid_crew_count("trader")
 	for station: Dictionary in stations: credits += int(station.level) * 150
 	if company_name != "":
 		company_balance += 100 + 75 * _paid_crew_count("trader")
+
+func _field_repairs() -> void:
+	if not field_repairs_enabled or hull <= 0.0: return
+	var maximum: float = ship_stats().max_hull
+	var deficit := maxf(0.0, maximum - hull)
+	var units := mini(_paid_crew_count("engineer"), mini(int(cargo.get("alloys", 0)), ceili(deficit / 8.0)))
+	if units <= 0: return
+	cargo.alloys = int(cargo.alloys) - units
+	if int(cargo.alloys) == 0: cargo.erase("alloys")
+	hull = minf(maximum, hull + float(units) * 8.0)
+
 
 func _module_record(kind: String, cell: Vector3i) -> Dictionary:
 	return {"kind": kind, "x": cell.x, "y": cell.y, "z": cell.z}

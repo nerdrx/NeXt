@@ -68,7 +68,7 @@ func _initialize() -> void:
 	state.hull = 100
 	var prior_treasury: int = state.company_balance
 	assert(state.jump(8000) == "")
-	assert(state.hull == 108.0 and state.company_balance > prior_treasury and state.credits > 0, "paid crew, company and station settle on travel")
+	assert(state.hull == 100.0 and state.company_balance > prior_treasury and state.credits > 0, "payroll and income settle on travel without unrequested field repairs")
 	var company_funds: int = state.company_balance
 	var personal_funds: int = state.credits
 	assert(state.withdraw_company(company_funds + 1) != "" and state.company_balance == company_funds)
