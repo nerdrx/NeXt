@@ -57,6 +57,13 @@ func _run() -> void:
 	await physics_frame
 	guard._physics_process(0.1)
 	assert(guard.contact_remaining == GroundActor.SEARCH_SECONDS and guard.last_seen_position == target.position and shots == 2, "clear sight reacquires the actual target")
+	guard.pursuit_radius = 30.0
+	target.position = Vector3(40, 0, 15)
+	guard._navigation_timer = 0
+	guard._physics_process(0.1)
+	assert(guard.contact_remaining > 0 and probe.requested.is_zero_approx(), "leash overrides remembered pursuit immediately")
+	guard.pursuit_radius = INF
+	target.position = Vector3(20, 0, 15)
 	var other := _body(Vector3(90, 0, 0), Vector3(1, 3, 1))
 	guard.target = other
 	guard._physics_process(0.1)

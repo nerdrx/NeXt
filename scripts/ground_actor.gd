@@ -89,7 +89,7 @@ func _physics_process(delta: float) -> void:
 			_waypoint = _home
 			move_to = _home
 			_patrol_timer = 2.0
-	var chasing := hostile and has_target and contact_remaining > 0.0 and not hold_position
+	var chasing := hostile and has_target and target_in_leash and contact_remaining > 0.0 and not hold_position
 	if visible_target and target_distance < 38.0 and _fire_cooldown <= 0.0:
 		_fire_cooldown = 1.25
 		var origin := global_position + Vector3.UP * 1.28 + (-global_basis.z * 0.48)

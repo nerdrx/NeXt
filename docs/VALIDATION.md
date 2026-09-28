@@ -1956,3 +1956,8 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `53980de`:
 `NEXT_INTEGRATION_OK`. Dedicated contact assertions ran natively; packaged smoke
 covers general gameplay. The earlier interrupted `proton-smoke.ZDEDAo` run
 produced no completion marker and is not counted as a pass.
+
+Follow-up review found remembered pursuit bypassed the immediate home-return
+order when a previously acquired target crossed the pursuit radius. Chasing
+now retains the leash condition; the contact fixture passes an additional
+acquire-then-leave-radius assertion.
