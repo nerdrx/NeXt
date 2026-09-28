@@ -1579,3 +1579,5 @@ Opaque ship fittings reuse the fleet surface shader with per-material roughness 
 ### Survey planet courses
 
 `test_survey_route_gameplay.gd` runs the journal button, retains a second-planet destination across menu changes and an actual `request_jump`/`_complete_jump` transition, then verifies that its explicit approach targets that planet. It checks remote, docked, aboard and surface guards, clearing, manual star selection and removal of stale survey records. Hidden Gamescope passed with `SURVEY_ROUTE_GAMEPLAY_OK` and no script/shader errors; the arrival menu capture was inspected. Existing journal unit and gameplay checks passed. The route is session-only and does not automatically jump or land.
+
+Windows/Proton smoke at `1587af3` passed from the clean validation checkout: `build/proton-smoke.ZFa8Ru`, `NEXT_INTEGRATION_OK`, wrapper exit 0 and no script/runtime errors. The new route gameplay test also passed in native headless mode. The packaged smoke covers the general gameplay loop; exact survey-route assertions run in the native tests, not the packaged Windows executable.
