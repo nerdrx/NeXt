@@ -2244,3 +2244,8 @@ environments; it does not change the world sky. Native ship-blueprint containmen
 and hull-damage material tests pass. Hidden-Gamescope wardrobe tests and visual
 inspection pass, as does editor import. Shader review found no numerical or
 filtering blocker. These captures do not establish near-photorealism or FPS.
+
+Clean Windows export and hidden-Gamescope Proton integration pass at `734a85b`:
+`build/windows-validation-dd5c267/build/proton-smoke.qPbGmF`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Material comparisons used native hidden-Gamescope captures;
+the packaged smoke checks general gameplay and does not establish art quality.
