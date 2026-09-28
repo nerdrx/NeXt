@@ -1327,3 +1327,10 @@ Actual-main gameplay passed in hidden Gamescope for local shutdown/restart and v
 Clean source `25b48c346963397cdee0c76238307d8873a88450` exported and passed the normal-entrypoint integration under Proton Experimental in hidden Gamescope (`NEXT_INTEGRATION_OK`). Wrapper exit, Proton exit and isolated wineserver cleanup all returned 0. Evidence: `build/windows-validation-dd5c267/build/proton-smoke.u5rYQq`. The Windows SDR white-level warning and Gamescope window/Wayland shutdown messages remain; no script errors appeared. This smoke covers existing integrated gameplay, not all focused network-power assertions, real Steam interoperability, native Windows-host behavior or the target frame rate.
 
 Refreshed local `build/NeXt-Windows.zip` from the exact tested executable/PCK pair. Contains `NeXt.exe`, `NeXt.pck` and `BUILD_INFO.txt`; ZIP CRC and byte-for-byte member checks passed. Archive size: 40,273,887 bytes. SHA-256: `1e2df58920fc4144704c7c3290794a764ca27f6714edb2032cf2e8cb4759afa6`. Executable SHA-256: `4a9eaded8955ef789ab02651ed9d2dde80328fbb342bd2a6db4db33e86305668`. PCK SHA-256: `2203a65cddc0704bc861c5e10b3befa5aefbefab2a58056e397b4d4b37b32ad6`. This local development package is not a GitHub release asset.
+
+
+## Physical recovery obstacles — 2026-09-28
+
+Wreck hulls now carry conservative module-box collision on the world obstacle layer, matching their visual scale and tilt. Freight caches have box collision. Hull salvage replaces the hull with a cache while cargo remains; completed recovery removes the collision with the visual. Wreck exhaust stays unpowered.
+
+Actual-main checks passed headlessly and in hidden Gamescope: world rays hit wreck/cache colliders, a player movement sweep hits the wreck, engines are dark, salvage removes the hull while preserving recoverable freight, and final recovery removes stale collision. Existing recovery domain checks passed. This adds static obstacles, not towing, debris dynamics, walkable derelicts or repairable wrecks. The existing center-distance recovery interaction remains unchanged.

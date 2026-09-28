@@ -2625,12 +2625,13 @@ func rebuild_wrecks() -> void:
 		if bool(wreck.get("salvaged", false)) and bool(wreck.get("cargo_recovered", false)): continue
 		var position: Variant = _wreck_position(wreck)
 		if position == null: continue
-		var cargo_only: bool = wreck.modules.is_empty()
+		var cargo_only: bool = wreck.modules.is_empty() or bool(wreck.get("salvaged", false))
 		if cargo_only:
 			var cache := Node3D.new()
 			wreck_root.add_child(cache)
 			cache.position = position
 			cache.rotation = Vector3(0.2, 0.4, -0.15)
+			_add_wreck_collision(cache, Vector3.ZERO, Vector3(3.8, 2.4, 5.0))
 			_box(cache, Vector3.ZERO, Vector3(3.6, 2.2, 5.0), Color("33434c"))
 			for z: float in [-1.7, 1.7]:
 				_box(cache, Vector3(0, 0, z), Vector3(3.8, 2.4, 0.18), Color("bb914e"))
@@ -2639,6 +2640,11 @@ func rebuild_wrecks() -> void:
 			var hull := ShipVisual.new()
 			wreck_root.add_child(hull)
 			hull.build(wreck.modules, "wreck")
+			hull.set_systems_online(false)
+			var cells := _ship_cells(wreck.modules)
+			var center := ShipBlueprint.center(cells)
+			for cell: Vector3i in cells:
+				_add_wreck_collision(hull, Vector3(cell) * ShipVisual.CELL_SIZE - center, ShipBlueprint.collision_size(cells))
 			hull.position = position
 			hull.rotation = Vector3(0.25, 0.7, -0.35)
 			hull.scale = Vector3.ONE * 0.85
@@ -2650,6 +2656,22 @@ func rebuild_wrecks() -> void:
 		beacon.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		beacon.modulate = Color("e0b96e")
 		wreck_root.add_child(beacon)
+
+func _add_wreck_collision(parent: Node3D, center: Vector3, size: Vector3) -> void:
+	var body := parent.get_node_or_null("WreckCollision") as StaticBody3D
+	if body == null:
+		body = StaticBody3D.new()
+		body.name = "WreckCollision"
+		body.collision_layer = 1
+		body.collision_mask = 0
+		parent.add_child(body)
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	shape.position = center
+	body.add_child(shape)
+
 
 func _wreck_position(wreck: Dictionary) -> Variant:
 	return ShipRecovery.wreck_relative(wreck, flight_origin.to_save())
