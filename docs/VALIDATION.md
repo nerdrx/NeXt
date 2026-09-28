@@ -2280,3 +2280,8 @@ and thermal-retreat regression checks pass. Parallel review found no blocker
 in coordinate frames, rebasing or integration with existing propulsion; changed
 goals and speeds can remain cached for up to one second.
 Station-transfer regression, live NPC callback binding and editor import also pass.
+
+Clean Windows export and hidden-Gamescope Proton integration pass at `300eafc`:
+`build/windows-validation-dd5c267/build/proton-smoke.7mDhba`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Dedicated navigation assertions ran natively and under
+hidden Gamescope; packaged smoke checks general gameplay, not multiplayer or FPS.
