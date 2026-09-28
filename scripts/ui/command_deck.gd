@@ -267,6 +267,7 @@ func _navigation() -> void:
 	_button("INSPECT SYSTEM PHYSICS", show_page.bind("survey"))
 	_button("RECOVERY BEACONS", show_page.bind("recovery"))
 	_button("SURVEY JOURNAL", show_page.bind("journal")).name = "OpenSurveyJournal"
+	_next_survey_button()
 	_text("LOCAL SYSTEM / SURFACE APPROACH", 13, InterfaceTheme.CYAN)
 	_text("Survey within 1.2 km of a surface at 100 m/s or slower. Sell recorded data at an orbital station.", 15)
 	_button("CRUISE TO ORBITAL DOCK", game.approach_public_station, not game.pilot.flying or game.aboard)
@@ -1162,6 +1163,7 @@ func _survey_journal() -> void:
 			_text("Survey every planet here for a %d CR completion bonus. Earlier data sales still count." % progress.bonus, 15)
 		else:
 			_text("System fully surveyed; all data sold.", 15)
+	_next_survey_button()
 	var filter := CheckButton.new()
 	filter.name = "PendingSurveysOnly"
 	filter.text = "Show unsold data only"
@@ -1197,6 +1199,14 @@ Address %d / %s / %s" % [body.name, data.name, entry.system, traits, "Unsold" if
 	next.disabled = journal_page_index + 1 >= int(archive.pages)
 	pages.add_child(next)
 	_button("RETURN TO NAVIGATION", show_page.bind("navigation"))
+
+func _next_survey_button() -> void:
+	var next: int = game.next_unsurveyed_planet()
+	var disabled: bool = next < 0 or not game.pilot.flying or game.aboard or game.surface_index >= 0 or game.manual_planet >= 0 or game.session.connected or game.jump_charge > 0.0 or not game.state.systems_online or game.state.hull <= 0.0
+	var button := _button("CRUISE TO NEXT UNCHARTED PLANET", game.approach_next_unsurveyed, disabled)
+	button.name = "NextSurveyApproach"
+	button.tooltip_text = "Approach %s at survey altitude. Scan manually after slowing below 100 m/s." % game.world.planets[next].name if next >= 0 else "No uncharted planets within local navigation range."
+
 
 func _journal_page(index: int) -> void:
 	journal_page_index = index

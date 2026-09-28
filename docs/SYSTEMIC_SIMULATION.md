@@ -421,3 +421,16 @@ The journal shows current-system progress and whether the completion bonus is
 awaiting sale. Pending sale totals include eligible bonuses across all systems.
 Survey proximity, speed, ship systems, orbital selling and separate visit
 economy restrictions remain in effect. Reward values are gameplay tuning.
+
+## Next uncharted planet cruise
+
+Navigation and the survey journal offer a cruise to the nearest unrecorded
+planet by current surface distance. Both pending and sold records are skipped.
+The existing obstacle-aware cruise planner receives a radial point 600 m above
+the planet's rendered radius, inside survey range. This does not record data or
+pay rewards; the commander still slows and scans deliberately. Manual input
+retains the normal autopilot cancellation behavior.
+
+The action rechecks flight/helm, location, hull, ship power, jump and local-world
+requirements when clicked. Completed or empty local systems have no next target.
+This is a local-system convenience, not an automatic multi-system survey bot.

@@ -222,6 +222,7 @@ jobs:
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_ground_contact.gd -- --capture-only
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_ground_radio.gd -- --capture-only
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_survey_completion.gd -- --capture-only
+          timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_survey_cruise.gd -- --capture-only
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_hull_damage_visual.gd -- --capture-only
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_ground_attack.gd -- --capture-only
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_ground_gravity.gd -- --capture-only

@@ -2107,3 +2107,12 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `e3077d9`:
 `build/windows-validation-dd5c267/build/proton-smoke.Lhb1fF`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Dedicated bonus/persistence assertions ran natively; the
 packaged check covers general gameplay.
+
+### Next survey cruise (2026-09-28)
+
+`test_survey_cruise.gd` passes nearest-surface selection, a real journal button
+starting autopilot at a 600 m destination, no automatic scan/payment, skipping
+pending records, aboard/offline/jump guards and disabled completed-system UI.
+It is registered in CI. Existing journal jump/approach retention tests pass.
+The journal UI regression passes under hidden Gamescope; its screenshot was
+visually inspected. Parallel review found no coordinate-frame or gating defect.

@@ -3036,6 +3036,39 @@ func join_steam_invitation() -> String:
 	return error
 
 
+func next_unsurveyed_planet() -> int:
+	var selected := -1
+	var nearest := INF
+	for index in world.planets.size():
+		if state.planet_surveys.has("%d:%d" % [state.system_index, index]): continue
+		var center: Variant = _planet_center(index)
+		if center == null: continue
+		var distance: float = maxf(0.0, pilot.position.distance_to(center) - float(world.planets[index].visual_radius))
+		if distance < nearest:
+			nearest = distance
+			selected = index
+	return selected
+
+
+func approach_next_unsurveyed() -> void:
+	if session.connected or not pilot.flying or aboard or surface_index >= 0 or manual_planet >= 0 or jump_charge > 0.0:
+		notify("Use survey cruise from your ship helm in your own world, outside a jump.")
+		return
+	if not state.systems_online or state.hull <= 0.0:
+		notify("Operational ship systems are required for survey cruise.")
+		return
+	var index := next_unsurveyed_planet()
+	if index < 0:
+		notify("No uncharted planets remain within local navigation range.")
+		return
+	var center: Vector3 = _planet_center(index)
+	var direction := (pilot.position - center).normalized()
+	if direction.is_zero_approx(): direction = Vector3.UP
+	var body: Dictionary = world.planets[index]
+	# Stop inside survey range but outside terrain; scan remains a deliberate action.
+	cruise_system_to(Vector3(body.position) + direction * (float(body.visual_radius) + 600.0))
+
+
 func survey_planet(index: int) -> String:
 	if session.connected: return "Leave the multiplayer visit before recording surveys."
 	if not pilot.flying or aboard or surface_index != -1 or manual_planet >= 0: return "Survey from your ship in flight."
