@@ -2672,6 +2672,7 @@ func rebuild_wrecks() -> void:
 			hull.scale = Vector3.ONE * float(geometry.scale)
 		var beacon := Label3D.new()
 		beacon.text = ("FREIGHT CACHE / " if cargo_only else "RECOVERY BEACON / ") + str(wreck.id)
+		beacon.visibility_range_end = 800.0
 		beacon.font_size = 32
 		beacon.pixel_size = 0.025
 		beacon.position = position + Vector3(0, 6, 0)
@@ -2698,6 +2699,22 @@ func _add_wreck_collision(parent: Node3D, center: Vector3, size: Vector3) -> voi
 	shape.shape = box
 	shape.position = center
 	body.add_child(shape)
+
+
+func recovery_contacts() -> Array[Dictionary]:
+	var contacts: Array[Dictionary] = []
+	for wreck: Dictionary in state.recovery.get("wrecks", []):
+		if int(wreck.system) != state.system_index or int(wreck.surface) != surface_index: continue
+		if bool(wreck.salvaged) and bool(wreck.cargo_recovered): continue
+		var point: Variant = _wreck_position(wreck)
+		if point == null: continue
+		contacts.append({"id": str(wreck.id), "position": point,
+			"distance": pilot.position.distance_to(point),
+			"title": "FREIGHT" if bool(wreck.salvaged) or wreck.modules.is_empty() else "WRECK"})
+	contacts.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return a.distance < b.distance if a.distance != b.distance else a.id < b.id)
+	if contacts.size() > 8: contacts.resize(8)
+	return contacts
 
 
 func _wreck_position(wreck: Dictionary) -> Variant:

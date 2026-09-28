@@ -1392,3 +1392,10 @@ Refreshed local development `build/NeXt-Windows.zip` from that tested EXE/PCK pa
 Recovery now offers SCAN SALVAGE SIGNALS during powered solo space flight. A deterministic system seed gives roughly one third of systems one derelict in an outer local-space band about 18 km away, beyond current compact planets. A Pathfinder or Merchant hull carries a small fuel/electronics cache and hull-salvage value. Scanning records the existing persistent wreck and a world discovery flag; repeated scans, completed salvage and save/reload cannot regenerate it. Existing physical collision, approach routing and selective recovery apply.
 
 Domain checks passed deterministic generation, valid saved structure and duplicate/completed-reward rejection. Actual-main checks passed headlessly and in hidden Gamescope for the real scan menu, offline rejection, immediate discovery persistence, duplicate rejection after load and physical materialization at the recorded location. Existing recovery, combat and cruise checks in the harness passed. This is an instant system-wide beacon survey approximation: range-dependent scanning, authored debris, boarding, NPC survivors, repairable hulls and shared multiplayer salvage remain unfinished.
+
+
+## Recovery flight contacts — 2026-09-28
+
+The flight HUD now shows up to eight nearest active local recovery beacons as gold screen markers and outlined radar diamonds, with a salvage legend. Distant contacts use kilometres; close contacts use metres. Contacts derive from recorded absolute wreck positions, exclude completed/other-location records and distinguish hulls from freight caches. Nearby 3D beacon labels have an 800 m visibility range configured.
+
+Actual-main hidden Gamescope checks passed a discovered derelict entering the contact list, nearest-eight ordering, exclusion of completed and remote records, and all existing recovery/survey assertions. The 18.1 km HUD marker and radar legend were visually inspected in a flight capture. Recorded beacon navigation is not a physical sensor-detection model or a selected-target/offscreen-arrow system. Existing placeholder cockpit and background art remain below target quality.

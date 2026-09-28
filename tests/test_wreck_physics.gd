@@ -169,6 +169,29 @@ func _run() -> void:
 	await physics_frame
 	await physics_frame
 	assert(not _ray(game, derelict_position).is_empty(), "discovered derelict materializes with collision")
+	var contacts: Array[Dictionary] = game.recovery_contacts()
+	assert(contacts.any(func(contact: Dictionary) -> bool: return contact.id == derelict.id), "surveyed wreck becomes a flight contact")
+	var original_wrecks: Array = game.state.recovery.wrecks.duplicate(true)
+	game.state.recovery.wrecks.clear()
+	for index in range(12):
+		var sample: Dictionary = derelict.duplicate(true)
+		sample.id = "contact-%02d" % index
+		sample.address = SectorPosition.new(Vector3i.ZERO, game.pilot.position + Vector3(100.0 + index * 100, 0, 0)).to_save()
+		if index == 0: sample.salvaged = true; sample.cargo_recovered = true
+		if index == 1: sample.system = game.state.system_index + 1
+		game.state.recovery.wrecks.append(sample)
+	contacts = game.recovery_contacts()
+	assert(contacts.size() == 8 and contacts[0].id == "contact-02" and contacts[-1].id == "contact-09", "HUD keeps nearest eight active local contacts")
+	game.state.recovery.wrecks = original_wrecks
+	game.close_menu()
+	game.pilot.teleport(Vector3(0, 1000, 500))
+	game.hud.message_time = 0.0
+	game.pilot.camera.look_at(derelict_position, Vector3.UP)
+	await process_frame
+	await process_frame
+	if DisplayServer.get_name() != "headless":
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png("user://wreck-navigation.png")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
 	game.sound.shutdown()
 	game.session.leave()

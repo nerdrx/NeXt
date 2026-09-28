@@ -73,7 +73,10 @@ func _draw() -> void:
 	_word(Vector2(w - 250, h - 54), ("BRAKING" if pilot.braking else ("CRUISE AUTOPILOT" if pilot.autopilot_active else ("FLIGHT ASSIST  ON" if pilot.flight_assist_enabled else "INERTIAL FLIGHT"))) if pilot.flying else "MAG BOOTS  ACTIVE", 13, InterfaceTheme.MUTED)
 	_word(Vector2(w * 0.5 - 260, h - 24), "TAB  Command    E  Interact / dock    J  Navigation    F5  Save", 14, InterfaceTheme.MUTED)
 	if pilot.flying:
-		_draw_radar(Vector2(w - 130, 220))
+		var recovery_contacts: Array[Dictionary] = game.recovery_contacts()
+		_draw_radar(Vector2(w - 130, 220), recovery_contacts)
+		for contact: Dictionary in recovery_contacts:
+			_draw_marker(contact.position, "%s / %s" % [contact.title, contact.id], InterfaceTheme.GOLD, pilot.camera)
 		for peer_id: int in game.remote_ships:
 			var ship: Node3D = game.remote_ships[peer_id]
 			if not ship.visible: continue
@@ -136,9 +139,10 @@ func _draw_marker(point: Vector3, title: String, color: Color, camera: Camera3D)
 		draw_line(pos + Vector2(side * r, -r), pos + Vector2(side * (r - 5), -r), color, 1)
 		draw_line(pos + Vector2(side * r, r), pos + Vector2(side * (r - 5), r), color, 1)
 	_word(pos + Vector2(18, 0), title, 11, color)
-	_word(pos + Vector2(18, 16), "%d m" % int(camera.global_position.distance_to(point)), 11, InterfaceTheme.MUTED)
+	var distance := camera.global_position.distance_to(point)
+	_word(pos + Vector2(18, 16), "%.1f km" % (distance / 1000.0) if distance >= 1000.0 else "%d m" % int(distance), 11, InterfaceTheme.MUTED)
 
-func _draw_radar(pos: Vector2) -> void:
+func _draw_radar(pos: Vector2, recovery_contacts: Array[Dictionary] = []) -> void:
 	var radius: float = 75.0
 	draw_circle(pos, radius, Color(0.02, 0.05, 0.08, 0.7))
 	for r in [25, 50, 75]: draw_arc(pos, r, 0, TAU, 64, Color(0.2, 0.5, 0.55, 0.3), 1, true)
@@ -151,5 +155,12 @@ func _draw_radar(pos: Vector2) -> void:
 		var flat := Vector2(relative.x, relative.z) / 20
 		if flat.length() > radius - 5: flat = flat.normalized() * (radius - 5)
 		draw_circle(pos + flat, 3, Color("f28d72") if actor.faction == "pirate" else InterfaceTheme.CYAN)
+	for contact: Dictionary in recovery_contacts:
+		var relative: Vector3 = game.pilot.global_basis.inverse() * (contact.position - game.pilot.position)
+		var flat := Vector2(relative.x, relative.z) / 20.0
+		if flat.length() > radius - 5: flat = flat.normalized() * (radius - 5)
+		var dot_position := pos + flat
+		draw_polyline(PackedVector2Array([dot_position + Vector2(0, -4), dot_position + Vector2(4, 0), dot_position + Vector2(0, 4), dot_position + Vector2(-4, 0), dot_position + Vector2(0, -4)]), InterfaceTheme.GOLD, 1.5, true)
 	draw_colored_polygon(PackedVector2Array([pos + Vector2(0, -5), pos + Vector2(-4, 4), pos + Vector2(4, 4)]), InterfaceTheme.WHITE)
 	_word(pos + Vector2(-40, 94), "CONTACTS", 12, InterfaceTheme.MUTED)
+	if not recovery_contacts.is_empty(): _word(pos + Vector2(-48, 111), "GOLD: SALVAGE", 11, InterfaceTheme.GOLD)
