@@ -8,9 +8,10 @@ signal session_message(message: String)
 signal steam_invitation_ready(lobby_id: int)
 signal pvp_damage_received(attacker: int, damage: float)
 signal pvp_hit_confirmed(attacker: int, target: int, origin_data: Dictionary, end_data: Dictionary)
+signal npc_ships_received(records: Array)
 
 # Increment when wire payloads or shared simulation contracts become incompatible.
-const PROTOCOL_VERSION: int = 1
+const PROTOCOL_VERSION: int = 2
 const JOIN_TIMEOUT: float = 20.0
 const DEFAULT_PORT: int = 27840
 const MAX_PLAYERS: int = 8
@@ -38,6 +39,7 @@ var _join_sent: bool = false
 var _join_remaining: float = 0.0
 var _last_pose_msec: int = 0
 var _last_clock_sent_msec: int = -1000
+var _last_npc_publish_msec: int = -1000
 var _last_remote_pose_msec: Dictionary = {}
 var _last_pvp_shot_msec: Dictionary = {}
 var _pending_systems_online: Dictionary = {}
@@ -228,6 +230,7 @@ func leave() -> void:
 	_local_flying = false
 	_last_pose_msec = -1000
 	_last_clock_sent_msec = -1000
+	_last_npc_publish_msec = -1000
 	if had_session:
 		peers_changed.emit()
 
@@ -279,6 +282,16 @@ func publish_pose(position: Vector3, rotation: Vector3, origin_data: Dictionary 
 		_rpc_publish_pose.rpc_id(1, position, rotation, ship_modules.duplicate(true), ship_layout.duplicate(true), address_data, flying, _pvp_epoch)
 
 
+func publish_npc_ships(records: Array) -> void:
+	if not is_host or not connected: return
+	var snapshot := _validate_npc_snapshot(records)
+	if not snapshot.ok: return
+	var now := Time.get_ticks_msec()
+	if now - _last_npc_publish_msec < 100: return
+	_last_npc_publish_msec = now
+	_rpc_npc_ships.rpc(snapshot.records, _pvp_epoch)
+
+
 func travel(index: int) -> String:
 	if not is_host or not connected:
 		return "Only the host can change systems."
@@ -287,6 +300,7 @@ func travel(index: int) -> String:
 	system_index = index
 	world_seed = _seed_for(index)
 	_pvp_epoch += 1
+	_last_npc_publish_msec = -1000
 	_reset_pvp()
 	for peer_id: int in multiplayer.get_peers():
 		_rpc_world_joined.rpc_id(peer_id, index, world_seed, world_id, _pvp_epoch, ephemeris_seconds)
@@ -541,6 +555,38 @@ func _rpc_clock(seconds: float) -> void:
 
 func _valid_ephemeris(seconds: float) -> bool:
 	return is_finite(seconds) and seconds >= 0.0 and seconds <= GameState.MAX_EPHEMERIS_SECONDS
+
+
+@rpc("authority", "call_remote", "unreliable_ordered")
+func _rpc_npc_ships(records: Array, epoch: int) -> void:
+	if is_host or not connected or epoch != _pvp_epoch: return
+	var snapshot := _validate_npc_snapshot(records)
+	if snapshot.ok: npc_ships_received.emit(snapshot.records)
+
+
+func _validate_npc_snapshot(records: Variant) -> Dictionary:
+	if not records is Array or records.size() > 7: return {"ok": false}
+	var known_factions := {"raider_0": "pirate", "raider_1": "pirate", "raider_2": "pirate", "raider_3": "pirate", "raider_4": "pirate", "security_0": "police", "security_1": "police"}
+	var seen: Dictionary = {}
+	var normalized: Array[Dictionary] = []
+	for raw: Variant in records:
+		if not raw is Dictionary or raw.size() != 7 or not raw.has_all(["id", "faction", "address", "rotation", "hp", "shields", "max_shields"]): return {"ok": false}
+		if not raw.id is String or not known_factions.has(raw.id) or not raw.faction is String or raw.faction != known_factions[raw.id] or seen.has(raw.id): return {"ok": false}
+		var address: Variant = SectorPosition.from_save(raw.address)
+		if address == null or not raw.rotation is Vector3 or not raw.rotation.is_finite(): return {"ok": false}
+		for field: String in ["hp", "shields", "max_shields"]:
+			if not _finite_number(raw[field]): return {"ok": false}
+		var hp := float(raw.hp)
+		var shields := float(raw.shields)
+		var max_shields := float(raw.max_shields)
+		if hp < 0.0 or hp > 100.0 or shields < 0.0 or shields > 1000000.0 or max_shields < 0.0 or max_shields > 1000000.0 or shields > max_shields: return {"ok": false}
+		seen[raw.id] = true
+		normalized.append({"id": raw.id, "faction": raw.faction, "address": address.to_save(), "rotation": raw.rotation, "hp": hp, "shields": shields, "max_shields": max_shields})
+	return {"ok": true, "records": normalized}
+
+
+func _finite_number(value: Variant) -> bool:
+	return (value is int or value is float) and is_finite(float(value))
 
 
 func _make_presence(pos: Vector3, rot: Vector3, modules: Array, layout: Dictionary, player_name: String, address: Dictionary = {}) -> Dictionary:

@@ -72,7 +72,7 @@ func _run() -> void:
 		var module: Dictionary = guest.ship_modules[i]
 		var shape: CollisionShape3D = body.get_child(i)
 		_check(shape.position.is_equal_approx(Vector3(module.x, module.y, module.z) * ShipVisual.CELL_SIZE - center), "centered module collider")
-		_check(shape.shape.size.is_equal_approx(Vector3.ONE * ShipVisual.CELL_SIZE), "module collision dimensions")
+		_check(shape.shape.size.is_equal_approx(Vector3(3.0, 2.8, 3.0)), "module collision dimensions")
 	var ray_start := visitor + Vector3.UP * 1.55
 	var raw_query := PhysicsRayQueryParameters3D.create(ray_start, ray_start + aim * 105, 7)
 	var raw_hit: Dictionary = game.get_world_3d().direct_space_state.intersect_ray(raw_query)

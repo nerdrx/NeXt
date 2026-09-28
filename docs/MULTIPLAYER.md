@@ -2,7 +2,8 @@
 
 `NetworkSession` provides ENet host/join, player presence, validated ship-design
 exchange, shared system travel, and rate-limited position/rotation updates. It
-now validates opted-in ship hits on the host. NPC combat, economy, cargo and
+validates opted-in ship hits on the host and replicates host pirate/police ship
+poses and health. Shared NPC combat remains incomplete; economy, cargo and
 mission state still simulate locally. Target ship health and rescue also remain
 local, so this is not fully authoritative multiplayer.
 
@@ -160,7 +161,7 @@ transport configuration remain separate unfinished requirements.
 
 ## Protocol compatibility and admission deadlines
 
-Join requests and welcomes carry `NetworkSession.PROTOCOL_VERSION` (currently 1).
+Join requests and welcomes carry `NetworkSession.PROTOCOL_VERSION` (currently 2).
 A missing or different version is rejected before world identity, presence or
 visitor profile adoption. Increment this version whenever wire formats or shared
 simulation contracts become incompatible; matching version numbers alone do not
@@ -179,3 +180,20 @@ Commander health travels with the carried ship profile. Injuries sustained while
 visiting return home, and rejoining uses the commander's current health rather
 than the old visitor snapshot. Health is locally persisted; this does not add
 host-authoritative character combat or native Steam transport.
+
+
+## Host NPC ship snapshots
+
+Protocol 2 publishes the host's five raider and two police ship slots at up to
+10 Hz. Visitors render inactive replicas with interpolated absolute positions,
+rotations, hull health and shields; they do not spawn a second local patrol.
+Full snapshots remove absent ships. Replicas hide after three seconds without
+updates and beyond 30 km. Absolute addresses remain valid across origin shifts.
+Malformed batches, duplicate identities, wrong factions and stale travel epochs
+are rejected before scene updates.
+
+This is a replication foundation, not completed shared NPC combat. Visitors cannot
+damage these replicas yet; host weapon effects, NPC attacks against visitors,
+shared wrecks and rewards still need authoritative replication. Ground NPCs,
+owned fleets and economic simulation remain local. Steam transport still requires
+an AppID and native integration verification.

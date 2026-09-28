@@ -10,6 +10,7 @@ var hud: FlightHUD
 var deck: CommandDeck
 var sound: Soundscape
 var session: NetworkSession
+var npc_replicas: Dictionary = {}
 var remote_ships: Dictionary = {}
 var _save_recovery_error: String = ""
 var _home_return_failed: bool = false
@@ -124,6 +125,7 @@ func _ready() -> void:
 	session.ephemeris_received.connect(_receive_ephemeris)
 	session.publish_clock(state.ephemeris_seconds)
 	session.peers_changed.connect(_sync_visitors)
+	session.npc_ships_received.connect(_receive_npc_ships)
 	session.pvp_damage_received.connect(_receive_pvp_damage)
 	session.pvp_hit_confirmed.connect(_receive_pvp_hit)
 	session.pvp_occlusion_check = _pvp_clear_shot
@@ -181,7 +183,7 @@ func _build_system() -> void:
 
 func _register_spatial_nodes() -> void:
 	for node in get_children():
-		if not node is Node3D or node == pilot or node == interior or node == coasting_hull or node in remote_ships.values(): continue
+		if not node is Node3D or node == pilot or node == interior or node == coasting_hull or node in remote_ships.values() or node in npc_replicas.values(): continue
 		if not flight_frame.has_node(node): flight_frame.track(node, flight_origin)
 
 func _rebase_flight() -> void:
@@ -659,6 +661,7 @@ func approach_planet_surface(index: int) -> void:
 	cruise_system_to(Vector3(body.position) + up * (float(body.visual_radius) + height + _surface_approach_height()))
 
 func _clear_actors() -> void:
+	npc_replicas.clear()
 	for actor in actors:
 		if is_instance_valid(actor):
 			actor.active = false
@@ -672,7 +675,7 @@ func _location_key() -> String:
 
 func _spawn_actors() -> void:
 	var eliminated: Array = state.world_flags.get(_location_key(), [])
-	if surface_index < 0:
+	if surface_index < 0 and not (session != null and session.connected and not session.is_host):
 		for i in range(5):
 			var id: String = "raider_%d" % i
 			if id in eliminated: continue
@@ -1038,7 +1041,7 @@ func _ship_detectable(observer: Node3D, candidate: Node3D) -> bool:
 func _update_combat_targets() -> void:
 	var player_ship: Node3D = coasting_hull if aboard and is_instance_valid(coasting_hull) else (pilot if pilot.flying else null)
 	for actor in actors:
-		if not actor is ShipActor: continue
+		if not actor is ShipActor or actor.get_meta("network_npc", false): continue
 		if actor.faction == "player_fleet":
 			if str(actor.get_meta("fleet_order_kind", "patrol")) == "trade":
 				actor.target = null
@@ -1300,6 +1303,7 @@ func _player_fire(origin: Vector3, direction: Vector3) -> void:
 	_beam(origin + pilot.camera.global_basis.x * 0.18 - pilot.camera.global_basis.y * 0.12, endpoint, Color("75f6e7"))
 	if not hit.is_empty():
 		var victim: Object = hit.collider
+		if victim.get_meta("network_npc", false): return
 		if victim.has_method("take_damage"):
 			if victim.has_meta("colony_index"): victim.active = true
 			if victim.faction not in ["pirate", "player_fleet"] and not victim.get_meta("assault_reported", false):
@@ -1883,7 +1887,7 @@ func _process(delta: float) -> void:
 		notify(message)
 	for actor in actors:
 		if not is_instance_valid(actor): continue
-		actor.active = not ui_open and jump_charge <= 0 and (not aboard or actor is ShipActor) and not bool(actor.get_meta("spatial_culled", false))
+		actor.active = not actor.get_meta("network_npc", false) and not ui_open and jump_charge <= 0 and (not aboard or actor is ShipActor) and not bool(actor.get_meta("spatial_culled", false))
 		if actor.has_meta("colony_index") and actor.position.distance_to(pilot.position) > 250: actor.active = false
 		if actor.faction == "police": actor.hostile = PlayerFaction.police_hostile(state.faction, str(world.data.faction), state.wanted)
 	_update_combat_targets()
@@ -1911,11 +1915,13 @@ func _process(delta: float) -> void:
 		autosave_clock = 0
 		save_commander(false)
 	sound.flight(pilot.velocity.length() / maxf(pilot.flight_speed, 1), pilot.flying)
+	_update_npc_positions(delta)
 	_network_clock += delta
 	if session != null and session.connected and _network_clock > 0.05:
 		_network_clock = 0
 		session.publish_pose(pilot.position, Vector3(pilot.camera.rotation.x, pilot.rotation.y, pilot.camera.rotation.z) if pilot.flying else pilot.rotation, flight_origin.to_save(), pilot.flying and not aboard)
 		_update_remote_positions()
+		if session.is_host: session.publish_npc_ships(_npc_snapshot())
 
 func save_commander(show_message: bool = true) -> bool:
 	if not _save_recovery_error.is_empty():
@@ -3124,3 +3130,65 @@ func sell_planet_surveys() -> String:
 	if session.connected: return "Leave the multiplayer visit before selling survey data."
 	if pilot.flying or aboard or surface_index >= 0 or manual_planet >= 0: return "Dock at an orbital station to sell survey data."
 	return PlanetSurveys.sell(state)
+
+
+func _npc_snapshot() -> Array:
+	var records: Array = []
+	if surface_index >= 0: return records
+	for actor in actors:
+		if not is_instance_valid(actor) or not actor is ShipActor or actor.is_queued_for_deletion(): continue
+		if actor.faction not in ["pirate", "police"] or actor.get_meta("network_npc", false): continue
+		var address: SectorPosition = flight_frame.address_for(actor, flight_origin)
+		if address == null:
+			address = flight_origin.clone()
+			if not address.move_delta(actor.position): continue
+		records.append({"id": actor.actor_id, "faction": actor.faction, "address": address.to_save(),
+			"rotation": actor.rotation, "hp": actor.hp, "shields": actor.shields, "max_shields": actor.max_shields})
+	return records
+
+
+func _receive_npc_ships(records: Array) -> void:
+	if session == null or not session.connected or session.is_host or surface_index >= 0: return
+	var retained: Array = []
+	for record: Dictionary in records:
+		var id: String = record.id
+		retained.append(id)
+		var actor: ShipActor = npc_replicas.get(id)
+		if not is_instance_valid(actor):
+			actor = ShipActor.new()
+			actor.actor_id = id
+			actor.faction = record.faction
+			actor.active = false
+			actor.set_meta("network_npc", true)
+			add_child(actor)
+			actors.append(actor)
+			npc_replicas[id] = actor
+		actor.hp = record.hp
+		actor.shields = record.shields
+		actor.max_shields = record.max_shields
+		actor.set_meta("network_address", record.address)
+		actor.set_meta("network_rotation", record.rotation)
+		actor.set_meta("network_received", Time.get_ticks_msec())
+	for id in npc_replicas.keys():
+		if id in retained: continue
+		var actor: ShipActor = npc_replicas[id]
+		actors.erase(actor)
+		actor.queue_free()
+		npc_replicas.erase(id)
+	_update_npc_positions(0.0)
+
+
+func _update_npc_positions(delta: float) -> void:
+	for actor: ShipActor in npc_replicas.values():
+		var address: SectorPosition = SectorPosition.from_save(actor.get_meta("network_address"))
+		var relative: Variant = address.relative_to(flight_origin, 30000.0)
+		var fresh := Time.get_ticks_msec() - int(actor.get_meta("network_received")) < 3000
+		actor.visible = relative != null and fresh and session.connected and not session.is_host
+		actor.collision_layer = 4 if actor.visible else 0
+		if not actor.visible: continue
+		var snap := not actor.has_meta("network_placed") or actor.position.distance_to(relative) > 500.0
+		actor.position = relative if snap else actor.position.lerp(relative, 1.0 - exp(-12.0 * delta))
+		var target_rotation: Vector3 = actor.get_meta("network_rotation")
+		actor.quaternion = Quaternion.from_euler(target_rotation) if snap else actor.quaternion.slerp(Quaternion.from_euler(target_rotation), 1.0 - exp(-12.0 * delta))
+		actor.set_meta("network_placed", true)
+		if snap: actor.reset_physics_interpolation()
