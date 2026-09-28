@@ -42,6 +42,7 @@ func _run() -> void:
 	var original_layout: Dictionary = main.state.ship_layout.duplicate(true)
 	var home_credits: int = main.state.credits
 	var original_modules: Array[Dictionary] = main.state.ship_modules.duplicate(true)
+	var original_identity: Dictionary = main.state.ship_identity.duplicate(true)
 	var host_state_id: String = main.state.world_id
 	main.session.world_id = remote_id
 	main.session.connected = true
@@ -56,6 +57,7 @@ func _run() -> void:
 	if not _check(main.state.credits == 18000 and main.state.ship_modules == original_modules and main.state.cargo.ore == 4, "new visitor receives starting wallet plus carried ship and cargo"): return
 	if not _check(main.state.faction == PlayerFactionScript.empty_data(), "new visitor starts with a separate faction and treasury"): return
 	if not _check(main.state.ship_layout == original_layout, "room and hull refits travel with incoming ship"): return
+	if not _check(main.state.ship_identity == original_identity, "vessel identity travels with incoming ship"): return
 	if not _check(main.state.day_progress == 0 and main.home_state.day_progress == 320.0, "new visit starts its own calendar and suspends home time"): return
 	main.state.day_progress = 640.0
 	main.state.credits = 22222

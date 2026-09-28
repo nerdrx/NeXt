@@ -46,6 +46,7 @@ const CREW_LAST_NAMES: Array[String] = ["Voss", "Okafor", "Chen", "Navarro", "Pe
 var system_index: int = 0
 var location: Dictionary = {}
 var world_id: String = ""
+var ship_identity: Dictionary = {}
 var credits: int = 18000
 var cargo: Dictionary = {}
 var hull: float = 100.0
@@ -78,6 +79,7 @@ var market_stocks: Dictionary = {}
 
 func _init() -> void:
 	world_id = _new_world_id()
+	ship_identity = {"id": "ship-" + _new_world_id(), "name": "Commander ship"}
 	cargo = {"ore": 0, "alloys": 0, "food": 0, "fuel": 0, "medicine": 0, "electronics": 0, "luxuries": 0}
 	ship_modules = [
 		{"kind": "core", "x": 0, "y": 0, "z": 2},
@@ -668,6 +670,14 @@ func _load_v1(data: Dictionary) -> String:
 
 func _load_v2(data: Dictionary) -> String:
 	var expected: Array[String] = ["version", "system_index", "world_id", "location", "credits", "cargo", "hull", "shield", "fuel", "kills", "day", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout", "faction"]
+	var has_ship_identity: bool = data.has("ship_identity")
+	if has_ship_identity: expected.append("ship_identity")
+	var loaded_ship_identity: Dictionary = {"id": "ship-" + _new_world_id(), "name": "Commander ship"}
+	if has_ship_identity:
+		var identity: Variant = data.ship_identity
+		if not identity is Dictionary or identity.size() != 2 or not identity.has_all(["id", "name"]): return "Invalid commander ship identity."
+		if not identity.id is String or identity.id.length() < 4 or identity.id.length() > 64 or not identity.name is String or identity.name.strip_edges().length() < 2 or identity.name.length() > 32: return "Invalid commander ship identity."
+		loaded_ship_identity = {"id": identity.id, "name": identity.name}
 	var missing_world_id: bool = not data.has("world_id")
 	var missing_faction: bool = not data.has("faction")
 	var missing_location: bool = not data.has("location")
@@ -810,15 +820,18 @@ func _load_v2(data: Dictionary) -> String:
 		if data.fleet_ships.size() > 50 or data.crew_orders.size() > 12: return "Fleet or crew order limit exceeded."
 		var ship_ids: Dictionary = {}
 		for value: Variant in data.fleet_ships:
-			if not value is Dictionary or value.size() not in [6, 7, 8, 9, 10, 11, 12] or not value.has_all(["id", "name", "system", "hull", "cargo", "capacity"]): return "Invalid fleet ship record."
+			if not value is Dictionary or value.size() not in [6, 7, 8, 9, 10, 11, 12, 13] or not value.has_all(["id", "name", "system", "hull", "cargo", "capacity"]): return "Invalid fleet ship record."
 			for field: Variant in value:
-				if not str(field) in ["id", "name", "system", "hull", "cargo", "capacity", "flight", "drive_temperature_k", "hull_family", "layout", "defense", "modules"]: return "Invalid fleet ship field."
+				if not str(field) in ["id", "name", "system", "hull", "cargo", "capacity", "fuel", "flight", "drive_temperature_k", "hull_family", "layout", "defense", "modules"]: return "Invalid fleet ship field."
 			if not value.id is String or value.id.length() < 4 or value.id.length() > 64 or ship_ids.has(value.id) or not value.name is String or value.name.length() < 2 or value.name.length() > 32 or not _is_int(value.system) or int(value.system) < 0 or int(value.system) >= SYSTEM_LIMIT or not _is_number(value.hull) or not is_finite(float(value.hull)) or float(value.hull) < 0 or float(value.hull) > 100 or not _is_int(value.capacity) or int(value.capacity) < 1 or int(value.capacity) > 2000 or not value.cargo is Dictionary: return "Invalid fleet ship values."
 			var ship_cargo: Dictionary = {}
 			for good: Variant in value.cargo:
 				if not good is String or not GOODS.has(good) or not _is_int(value.cargo[good]) or int(value.cargo[good]) < 0: return "Invalid fleet cargo."
 				ship_cargo[good] = int(value.cargo[good])
 			var loaded_ship: Dictionary = {"id": value.id, "name": value.name, "system": int(value.system), "hull": float(value.hull), "cargo": ship_cargo, "capacity": int(value.capacity)}
+			if value.has("fuel"):
+				if not _is_number(value.fuel) or not is_finite(float(value.fuel)) or float(value.fuel) < 0.0 or float(value.fuel) > 100.0: return "Invalid fleet fuel."
+				loaded_ship.fuel = float(value.fuel)
 			if value.has("hull_family"):
 				if not value.hull_family is String or (value.hull_family not in ShipBlueprint.FAMILIES and value.hull_family != "custom"): return "Invalid fleet hull family."
 				if value.hull_family == "custom" and (not value.has_all(["modules", "layout"]) or not ShipBlueprint.valid_custom_modules(value.modules)): return "Invalid custom fleet blueprint."
@@ -860,6 +873,7 @@ func _load_v2(data: Dictionary) -> String:
 			if _fleet_cargo_total(loaded_ship) > int(value.capacity): return "Fleet cargo exceeds capacity."
 			ship_ids[value.id] = true
 			loaded_fleet.append(loaded_ship)
+		if ship_ids.has(loaded_ship_identity.id): return "Commander ship identity conflicts with fleet ID."
 		var assigned_ships: Dictionary = {}
 		var assigned_stations: Dictionary = {}
 		var assigned_ship_defense: bool = false
@@ -914,6 +928,7 @@ func _load_v2(data: Dictionary) -> String:
 	system_index = int(data.system_index)
 	location = {} if missing_location else _normalize_location(data.location)
 	world_id = _new_world_id() if missing_world_id else data.world_id
+	ship_identity = loaded_ship_identity
 	credits = int(data.credits)
 	cargo = loaded_cargo
 	hull = float(data.hull)
@@ -1051,10 +1066,10 @@ func _normalize_location(value: Dictionary) -> Dictionary:
 	return result
 
 func _save_data() -> Dictionary:
-	return {"version": SAVE_VERSION, "system_index": system_index, "world_id": world_id, "location": location, "credits": credits, "cargo": cargo, "hull": hull, "shield": shield, "fuel": fuel, "drive_temperature_k": drive_temperature_k, "kills": kills, "day": day, "day_progress": day_progress, "ephemeris_seconds": ephemeris_seconds, "visited": visited, "reputation": reputation, "wanted": wanted, "ship_modules": ship_modules, "stations": stations, "shares": shares, "crew": crew, "world_flags": world_flags, "company_name": company_name, "company_balance": company_balance, "crew_paid": crew_paid, "contracts": contracts, "fleet_ships": fleet_ships, "crew_orders": crew_orders, "recovery": recovery, "ship_layout": ship_layout, "faction": faction, "market_stocks": market_stocks}
+	return {"version": SAVE_VERSION, "system_index": system_index, "world_id": world_id, "ship_identity": ship_identity, "location": location, "credits": credits, "cargo": cargo, "hull": hull, "shield": shield, "fuel": fuel, "drive_temperature_k": drive_temperature_k, "kills": kills, "day": day, "day_progress": day_progress, "ephemeris_seconds": ephemeris_seconds, "visited": visited, "reputation": reputation, "wanted": wanted, "ship_modules": ship_modules, "stations": stations, "shares": shares, "crew": crew, "world_flags": world_flags, "company_name": company_name, "company_balance": company_balance, "crew_paid": crew_paid, "contracts": contracts, "fleet_ships": fleet_ships, "crew_orders": crew_orders, "recovery": recovery, "ship_layout": ship_layout, "faction": faction, "market_stocks": market_stocks}
 
 func _copy_from(other: GameState) -> void:
-	for key: String in ["system_index", "world_id", "location", "credits", "cargo", "hull", "shield", "fuel", "drive_temperature_k", "kills", "day", "day_progress", "ephemeris_seconds", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout", "faction", "market_stocks"]:
+	for key: String in ["system_index", "world_id", "ship_identity", "location", "credits", "cargo", "hull", "shield", "fuel", "drive_temperature_k", "kills", "day", "day_progress", "ephemeris_seconds", "visited", "reputation", "wanted", "ship_modules", "stations", "shares", "crew", "world_flags", "company_name", "company_balance", "crew_paid", "contracts", "fleet_ships", "crew_orders", "recovery", "ship_layout", "faction", "market_stocks"]:
 		set(key, other.get(key).duplicate(true) if other.get(key) is Array or other.get(key) is Dictionary else other.get(key))
 
 func _pay_crew_and_company() -> void:

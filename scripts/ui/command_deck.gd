@@ -683,6 +683,7 @@ func _choice(row: HBoxContainer, options: Array, label_key: String, id_key: Stri
 func _fleet() -> void:
 	heading.text = "CREW OPERATIONS"
 	var s: GameState = game.state
+	_text("Commanding %s. Changing ships leaves each cargo hold aboard its own vessel; your crew roster follows you." % str(s.ship_identity.name), 16, InterfaceTheme.CYAN)
 	_text("Give named crew persistent orders. Local trade captains fly between the berth and departure point before their timed transaction can settle; distant voyages remain strategic. Patrols fight pirates in local space and use strategic simulation in distant systems; managers operate owned stations. Unpaid local patrols stop engaging but remain vulnerable. Operations advance while this world is hosted, never while closed.", 17)
 	_text("FLEET REGISTRY", 13, InterfaceTheme.CYAN)
 	var purchase := _row()
@@ -737,8 +738,10 @@ func _fleet() -> void:
 			transfer_button.disabled = game.session.connected or game.pilot.flying or game.aboard or game.surface_index >= 0 or game.manual_planet >= 0
 			transfer_actions.add_child(transfer_button)
 	for vessel: Dictionary in s.fleet_ships:
-		_text("%s / %s / system %d / hull %.0f%% / drive %.0f K" % [vessel.name, str(vessel.get("hull_family", "utility")).capitalize(), vessel.system, vessel.hull, float(vessel.get("drive_temperature_k", 450.0))], 17)
+		_text("%s / %s / system %d / hull %.0f%% / fuel %.0f%% / drive %.0f K" % [vessel.name, str(vessel.get("hull_family", "utility")).capitalize(), vessel.system, vessel.hull, float(vessel.get("fuel", 100.0)), float(vessel.get("drive_temperature_k", 450.0))], 17)
 		if not ShipBlueprint.for_vessel(vessel).is_empty():
+			var command_button := _button("TAKE COMMAND", _act.bind(game.exchange_fleet_helm.bind(str(vessel.id)), "Ship exchanged. Previous vessel stored in your fleet."), game.session.connected or game.pilot.flying or game.aboard or game.surface_index >= 0 or game.manual_planet >= 0)
+			command_button.set_meta("fleet_take_command", str(vessel.id))
 			var defense: Dictionary = vessel.get("defense", {})
 			_text("Shield charge %.0f / recharge delay %.1f s" % [float(defense.get("charge", 0.0)), float(defense.get("delay", 0.0))], 14, InterfaceTheme.MUTED)
 			if str(vessel.get("hull_family", "")) in ShipBlueprint.FAMILIES:

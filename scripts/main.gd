@@ -1684,13 +1684,7 @@ func _visit_host(index: int) -> void:
 			return
 		home_state = state
 		home_save_path = save_path
-		visitor.ship_modules = state.ship_modules.duplicate(true)
-		visitor.ship_layout = state.ship_layout.duplicate(true)
-		visitor.cargo = state.cargo.duplicate(true)
-		visitor.hull = state.hull
-		visitor.shield = state.shield
-		visitor.fuel = state.fuel
-		visitor.drive_temperature_k = state.drive_temperature_k
+		_copy_carried_ship(state, visitor)
 		visitor.world_id = session.world_id
 		state = visitor
 		save_path = visitor_path
@@ -2294,6 +2288,21 @@ func refit_fleet_module(ship_id: String, cell: Vector3i, kind: String) -> String
 	return crew_operations().refit_module(ship_id,cell,kind)
 
 
+func exchange_fleet_helm(ship_id: String) -> String:
+	if session.connected: return "Leave the world visit before changing ships."
+	if pilot.flying or aboard or surface_index >= 0 or manual_planet >= 0: return "Return to an orbital concourse before changing ships."
+	var vessel: Dictionary = crew_operations()._ship(ship_id)
+	var incoming_delay := float(vessel.get("defense", {}).get("delay", 0.0))
+	var error: String = crew_operations().exchange_helm(ship_id, shield_delay)
+	if not error.is_empty(): return error
+	shield_delay = incoming_delay
+	pilot.cancel_autopilot()
+	apply_ship_stats()
+	rebuild_player_ship()
+	_sync_fleet_actors()
+	return ""
+
+
 func refit_fleet_layout(ship_id: String, cell: Vector3i, value: String, face: String = "") -> String:
 	var issue := fleet_boarding_issue(ship_id)
 	if not issue.is_empty(): return issue
@@ -2475,6 +2484,7 @@ func exit_interior() -> void:
 	close_menu()
 
 func _copy_carried_ship(source: GameState, destination: GameState) -> void:
+	destination.ship_identity = source.ship_identity.duplicate(true)
 	destination.ship_modules = source.ship_modules.duplicate(true)
 	destination.ship_layout = source.ship_layout.duplicate(true)
 	destination.cargo = source.cargo.duplicate(true)

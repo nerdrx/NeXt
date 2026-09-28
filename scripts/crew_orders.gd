@@ -83,6 +83,48 @@ func refit_layout(ship_id: String, cell: Vector3i, value: String, face: String =
 	return ""
 
 
+# Scene code enforces dock access; this transaction never sells or merges either hold.
+func exchange_helm(ship_id: String, outgoing_shield_delay: float = 0.0) -> String:
+	var vessel := _ship(ship_id)
+	if vessel.is_empty(): return "Fleet vessel does not exist."
+	if int(vessel.system) != state.system_index or float(vessel.hull) <= 0.0: return "Choose a local operational vessel."
+	if _ship_busy(ship_id) or vessel.has("flight"): return "Recall and leave the vessel before taking command."
+	var blueprint := ShipBlueprint.for_vessel(vessel)
+	if blueprint.is_empty(): return "This vessel has no pilotable saved design."
+	var stats := vessel_combat_stats(vessel)
+	if state.crew.size() > int(stats.crew_capacity): return "This vessel cannot accommodate your crew roster."
+	if state.hull <= 0.0 or not ShipBlueprint.valid_custom_modules(state.ship_modules): return "Recover or repair your current design before storing it."
+	if not ShipLayout.validate_data(state.ship_layout, state.ship_modules): return "Your current layout is invalid."
+	if not is_finite(outgoing_shield_delay): return "Invalid shield recovery state."
+	for order: Dictionary in state.crew_orders.values():
+		if str(order.kind) == "defend":
+			var has_weapon := false
+			for module: Dictionary in blueprint.modules:
+				if module.kind == "weapon": has_weapon = true
+			if not has_weapon: return "Cancel ship-defense orders before taking an unarmed vessel."
+	var old_stats := state.ship_stats()
+	var stored := {"id":str(state.ship_identity.id), "name":str(state.ship_identity.name), "system":state.system_index,
+		"hull":clampf(state.hull / float(old_stats.max_hull) * 100.0, 0.0, 100.0), "cargo":state.cargo.duplicate(true),
+		"capacity":int(old_stats.cargo_capacity), "hull_family":"custom", "modules":state.ship_modules.duplicate(true),
+		"layout":state.ship_layout.duplicate(true), "fuel":state.fuel, "drive_temperature_k":state.drive_temperature_k,
+		"defense":{"charge":state.shield, "delay":clampf(outgoing_shield_delay, 0.0, 6.0)}}
+	var cells: Array[Vector3i] = []
+	for module: Dictionary in state.ship_modules: cells.append(Vector3i(module.x,module.y,module.z))
+	var family_id := ShipBlueprint.family_for_cells(cells)
+	if ShipBlueprint.valid_equipment(family_id, state.ship_modules): stored.hull_family = family_id
+	var index := state.fleet_ships.find(vessel)
+	state.ship_modules.assign(blueprint.modules.duplicate(true))
+	state.ship_layout = blueprint.layout.duplicate(true)
+	state.ship_identity = {"id":str(vessel.id), "name":str(vessel.name)}
+	state.cargo = vessel.cargo.duplicate(true)
+	state.hull = float(stats.max_hull) * float(vessel.hull) / 100.0
+	state.shield = float(vessel.get("defense", {}).get("charge", 0.0))
+	state.fuel = float(vessel.get("fuel", 100.0))
+	state.drive_temperature_k = float(vessel.get("drive_temperature_k", 300.0))
+	state.fleet_ships[index] = stored
+	return ""
+
+
 static func equipment_refit_price(vessel: Dictionary, old_kind: String, new_kind: String) -> int:
 	if old_kind == new_kind: return 0
 	var refund := int(float(GameState.MODULES[old_kind].cost) * 0.5 * float(vessel.hull) / 100.0)
