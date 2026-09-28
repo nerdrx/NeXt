@@ -64,6 +64,7 @@ if grep -Eq 'SCRIPT ERROR:|ERROR:' "$run_dir/godot.log"; then
 fi
 if [[ "$status" != 0 ]]; then
     echo "$validation_name passed; wrapper exit was nonzero. Clean shutdown is not verified."
+    exit "$status"
 else
     echo "$validation_name passed and wrapper exited cleanly."
 fi
