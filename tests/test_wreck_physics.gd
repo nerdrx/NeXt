@@ -13,6 +13,8 @@ func _run() -> void:
 	game.set_physics_process(false)
 	game.pilot.set_physics_process(false)
 	game._clear_actors()
+	var save_path := "user://combat-debris-%d.json" % OS.get_process_id()
+	game.save_path = save_path
 	game.state.recovery = ShipRecovery.empty_data()
 	game.state.cargo = {"ore": 3}
 	game.state.hull = 0.0
@@ -98,8 +100,7 @@ func _run() -> void:
 	var balance: int = game.state.credits
 	game._actor_destroyed(enemy)
 	assert(game.state.recovery.wrecks.size() == count + 1 and game.state.credits == balance, "duplicate destruction cannot duplicate debris or bounty")
-	var save_path := "user://combat-debris-%d.json" % OS.get_process_id()
-	assert(game.state.save(save_path).is_empty())
+	assert(FileAccess.file_exists(save_path), "NPC death saves the outcome immediately")
 	var restored := GameState.new()
 	assert(restored.load_save(save_path).is_empty() and restored.recovery.wrecks.back().cargo.alloys == 4)
 	assert(restored.world_flags[game._location_key()].has("debris-test-pirate"))
@@ -108,6 +109,20 @@ func _run() -> void:
 	game.pilot.teleport(point + Vector3(500, 0, 20))
 	assert(game.recover_wreck(debris.id).is_empty() and game.state.cargo.alloys == alloys + 4)
 	assert(not game.recover_wreck(debris.id).is_empty(), "debris can be collected only once")
+	var failing_enemy := ShipActor.new()
+	failing_enemy.actor_id = "debris-save-failure"
+	failing_enemy.position = point + Vector3(1000, 0, 0)
+	game.add_child(failing_enemy)
+	failing_enemy.set_physics_process(false)
+	failing_enemy.destroyed.connect(game._actor_destroyed)
+	game.save_path = ""
+	failing_enemy.take_damage(100000.0)
+	assert("NOT SAVED" in game.hud.message)
+	assert(game.state.world_flags[game._location_key()].has(failing_enemy.actor_id), "save failure retains live combat state for retry")
+	game.save_path = save_path
+	assert(game.save_commander(false))
+	assert(restored.load_save(save_path).is_empty() and restored.world_flags[game._location_key()].has(failing_enemy.actor_id))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
 	game.sound.shutdown()
 	game.session.leave()
 	game.queue_free()

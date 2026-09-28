@@ -1309,6 +1309,8 @@ func _actor_destroyed(actor: Node3D) -> void:
 		notify("Fleet patrol neutralized a pirate. 250 CR bounty credited.")
 	_explosion(actor.global_position, 8 if actor is ShipActor else 1.5)
 	actors.erase(actor)
+	if not save_commander(false):
+		notify("Combat outcome NOT SAVED. Check storage and save again; changes remain in this session.")
 
 func _explosion(position: Vector3, radius: float) -> void:
 	var mesh := MeshInstance3D.new()
