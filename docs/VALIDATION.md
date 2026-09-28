@@ -2166,3 +2166,12 @@ exact invoice conservation, saved remainder, return fuel gating, unknown
 production cost and cancellation retaining cargo. It is registered in CI.
 Existing partial market trade, station supply, station transfer and export
 regressions pass, together with the headless editor import.
+
+Parallel review confirmed invoice/phase conservation and the documented final
+return-fuel requirement. Invalid runtime station indices report missing stations;
+save validation rejects such indices before orders are installed.
+
+Clean Windows export and hidden-Gamescope Proton integration pass at `e8817f4`:
+`build/windows-validation-dd5c267/build/proton-smoke.uiLXI0`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Dedicated partial-delivery assertions ran natively; the
+packaged smoke checks general gameplay.
