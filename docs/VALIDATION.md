@@ -2116,3 +2116,8 @@ pending records, aboard/offline/jump guards and disabled completed-system UI.
 It is registered in CI. Existing journal jump/approach retention tests pass.
 The journal UI regression passes under hidden Gamescope; its screenshot was
 visually inspected. Parallel review found no coordinate-frame or gating defect.
+
+Clean Windows export and hidden-Gamescope Proton integration pass at `1c886b1`:
+`build/windows-validation-dd5c267/build/proton-smoke.LPwnIb`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Dedicated survey-cruise assertions ran natively; the
+packaged smoke checks general gameplay.
