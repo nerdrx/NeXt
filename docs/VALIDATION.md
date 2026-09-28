@@ -1771,3 +1771,8 @@ it is registered in CI. Flight-dynamics, coasting-hull and coasting-navigation
 regressions pass. The atmospheric gameplay test passes under hidden Gamescope
 with additional player-vector assertions. Its HUD capture was inspected for
 readable, nonoverlapping telemetry; the dark test scene is not art acceptance.
+
+Clean Windows export and hidden-Gamescope Proton integration pass at `eadc098`:
+`build/windows-validation-dd5c267/build/proton-smoke.M8oHak`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Packaged smoke covers general gameplay; the dedicated
+acceleration assertions above ran natively. No performance or Steam claim follows.
