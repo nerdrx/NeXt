@@ -31,7 +31,7 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 
 ## New replaceable procedural content
 
-- [ ] Ground crew suit meshes and role patches (`scripts/ground_actor.gd`): replace with rigged human models while preserving collision dimensions and attack origins.
+- [ ] Ground crew suit meshes, flush helmet faceplates and role patches (`scripts/ground_actor.gd`, `scripts/crew_helmet.gd`): replace with rigged human models while preserving collision dimensions and attack origins.
 - [ ] Lounge, medical and workshop fittings (`scripts/ship_interior.gd`): authored room kits within 2.8 m cells; keep doorway clearance.
 - [ ] Standard, armored and glazed face panels (`scripts/ship_visual.gd`): replace materials/meshes without changing exposed-face selection keys.
 - [ ] Radiator module surface assemblies (`scripts/ship_visual.gd`): replace dark ribbed panels and coolant manifolds with authored heat-rejection hardware; preserve exposed-face selection, 2.8 m module bounds and panel compatibility.
@@ -85,7 +85,7 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 
 ## Named crew aboard
 
-- [ ] Replace `scripts/ship_crew.gd` inherited procedural humanoids with authored crew suits, faces, idle animations and walking cycles. Preserve the 0.42 m radius / 1.75 m height collision capsule, local deck gravity and persistent crew identity.
+- [ ] Replace `scripts/ship_crew.gd` inherited procedural humanoids with authored crew suits, faces, idle animations and walking cycles. Preserve the 0.42 m radius / 1.75 m height collision capsule, local deck gravity and persistent crew identity. The current shared procedural fabric normal map, segmented helmet and rigid limb pivots are placeholders; replace these with authored textures and a skinned rig.
 - [ ] Author diegetic name/role identification and duty indicators; the current compact billboard label sits 1.95 m above the feet, with roughly 4 cm glyph height.
 - [ ] Add bridge, engineering and habitation workstations with authored standing/seated sockets. Current placement queries clear floor space, distributes bodies across rooms with role preferences, faces them inward and keeps module centers available for passage.
 

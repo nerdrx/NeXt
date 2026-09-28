@@ -1142,3 +1142,13 @@ Native checks passed cabin-local routing, deck/disconnected rejection, pitch/yaw
 Crew identification now uses approximately 4 cm glyphs with a narrower outline, centered 1.95 m above the feet. Room signs use approximately 6 cm glyphs. This reduces the oversized text visible in the preceding crew capture without changing identity, duty or interaction behavior. The art checklist records the new label placement.
 
 The actual-main crew regression passed in hidden Gamescope. Captures were inspected both with active notifications and after advancing the HUD notification timer to expiry: identification remains readable close up, while temporary banners can still obscure it. No whole-scene visual quality claim is made. Windows export passed with no script errors; the known seven-texture shutdown warning remains in the graphical run. No fresh Proton runtime check was performed.
+
+## Procedural crew suit revision — 2026-09-28
+
+Ground actors and shipboard crew now use a closed ellipsoid helmet with a flush curved faceplate, narrow brow/chin trims and side fittings. The former projecting oval visor is removed. Suits have a tapered torso, shorter arms, shoulder armor attached to animation pivots, chest harness details and flatter boots aligned with the floor. Cloth uses one shared procedural normal texture; armor and visor retain separate roughness/material responses. Physics capsules, damage handling, interaction identity and animation interfaces are unchanged. The asset checklist identifies the replaceable helmet, texture and rigid rig.
+
+Studio and actual-cabin captures were inspected in hidden Gamescope. Early renders exposed reversed helmet winding and torso/armor intersections; those were corrected before final captures. The shapes still read as primitive-based, stylized placeholders and do not meet the requested near-photorealistic reference. The studio capture helper is reusable at `tests/capture_crew_models.gd`; it includes company, police and pirate material variants under neutral lighting.
+
+Ground actor behavior, crew support, room roaming and actual-main crew integration checks passed. The graphical integration retains the known seven-texture shutdown warning; the isolated studio capture exits without that warning. Windows export passed with no script errors. This increment has no fresh Proton runtime result.
+
+The new helmet regression checks 1,169 finite vertices across four surfaces, bounds, nondegenerate clockwise winding and a measured 3 mm faceplate offset. It passes headlessly without teardown warnings and runs in Windows CI. GPU inspection separately confirmed exterior faces render correctly.
