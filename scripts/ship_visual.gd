@@ -17,21 +17,21 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 	_engine_glow.clear()
 	var active_layout: Dictionary = layout if ShipLayout.validate_data(layout, modules) else ShipLayout.empty_data()
 	var accent := Color("46e5da") if faction in ["player", "player_fleet"] else (Color("ff6b58") if faction == "pirate" else Color("65aaff"))
-	var hull_mat := _material(Color("26394c"), 0.5, 0.0)
-	var plate_mat := _material(Color("64788a"), 0.42, 0.0)
-	var inset_mat := _material(Color("34495c"), 0.62, 0.0)
+	var hull_mat := _surface_material(Color("26394c"), 0.46, 0.03)
+	var plate_mat := _surface_material(Color("64788a"), 0.34, 0.03)
+	var inset_mat := _surface_material(Color("34495c"), 0.55, 0.03)
 	var dark_mat := _material(Color("111e2b"), 0.8, 0.0)
 	var accent_mat := _material(accent.darkened(0.3), 0.52, 0.0)
 	var warm_mat := _material(Color("ffbd74"), 0.25, 2.5)
 	# Exhaust must not share emission state with navigation lights or weapon fittings.
 	var exhaust_mat := _material(Color("ffbd74"), 0.25, 0.45)
 	var canopy_mat := _material(Color("12252c"), 0.16, 0.0)
-	var glass_trim := _material(Color("758189"), 0.36, 0.0)
-	var armor_panel := _material(Color("86949c"), 0.38, 0.0)
+	var glass_trim := _surface_material(Color("758189"), 0.27, 0.85)
+	var armor_panel := _surface_material(Color("86949c"), 0.4, 0.03)
 	var panel_glass := _material(Color(0.06, 0.23, 0.3, 0.8), 0.14, 0.0)
-	var radiator_body := _material(Color("202b34"), 0.72, 0.0)
-	var radiator_fin := _material(Color("53616a"), 0.58, 0.0)
-	var radiator_channel := _material(Color("303d45"), 0.48, 0.0)
+	var radiator_body := _surface_material(Color("202b34"), 0.65, 0.12)
+	var radiator_fin := _surface_material(Color("53616a"), 0.32, 0.85)
+	var radiator_channel := _surface_material(Color("303d45"), 0.44, 0.7)
 	var cells: Array[Vector3i] = []
 	var kinds: Dictionary = {}
 	for item in modules:
@@ -444,6 +444,19 @@ func _add_torus(pos: Vector3, inner_radius: float, outer_radius: float, material
 	add_child(mesh)
 	mesh.position = pos
 	return mesh
+
+
+# Share the hull finish shader with opaque equipment; no artificial panel grid on
+# small fittings. Bare metal and painted covers keep distinct physical responses.
+func _surface_material(color: Color, roughness: float, metallic: float) -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = preload("res://shaders/fleet_surface.gdshader")
+	material.set_shader_parameter("paint", color)
+	material.set_shader_parameter("base_roughness", roughness)
+	material.set_shader_parameter("metalness", metallic)
+	material.set_shader_parameter("coating", 0.18 if metallic < 0.5 else 0.0)
+	material.set_shader_parameter("roughness_variation", 0.28)
+	return material
 
 
 func _material(color: Color, roughness: float, glow: float) -> StandardMaterial3D:

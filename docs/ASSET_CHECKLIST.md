@@ -164,3 +164,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Refine survey journal presentation: current text rows show planet/system names, atmospheric traits, sold status and course actions, with an unsold filter and twenty records per page. Preserve keyboard controls and bounded list construction when adding thumbnails or discovery imagery.
 
 - [ ] Refine host session controls and peer-list presentation. Preserve clear admission state, host-only removal actions, departure refresh and the distinction between removing a visitor and preventing rejoining.
+
+- [ ] Replace shared procedural equipment finishes with authored material maps. Ship covers now share the filtered hull finish shader; canopy trim and radiator fins use exposed-metal response, while painted covers remain dielectric. Preserve exhaust emission and transparent glazing. This material pass does not resolve blocky hull silhouettes or establish reference-quality art.

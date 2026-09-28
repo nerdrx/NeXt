@@ -2,6 +2,7 @@ shader_type spatial;
 render_mode diffuse_burley, specular_schlick_ggx;
 uniform vec4 paint : source_color = vec4(0.45, 0.48, 0.5, 1.0);
 uniform float base_roughness = 0.45;
+uniform float roughness_variation = 0.12;
 uniform float metalness = 0.05;
 uniform float coating = 0.25;
 uniform float panel_strength : hint_range(0.0, 1.0) = 0.0;
@@ -71,7 +72,7 @@ void fragment() {
  ALBEDO *= 1.0 - groove * 0.42 - seal_dirt * 0.13;
  ALBEDO = mix(ALBEDO, vec3(0.09), bolt_rim * 0.38);
  ALBEDO = mix(ALBEDO, vec3(0.19), bolt);
- ROUGHNESS = clamp(base_roughness + (mottling-0.5)*0.12 + (micro-0.5)*0.065 + abrasion*0.07 + groove*0.14 + seal_dirt*0.08, 0.12, 0.92);
+ ROUGHNESS = clamp(base_roughness + (mottling-0.5)*roughness_variation + (micro-0.5)*0.065 + abrasion*0.07 + groove*0.14 + seal_dirt*0.08, 0.12, 0.92);
  METALLIC = mix(metalness, 0.75, bolt);
  SPECULAR = 0.5;
  CLEARCOAT = coating;

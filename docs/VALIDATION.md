@@ -1571,3 +1571,7 @@ Real loopback ENet checks passed established-guest retention, locked admission, 
 Transport behavior follows the documented [MultiplayerPeer admission and disconnect APIs](https://docs.godotengine.org/en/4.7/classes/class_multiplayerpeer.html). Steam transport extension behavior, live invites/relay, property replication and authoritative shared economics remain unverified or unfinished.
 
 Clean Windows release export and full Proton integration smoke passed at `39001dd` (`NEXT_INTEGRATION_OK`, wrapper exit 0). Evidence: `build/windows-validation-dd5c267/build/proton-smoke.HNUh37`. Dedicated host controls used native loopback ENet and hidden Gamescope UI checks. The smoke does not establish live Steam moderation behavior or target frame rate.
+
+### Ship equipment material separation
+
+Opaque ship fittings reuse the fleet surface shader with per-material roughness and metalness. Three-family front, rear and cutaway captures completed under hidden Gamescope without script or shader errors; Ranger front view was visually inspected. The change is subtle at full-ship distance and does not establish cinematic quality. Windows Desktop export completed. A radiator capture mistakenly run with the dummy headless renderer failed because viewport textures are unavailable there; the corrected hidden-Gamescope run completed with RADIATOR_VISUAL_CAPTURE_OK and no script or shader errors. The resulting radiator capture was visually inspected.
