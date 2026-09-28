@@ -2083,3 +2083,10 @@ It is not projectile-location damage, mesh deformation or persistent scars;
 legacy FleetShipVisual hulls, remote visitors and equipment meshes do not yet
 receive this effect. Player display updates on rebuild and live state changes;
 family NPC/fleet visuals update on normalized hull assignments, including repair.
+
+Final damaged captures for all three families complete without engine errors;
+the Pathfinder close-up was inspected. The procedural soot remains placeholder
+art and does not establish photorealism. Clean Windows export and hidden-Gamescope
+Proton integration pass at `4a4d17c`:
+`build/windows-validation-dd5c267/build/proton-smoke.BRJltJ`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Dedicated material-state assertions ran natively.
