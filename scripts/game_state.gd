@@ -820,7 +820,8 @@ func _load_v2(data: Dictionary) -> String:
 				ship_cargo[good] = int(value.cargo[good])
 			var loaded_ship: Dictionary = {"id": value.id, "name": value.name, "system": int(value.system), "hull": float(value.hull), "cargo": ship_cargo, "capacity": int(value.capacity)}
 			if value.has("hull_family"):
-				if not value.hull_family is String or value.hull_family not in ShipBlueprint.FAMILIES: return "Invalid fleet hull family."
+				if not value.hull_family is String or (value.hull_family not in ShipBlueprint.FAMILIES and value.hull_family != "custom"): return "Invalid fleet hull family."
+				if value.hull_family == "custom" and (not value.has_all(["modules", "layout"]) or not ShipBlueprint.valid_custom_modules(value.modules)): return "Invalid custom fleet blueprint."
 				loaded_ship.hull_family = value.hull_family
 				if value.has("modules"):
 					if not value.has("layout") or not ShipBlueprint.valid_equipment(value.hull_family,value.modules): return "Invalid fleet equipment."
@@ -830,7 +831,9 @@ func _load_v2(data: Dictionary) -> String:
 				if int(value.capacity) != int(CrewOrders.vessel_combat_stats(loaded_ship).cargo_capacity): return "Fleet capacity does not match hull equipment."
 			elif int(value.capacity) > 100 or value.has("modules"): return "Invalid legacy fleet capacity or equipment."
 			if value.has("layout"):
-				if not loaded_ship.has("hull_family") or not ShipLayout.validate_data(value.layout, ShipBlueprint.for_vessel(loaded_ship).modules): return "Invalid fleet layout."
+				if not loaded_ship.has("hull_family"): return "Invalid fleet layout."
+				var layout_modules: Array = loaded_ship.modules if loaded_ship.has("modules") else ShipBlueprint.family(str(loaded_ship.hull_family)).modules
+				if not ShipLayout.validate_data(value.layout, layout_modules): return "Invalid fleet layout."
 				loaded_ship.layout = value.layout.duplicate(true)
 			if value.has("defense"):
 				var defense: Variant = value.defense

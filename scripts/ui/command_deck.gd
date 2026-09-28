@@ -698,6 +698,11 @@ func _fleet() -> void:
 		hull_choice.set_item_metadata(hull_choice.item_count - 1, family_id)
 	purchase.add_child(hull_choice)
 	purchase.add_child(InterfaceTheme.button("COMMISSION", func(): _act(game.crew_operations().purchase_ship.bind(ship_name.text, str(hull_choice.get_item_metadata(hull_choice.selected))), "Fleet vessel commissioned.")))
+	var design_quote: Dictionary = game.crew_operations().custom_design_quote()
+	var design_button := _button("COMMISSION MY DESIGN / %d CR" % int(design_quote.get("price", 0)), func():
+		_act(game.crew_operations().purchase_custom_ship.bind(ship_name.text), "A new copy of your ship design was commissioned."), not str(design_quote.error).is_empty())
+	design_button.set_meta("commission_custom_design", true)
+	design_button.tooltip_text = str(design_quote.error) if not str(design_quote.error).is_empty() else "Build a new vessel from your current modules and room layout. Cargo and crew stay with your personal ship."
 	if not s.fleet_ships.is_empty():
 		_text("DOCKSIDE CARGO TRANSFER", 13, InterfaceTheme.CYAN)
 		var transfer_row := _row()
@@ -733,13 +738,14 @@ func _fleet() -> void:
 			transfer_actions.add_child(transfer_button)
 	for vessel: Dictionary in s.fleet_ships:
 		_text("%s / %s / system %d / hull %.0f%% / drive %.0f K" % [vessel.name, str(vessel.get("hull_family", "utility")).capitalize(), vessel.system, vessel.hull, float(vessel.get("drive_temperature_k", 450.0))], 17)
-		if str(vessel.get("hull_family", "")) in ShipBlueprint.FAMILIES:
+		if not ShipBlueprint.for_vessel(vessel).is_empty():
 			var defense: Dictionary = vessel.get("defense", {})
 			_text("Shield charge %.0f / recharge delay %.1f s" % [float(defense.get("charge", 0.0)), float(defense.get("delay", 0.0))], 14, InterfaceTheme.MUTED)
-			var layout_button := _button("ROOM & HULL REFITS", func():
-				fleet_layout_id = str(vessel.id)
-				show_page("fleet_layout"))
-			layout_button.set_meta("fleet_layout_id", str(vessel.id))
+			if str(vessel.get("hull_family", "")) in ShipBlueprint.FAMILIES:
+				var layout_button := _button("ROOM & HULL REFITS", func():
+					fleet_layout_id = str(vessel.id)
+					show_page("fleet_layout"))
+				layout_button.set_meta("fleet_layout_id", str(vessel.id))
 			var boarding_issue: String = game.fleet_boarding_issue(str(vessel.id))
 			_button("INSPECT DOCKED INTERIOR", game.enter_interior.bind(str(vessel.id)), not boarding_issue.is_empty()).tooltip_text = boarding_issue
 		if game.fleet_actors.has(str(vessel.id)):

@@ -56,7 +56,10 @@ func _ready() -> void:
 	var collision := CollisionShape3D.new()
 	add_child(collision)
 	var blueprint := ShipBlueprint.family(hull_family)
-	if not hull_modules.is_empty() and ShipBlueprint.valid_equipment(hull_family,hull_modules): blueprint.modules = hull_modules
+	if hull_family == "custom":
+		blueprint = ShipBlueprint.for_vessel({"hull_family": hull_family, "modules": hull_modules, "layout": hull_layout})
+	elif not hull_modules.is_empty() and ShipBlueprint.valid_equipment(hull_family,hull_modules):
+		blueprint.modules = hull_modules
 	if blueprint.is_empty():
 		var fleet_visual := FleetShipVisual.new()
 		_visual = fleet_visual

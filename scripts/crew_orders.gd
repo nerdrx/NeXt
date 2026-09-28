@@ -32,6 +32,22 @@ static func commission_quote(family_id: String = "") -> Dictionary:
 
 func purchase_ship(name: String, family_id: String = "") -> String:
 	var quote := commission_quote(family_id)
+	return _commission(name, quote, ShipBlueprint.family(family_id))
+
+
+func custom_design_quote() -> Dictionary:
+	if not ShipBlueprint.valid_custom_modules(state.ship_modules): return {"error":"This design must be connected, powered and flight-ready."}
+	if not ShipLayout.validate_data(state.ship_layout, state.ship_modules): return {"error":"This design has an invalid room or panel layout."}
+	var price := 0
+	for module: Dictionary in state.ship_modules: price += int(GameState.MODULES[module.kind].cost)
+	return {"error":"", "price":price, "capacity":state.ship_stats().cargo_capacity}
+
+
+func purchase_custom_ship(name: String) -> String:
+	return _commission(name, custom_design_quote(), {"family":"custom", "modules":state.ship_modules, "layout":state.ship_layout})
+
+
+func _commission(name: String, quote: Dictionary, blueprint: Dictionary) -> String:
 	if not str(quote.error).is_empty(): return str(quote.error)
 	var clean: String = name.strip_edges()
 	if clean.length() < 2 or clean.length() > 32: return "Fleet ship name must be 2 to 32 characters."
@@ -41,7 +57,11 @@ func purchase_ship(name: String, family_id: String = "") -> String:
 		if str(ship.name).to_lower() == clean.to_lower(): return "Fleet ship names must be unique."
 	state.credits -= int(quote.price)
 	var vessel := {"id": _id("ship"), "name": clean, "system": state.system_index, "hull": 100.0, "cargo": {}, "capacity": int(quote.capacity)}
-	if not family_id.is_empty(): vessel.hull_family = family_id
+	if not blueprint.is_empty():
+		vessel.hull_family = str(blueprint.family)
+		if vessel.hull_family == "custom":
+			vessel.modules = blueprint.modules.duplicate(true)
+			vessel.layout = blueprint.layout.duplicate(true)
 	state.fleet_ships.append(vessel)
 	return ""
 
@@ -72,6 +92,7 @@ static func equipment_refit_price(vessel: Dictionary, old_kind: String, new_kind
 func refit_module(ship_id: String, cell: Vector3i, kind: String) -> String:
 	var vessel := _ship(ship_id)
 	if vessel.is_empty(): return "Fleet vessel does not exist."
+	if str(vessel.get("hull_family", "")) == "custom": return "Equipment refits currently require a designed hull family."
 	if kind not in ShipBlueprint.FLEET_EQUIPMENT: return "Unknown fleet equipment."
 	if int(vessel.system) != state.system_index or float(vessel.hull) <= 0.0: return "Refit a local operational vessel."
 	if _ship_busy(ship_id) or vessel.has("flight"): return "Recall and leave the vessel before refitting."

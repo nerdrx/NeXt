@@ -123,3 +123,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Replace fleet room-refit fixtures and hull-panel placeholders with authored variants. Preserve saved room/panel choices, usable walkways and exposed-face radiator behavior.
 
 - [ ] Replace fleet equipment variants (weapons, cargo, habitats, shields, radiators and extra reactors) with coherent authored fittings. Preserve module coordinates, clear interior passages and loadout-driven exterior/thermal behavior.
+
+- [ ] Inspect custom fleet copies with asymmetric and multi-deck designs. They reuse modular player visuals and fittings; authored replacements must preserve the saved modules, interior walkways and generated collision.

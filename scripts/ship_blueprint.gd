@@ -44,13 +44,21 @@ static func family(id: String) -> Dictionary:
 
 
 static func for_vessel(vessel: Dictionary) -> Dictionary:
-	var blueprint := family(str(vessel.get("hull_family", "")))
+	var family_id := str(vessel.get("hull_family", ""))
+	var blueprint := family(family_id)
+	if family_id == "custom":
+		var modules: Variant = vessel.get("modules")
+		var layout: Variant = vessel.get("layout")
+		if not valid_custom_modules(modules) or not ShipLayout.validate_data(layout, modules): return {}
+		blueprint = {"family": "custom", "modules": modules.duplicate(true), "layout": layout.duplicate(true)}
 	if blueprint.is_empty(): return {}
-	blueprint.modules = vessel.get("modules", blueprint.modules).duplicate(true)
-	blueprint.layout = vessel.get("layout", blueprint.layout).duplicate(true)
+	if family_id != "custom":
+		blueprint.modules = vessel.get("modules", blueprint.modules).duplicate(true)
+		blueprint.layout = vessel.get("layout", blueprint.layout).duplicate(true)
 	return blueprint
 
 static func valid_equipment(family_id: String, modules: Variant) -> bool:
+	if family_id == "custom": return valid_custom_modules(modules)
 	var blueprint := family(family_id)
 	if blueprint.is_empty() or not modules is Array or modules.size() != blueprint.modules.size(): return false
 	var model := GameState.new()
@@ -68,6 +76,17 @@ static func valid_equipment(family_id: String, modules: Variant) -> bool:
 		candidate.append({"kind":str(item.kind), "x":cell.x, "y":cell.y, "z":cell.z})
 	var stats := model._stats_for(candidate)
 	return model._has_required_modules(candidate) and stats.power_balance >= 0 and stats.walkable
+
+
+static func valid_custom_modules(modules: Variant) -> bool:
+	if not modules is Array or modules.is_empty() or modules.size() > GameState.MAX_SHIP_MODULES: return false
+	var model := GameState.new()
+	var candidate: Array[Dictionary] = []
+	for item: Variant in modules:
+		if not item is Dictionary or not model._valid_module(item): return false
+		candidate.append({"kind": item.kind, "x": int(item.x), "y": int(item.y), "z": int(item.z)})
+	if model._module_cells_duplicate(candidate) or not model._connected(candidate) or not model._has_required_modules(candidate): return false
+	return int(model._stats_for(candidate).power_balance) >= 0
 
 
 static func family_for_cells(cells: Array[Vector3i]) -> String:

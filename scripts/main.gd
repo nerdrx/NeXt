@@ -2308,7 +2308,8 @@ func fleet_boarding_issue(ship_id: String) -> String:
 	if vessel.is_empty(): return "Fleet vessel does not exist."
 	if int(vessel.system) != state.system_index: return "This vessel is in another system."
 	if float(vessel.hull) <= 0.0: return "Recover and repair this vessel before boarding."
-	if str(vessel.get("hull_family", "")) not in ShipBlueprint.FAMILIES: return "This vessel has no walkable interior."
+	var blueprint := ShipBlueprint.for_vessel(vessel)
+	if blueprint.is_empty() or not bool(CrewOrders.vessel_combat_stats(vessel).get("walkable", false)): return "This vessel has no walkable interior."
 	if crew_operations()._ship_busy(ship_id) or vessel.has("flight"): return "Recall this vessel from its order before inspecting its interior."
 	return ""
 
