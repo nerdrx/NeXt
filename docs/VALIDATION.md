@@ -1297,3 +1297,10 @@ Added an optional persisted `systems_online` flag with strict boolean load valid
 Domain power checks passed state behavior, save roundtrip, malformed-load atomicity and legacy defaults. Actual-main integration passed headlessly and in hidden Gamescope for menu/save/restart, assist unable to brake, weapon suppression/resumption, independent suit weapon, hyperdrive charge rejection and carried state. Existing crew-defense gameplay now verifies shutdown/restart against a real target, then passes its payroll/cover/neutral/bounty checks. General state and visit regressions passed. These checks do not establish replicated/host-enforced power controls or Steam interoperability.
 
 Clean Windows release export at `3ac8a25` passed without script/export errors. No fresh Proton runtime check or development ZIP refresh is claimed for this power-control increment.
+
+
+## Replicated ship power — 2026-09-28
+
+Ship power now has a reliable owner-to-host-to-peers stream, independent of unreliable movement snapshots. Host shot validation rejects reported-offline attackers without granting offline targets immunity. Repeated local physics updates do not resend unchanged state. Travel resends the current mode in the new epoch, including a toggle crossing the transition; reconnect retains the local choice. Power arriving before a new peer's first pose is retained in a bounded pending map. The multiplayer list displays systems status.
+
+Real ENet loopback checks passed offline raw-RPC attack rejection, target vulnerability, restart, stale pose and reliable echo handling, idempotence, sender impersonation and stale-epoch rejection, power-before-pose ordering, simultaneous travel/toggle and reconnect. Existing network and PvP transport regressions passed. The actual-main shutdown menu/gameplay regression passed in hidden Gamescope. These checks cover reported state; they do not establish client anti-cheat, authoritative remote electrical simulation or live Steam interoperability.

@@ -35,9 +35,11 @@ var _last_pose_msec: int = 0
 var _last_clock_sent_msec: int = -1000
 var _last_remote_pose_msec: Dictionary = {}
 var _last_pvp_shot_msec: Dictionary = {}
+var _pending_systems_online: Dictionary = {}
 var _pvp_epoch: int = 0
 var _local_pvp_allowed: bool = false
 var _local_flying: bool = false
+var _local_systems_online: bool = true
 var pvp_occlusion_check: Callable
 
 
@@ -121,6 +123,7 @@ func _start_host(peer: MultiplayerPeer, status: String) -> void:
 	var local_id := multiplayer.get_unique_id()
 	presence.clear()
 	presence[local_id] = _make_presence(Vector3.ZERO, Vector3.ZERO, ship_modules, ship_layout, display_name)
+	presence[local_id].systems_online = _local_systems_online
 	peers_changed.emit()
 	session_message.emit(status)
 
@@ -156,6 +159,7 @@ func _start_client(peer: MultiplayerPeer, status: String) -> void:
 	connected = false
 	_join_sent = false
 	presence.clear()
+	_pending_systems_online.clear()
 	_last_remote_pose_msec.clear()
 	_last_pvp_shot_msec.clear()
 	_local_pvp_allowed = false
@@ -207,6 +211,7 @@ func leave() -> void:
 	is_host = false
 	_join_sent = false
 	presence.clear()
+	_pending_systems_online.clear()
 	_last_remote_pose_msec.clear()
 	_last_pvp_shot_msec.clear()
 	_local_pvp_allowed = false
@@ -301,6 +306,7 @@ func _on_peer_connected(_peer_id: int) -> void:
 func _on_peer_disconnected(peer_id: int) -> void:
 	_last_remote_pose_msec.erase(peer_id)
 	_last_pvp_shot_msec.erase(peer_id)
+	_pending_systems_online.erase(peer_id)
 	if is_host:
 		if presence.erase(peer_id):
 			for remote_id: int in multiplayer.get_peers():
@@ -423,6 +429,8 @@ func _rpc_welcome(index: int, seed: int, incoming_world_id: String, players: Dic
 	connected = true
 	var local_id := multiplayer.get_unique_id()
 	presence[local_id] = _make_presence(Vector3.ZERO, Vector3.ZERO, ship_modules, ship_layout, display_name)
+	presence[local_id].systems_online = _local_systems_online
+	_rpc_systems_online.rpc_id(1, local_id, _local_systems_online, _pvp_epoch)
 	peers_changed.emit()
 	ephemeris_received.emit(ephemeris_seconds)
 	world_joined.emit(system_index)
@@ -445,9 +453,15 @@ func _rpc_presence(peer_id: int, profile: Dictionary, epoch: int = 0) -> void:
 	if not normalized_profile.ok: return
 	# Consent has its own reliable stream; a delayed pose cannot restore an old choice.
 	if presence.has(peer_id): normalized_profile.profile.pvp = presence[peer_id].get("pvp", false)
+	# Power state has its own reliable stream too; pose snapshots may be stale.
+	if presence.has(peer_id): normalized_profile.profile.systems_online = presence[peer_id].get("systems_online", true)
 	if peer_id == multiplayer.get_unique_id():
 		normalized_profile.profile.pvp = normalized_profile.profile.pvp and _local_pvp_allowed
 		normalized_profile.profile.flying = _local_flying
+		normalized_profile.profile.systems_online = _local_systems_online
+	elif _pending_systems_online.has(peer_id):
+		normalized_profile.profile.systems_online = _pending_systems_online[peer_id]
+		_pending_systems_online.erase(peer_id)
 	presence[peer_id] = normalized_profile.profile
 	peers_changed.emit()
 
@@ -456,6 +470,7 @@ func _rpc_presence(peer_id: int, profile: Dictionary, epoch: int = 0) -> void:
 func _rpc_peer_left(peer_id: int) -> void:
 	if is_host:
 		return
+	_pending_systems_online.erase(peer_id)
 	if presence.erase(peer_id):
 		peers_changed.emit()
 
@@ -469,6 +484,8 @@ func _rpc_world_joined(index: int, seed: int, incoming_world_id: String, epoch: 
 	ephemeris_seconds = seconds
 	_pvp_epoch = epoch
 	_reset_pvp()
+	# A toggle sent just before travel may have carried the previous epoch.
+	_rpc_systems_online.rpc_id(1, multiplayer.get_unique_id(), _local_systems_online, _pvp_epoch)
 	ephemeris_received.emit(ephemeris_seconds)
 	world_joined.emit(system_index)
 
@@ -486,7 +503,7 @@ func _valid_ephemeris(seconds: float) -> bool:
 
 func _make_presence(pos: Vector3, rot: Vector3, modules: Array, layout: Dictionary, player_name: String, address: Dictionary = {}) -> Dictionary:
 	var safe_address: Dictionary = address.duplicate(true) if not address.is_empty() and SectorPosition.from_save(address) != null else SectorPosition.new(Vector3i.ZERO, pos).to_save()
-	return {"position": pos, "rotation": rot, "address": safe_address, "ship_modules": modules.duplicate(true), "ship_layout": layout.duplicate(true), "name": _sanitize_name(player_name), "pvp": false, "flying": false}
+	return {"position": pos, "rotation": rot, "address": safe_address, "ship_modules": modules.duplicate(true), "ship_layout": layout.duplicate(true), "name": _sanitize_name(player_name), "pvp": false, "flying": false, "systems_online": true}
 
 
 func _valid_presence(value: Variant) -> bool:
@@ -494,15 +511,15 @@ func _valid_presence(value: Variant) -> bool:
 
 
 func _normalize_presence(value: Variant) -> Dictionary:
-	if not value is Dictionary or value.size() < 4 or value.size() > 8 or not value.has_all(["position", "rotation", "name", "ship_modules"]):
+	if not value is Dictionary or value.size() < 4 or value.size() > 9 or not value.has_all(["position", "rotation", "name", "ship_modules"]):
 		return {"ok": false}
 	for key: Variant in value:
-		if not str(key) in ["position", "rotation", "name", "ship_modules", "ship_layout", "address", "pvp", "flying"]: return {"ok": false}
+		if not str(key) in ["position", "rotation", "name", "ship_modules", "ship_layout", "address", "pvp", "flying", "systems_online"]: return {"ok": false}
 	if not value.position is Vector3 or not value.rotation is Vector3 or not _valid_vector(value.position, MAX_WORLD_COORD) or not _valid_rotation(value.rotation):
 		return {"ok": false}
 	if not value.name is String or str(value.name).length() > 20 or not value.ship_modules is Array or value.ship_modules.size() > MAX_MODULES:
 		return {"ok": false}
-	if not value.get("pvp", false) is bool or not value.get("flying", false) is bool:
+	if not value.get("pvp", false) is bool or not value.get("flying", false) is bool or not value.get("systems_online", true) is bool:
 		return {"ok": false}
 	var modules := _normalize_modules(value.ship_modules)
 	if not modules.ok: return {"ok": false}
@@ -512,7 +529,7 @@ func _normalize_presence(value: Variant) -> Dictionary:
 	var raw_address: Variant = value.get("address", SectorPosition.new(Vector3i.ZERO, value.position).to_save())
 	var address: Variant = SectorPosition.from_save(raw_address)
 	if address == null: return {"ok": false}
-	return {"ok": true, "profile": {"position": value.position, "rotation": value.rotation, "address": address.to_save(), "name": _sanitize_name(value.name), "ship_modules": modules.modules, "ship_layout": layout.layout, "pvp": value.get("pvp", false), "flying": value.get("flying", false)}}
+	return {"ok": true, "profile": {"position": value.position, "rotation": value.rotation, "address": address.to_save(), "name": _sanitize_name(value.name), "ship_modules": modules.modules, "ship_layout": layout.layout, "pvp": value.get("pvp", false), "flying": value.get("flying", false), "systems_online": value.get("systems_online", true)}}
 
 
 func _normalize_layout(raw_layout: Variant, modules: Array) -> Dictionary:
@@ -612,6 +629,7 @@ func _valid_world_id(value: String) -> bool:
 
 
 func _reset_pvp() -> void:
+	_pending_systems_online.clear()
 	_local_pvp_allowed = false
 	_local_flying = false
 	_last_pose_msec = -1000
@@ -660,8 +678,47 @@ func _rpc_pvp_consent_changed(id: int, allowed: bool, epoch: int) -> void:
 	peers_changed.emit()
 
 
+func set_systems_online(online: bool) -> void:
+	if _local_systems_online == online: return
+	_local_systems_online = online
+	if not connected: return
+	var id := multiplayer.get_unique_id()
+	if presence.has(id): presence[id].systems_online = online
+	if is_host:
+		_accept_systems_online(id, online)
+	else:
+		_rpc_systems_online.rpc_id(1, id, online, _pvp_epoch)
+	peers_changed.emit()
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_systems_online(peer_id: int, online: bool, epoch: int) -> void:
+	if not connected or epoch != _pvp_epoch or peer_id <= 0 or peer_id > 0x7fffffff: return
+	if is_host:
+		if multiplayer.get_remote_sender_id() != peer_id or not presence.has(peer_id): return
+		_accept_systems_online(peer_id, online)
+	else:
+		if multiplayer.get_remote_sender_id() != 1: return
+		if peer_id == multiplayer.get_unique_id():
+			if presence.has(peer_id): presence[peer_id].systems_online = _local_systems_online
+		elif presence.has(peer_id):
+			presence[peer_id].systems_online = online
+		else:
+			if _pending_systems_online.size() < MAX_PLAYERS or _pending_systems_online.has(peer_id):
+				_pending_systems_online[peer_id] = online
+		peers_changed.emit()
+
+
+func _accept_systems_online(peer_id: int, online: bool) -> void:
+	if not presence.has(peer_id): return
+	presence[peer_id].systems_online = online
+	for remote_id: int in multiplayer.get_peers():
+		_rpc_systems_online.rpc_id(remote_id, peer_id, online, _pvp_epoch)
+	peers_changed.emit()
+
+
 func request_pvp_shot(direction: Vector3) -> void:
-	if not connected or not _local_pvp_allowed: return
+	if not connected or not _local_pvp_allowed or not _local_systems_online: return
 	if is_host:
 		_accept_pvp_shot(multiplayer.get_unique_id(), direction)
 	else:
@@ -682,6 +739,7 @@ func _fresh_flight_profile(id: int, now: int) -> bool:
 
 func _accept_pvp_shot(attacker: int, direction: Vector3) -> void:
 	if not is_host or not connected: return
+	if not presence.has(attacker) or not presence[attacker].get("systems_online", true): return
 	var now := Time.get_ticks_msec()
 	if not _fresh_flight_profile(attacker, now) or now - int(_last_pvp_shot_msec.get(attacker, -1000)) < 180: return
 	_last_pvp_shot_msec[attacker] = now

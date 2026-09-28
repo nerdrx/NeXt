@@ -654,7 +654,7 @@ func _settings() -> void:
 	_text("Both pilots must opt in and be flying. Consent resets when leaving or changing systems. The host checks shot range and obstructions; local ship damage and rescue still use your commander save.", 14, InterfaceTheme.MUTED)
 	for peer_id: int in game.session.presence:
 		var peer: Dictionary = game.session.presence[peer_id]
-		_text("%s  /  %s" % [peer.name, "PvP enabled" if peer.get("pvp", false) else "Protected"], 14)
+		_text("%s  /  %s  /  %s" % [peer.name, "PvP enabled" if peer.get("pvp", false) else "Protected", "Systems online" if peer.get("systems_online", true) else "Systems offline"], 14)
 	var connection := _row()
 	var name_field := LineEdit.new()
 	name_field.placeholder_text = "Pilot callsign"

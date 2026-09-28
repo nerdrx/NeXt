@@ -107,6 +107,7 @@ func _ready() -> void:
 	session.ship_modules = state.ship_modules.duplicate(true)
 	session.ship_layout = state.ship_layout.duplicate(true)
 	add_child(session)
+	session.set_systems_online(state.systems_online)
 	session.world_joined.connect(_visit_host)
 	session.ephemeris_received.connect(_receive_ephemeris)
 	session.publish_clock(state.ephemeris_seconds)
@@ -1036,6 +1037,7 @@ func apply_ship_stats() -> void:
 		session.ship_layout = state.ship_layout.duplicate(true)
 
 func _refresh_propulsion_limits() -> void:
+	if session != null: session.set_systems_online(state.systems_online)
 	_last_stats = state.ship_stats()
 	pilot.flight_speed = float(_last_stats.speed)
 	pilot.acceleration_mps2 = float(_last_stats.acceleration_mps2)
