@@ -2175,3 +2175,18 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `e8817f4`:
 `build/windows-validation-dd5c267/build/proton-smoke.uiLXI0`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Dedicated partial-delivery assertions ran natively; the
 packaged smoke checks general gameplay.
+
+### Local stellar gravity (2026-09-28)
+
+`test_stellar_gravity.gd` verifies solar-AU acceleration, inverse-square falloff,
+ten-solar-mass dark attraction, linear bounded core, invalid input rejection,
+rotated/rebased world coordinates, addition to planetary gravity, hidden and
+surface guards, and live player free fall through the existing field binding.
+The fixture is registered in CI. Stellar exposure, planetary flight gravity and
+stellar heat gameplay regressions pass natively. The exposure fixture now checks
+the shared one-AU minimum reference for dim stars. Parallel review found no
+scale/vector blocker. An initial fixture cleared planets still referenced by
+the HUD; the final fixture keeps the scene intact and zeros planetary gravity
+when isolating the primary.
+Headless editor import and hidden-Gamescope stellar-gravity execution pass
+without script/engine errors.

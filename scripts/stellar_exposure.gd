@@ -12,15 +12,21 @@ static func irradiance(star: Dictionary, point: Vector3, star_position: Vector3,
 	var luminosity: Variant = star.get("luminosity_w", 0.0)
 	var radius: Variant = star.get("radius_m", 0.0)
 	if not _positive_finite(luminosity) or not _positive_finite(radius): return 0.0
-	# Compressed local scale only; catalog orbital positions and penumbrae are out of scope.
-	var reference_m: float = sqrt(float(luminosity) / CelestialPhysics.SOLAR_LUMINOSITY_W) * CelestialPhysics.AU_M
-	if not is_finite(reference_m): return 0.0
+	var distance := physical_distance(star, point.distance_to(star_position))
+	if distance <= 0.0 or _shadowed(point, star_position, planets): return 0.0
+	return CelestialPhysics.irradiance(float(luminosity), distance)
+
+
+# One mapping for radiation and gravity. Dim compact primaries must not shrink
+# the whole scene to stellar-surface distances. Geometry remains compressed.
+static func physical_distance(star: Dictionary, local_distance: float) -> float:
+	var luminosity: Variant = star.get("luminosity_w", 0.0)
+	var radius: Variant = star.get("radius_m", 0.0)
+	if not (luminosity is int or luminosity is float) or not is_finite(float(luminosity)) or float(luminosity) < 0.0 or not _positive_finite(radius) or not is_finite(local_distance) or local_distance < 0.0: return 0.0
+	var reference_m := maxf(1.0, sqrt(float(luminosity) / CelestialPhysics.SOLAR_LUMINOSITY_W)) * CelestialPhysics.AU_M
 	reference_m = maxf(reference_m, REFERENCE_RADIUS_FLOOR * float(radius))
-	var local_distance := point.distance_to(star_position)
-	if not is_finite(local_distance): return 0.0
-	var physical_distance: float = maxf(float(radius), maxf(local_distance, MIN_LOCAL_DISTANCE) / LOCAL_METRES_PER_REFERENCE * reference_m)
-	if not is_finite(physical_distance) or _shadowed(point, star_position, planets): return 0.0
-	return CelestialPhysics.irradiance(float(luminosity), physical_distance)
+	var distance := maxf(float(radius), maxf(local_distance, MIN_LOCAL_DISTANCE) / LOCAL_METRES_PER_REFERENCE * reference_m)
+	return distance if is_finite(distance) else 0.0
 
 
 static func absorbed_power(flux: float, dimensions: Vector3, local_direction: Vector3) -> float:

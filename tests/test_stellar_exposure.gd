@@ -13,7 +13,7 @@ func _initialize() -> void:
 
 	var dim_large_star := {"luminosity_w": Physics.SOLAR_LUMINOSITY_W * 0.000001, "radius_m": Physics.SOLAR_RADIUS_M * 0.1}
 	var radius_limited := Exposure.irradiance(dim_large_star, Vector3.ZERO, Vector3(250, 0, 0), [])
-	assert(is_equal_approx(radius_limited, Physics.irradiance(dim_large_star.luminosity_w, dim_large_star.radius_m)), "reference floor and stellar surface keep physical distance safe")
+	assert(is_equal_approx(radius_limited, Physics.irradiance(dim_large_star.luminosity_w, Physics.AU_M * 250.0 / 4500.0)), "dim stars retain the one-AU reference floor shared with gravity")
 
 	var occluder := {"position": Vector3(2250, 0, 0), "visual_radius": 10.0}
 	assert(Exposure.irradiance(sun, Vector3.ZERO, Vector3(4500, 0, 0), [occluder]) == 0.0, "planet on the point-star segment shadows")

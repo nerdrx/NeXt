@@ -268,7 +268,7 @@ The mode persists in local saves and carried-ship copies; legacy saves default o
 
 Materialized player and NPC ships absorb direct stellar heat into the existing 300–700 K thermal loop. Exposure persists with main power off, increases emitted thermal visibility and can derate propulsion. Moving away or entering a planet's point-source shadow reduces the heat input. Projected hull bounding-box area and orientation determine absorption at a fixed 0.35 absorptivity; this conservatively fills hull cavities and does not resolve individual materials or radiator orientation.
 
-The compact playable map is not the SI orbital catalog. Its local exposure mapping assigns 4,500 local metres to `sqrt(L/Lsun)` AU, floored at eight catalog stellar radii. Inverse-square flux uses that mapped distance, a 250-local-metre proximity floor and a physical stellar-radius floor. Consequently local station-region flux is broadly comparable across luminous star types; this is explicit gameplay distance compression, not correct angular stellar size or full-scale flight. Planet spheres produce hard eclipses, without penumbrae or atmospheric scattering. A nonluminous black hole has no direct stellar source; accretion/jet heating is unfinished.
+The compact playable map is not the SI orbital catalog. Its local exposure mapping assigns 4,500 local metres to `max(1, sqrt(L/Lsun))` AU, additionally floored at eight catalog stellar radii. Inverse-square flux uses that mapped distance, a 250-local-metre proximity floor and a physical stellar-radius floor. Consequently local station-region flux is broadly comparable across luminous star types; this is explicit gameplay distance compression, not correct angular stellar size or full-scale flight. Planet spheres produce hard eclipses, without penumbrae or atmospheric scattering. A nonluminous black hole has no direct stellar source; accretion/jet heating is unfinished.
 
 Moving-cabin exposure follows the hull rather than the walking passenger. Manually landed ships and owned outdoor docks sample their displayed hull; public-hangar and legacy surface-transition parking remain sheltered abstractions. Culled distant systems and abstract remote fleet orders do not integrate this local field. Local fleet temperatures use the existing persistence path. Stellar surface collision, material-dependent absorption and exposure replicated for remote visitors remain unfinished.
 
@@ -471,3 +471,22 @@ return-leg fuel; wages still apply. The existing combined final unload/return
 step still requires return fuel. Invoice rounding remains in the hold until the
 last delivery, so partial reports conserve the original purchase cost. Cargo
 produced at stations retains its unknown cost basis.
+
+## Local stellar gravity
+
+The primary now contributes catalog `mu / distance²` acceleration to the same
+field as local planets. Player flight, coasting walkable hulls and locally
+simulated NPCs use that combined field through their existing gravity bindings.
+Black holes attract despite zero luminosity. Flight assist must counter the
+pull through its existing thrust/fuel budget; inertial ships free-fall.
+The Newtonian far-field formula follows [NASA's gravity equation](https://www1.grc.nasa.gov/beginners-guide-to-aeronautics/weight-equation-2/).
+
+Radiation and stellar gravity now share the local distance mapping above. Its
+one-AU minimum reference prevents dim compact primaries from compressing the
+entire scene to near-surface distances; it also reduces exposure around dim
+stars compared with the previous mapping. At 4,500 local metres, a solar primary
+produces approximately 0.00593 m/s². Inside the 250-local-metre visual core,
+gravity falls linearly to zero rather than becoming singular. This is an explicit
+numerical approximation, not event-horizon behavior. No relativistic effects,
+tidal damage, true-scale moving geometry or multi-body orbital integration are
+implemented by this change. Separate legacy surface scenes omit this field.

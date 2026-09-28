@@ -61,7 +61,7 @@ func build(system_index: int) -> void:
 func gravity_acceleration(global_point: Vector3) -> Vector3:
 	if _surface_mode or not is_visible_in_tree() or not global_point.is_finite(): return Vector3.ZERO
 	var point := to_local(global_point)
-	var acceleration := Vector3.ZERO
+	var acceleration := StellarGravity.acceleration(stellar_profile, point, PRIMARY_POSITION)
 	for body: Dictionary in planets:
 		var offset := Vector3(body.position) - point
 		var distance := offset.length()
