@@ -710,6 +710,7 @@ func _spawn_people(eliminated: Array) -> void:
 	var roles: Array[String] = ["Shipwright", "Broker", "Recruiter", "Security"]
 	for i in range(4):
 		var person := GroundActor.new()
+		person.walking_gravity_source = _planet_walking_gravity.bind(surface_index, false)
 		person.actor_id = "resident_%d" % i
 		if person.actor_id in eliminated:
 			person.free()
@@ -728,6 +729,7 @@ func _spawn_people(eliminated: Array) -> void:
 	if surface_index >= 0:
 		for i in range(5):
 			var person := GroundActor.new()
+			person.walking_gravity_source = _planet_walking_gravity.bind(surface_index, false)
 			person.actor_id = "outlaw_%d" % i
 			if person.actor_id in eliminated:
 				person.free()
@@ -755,6 +757,7 @@ func _spawn_colony_people(eliminated: Array) -> void:
 			if person.actor_id in eliminated:
 				person.free()
 				continue
+			person.walking_gravity_source = _planet_walking_gravity.bind(index, true)
 			person.set_meta("colony_index", index)
 			person.target = pilot
 			person.hostile = false
@@ -833,11 +836,13 @@ func _store_patrol_flight(actor: ShipActor, ship: Dictionary) -> void:
 func _walking_gravity(global_point: Vector3) -> float:
 	# Decks retain artificial gravity, even when the hull is parked on a planet.
 	if aboard or docked_station >= 0: return Pilot.DEFAULT_WALK_GRAVITY
-	var index := manual_planet if manual_planet >= 0 else surface_index
+	return _planet_walking_gravity(global_point, manual_planet if manual_planet >= 0 else surface_index, manual_planet >= 0)
+
+func _planet_walking_gravity(global_point: Vector3, index: int, spherical: bool) -> float:
 	if index < 0 or index >= world.planets.size(): return Pilot.DEFAULT_WALK_GRAVITY
 	var planet: Dictionary = world.planets[index]
 	var gravity := float(planet.get("surface_gravity_mps2", Pilot.DEFAULT_WALK_GRAVITY))
-	if manual_planet >= 0:
+	if spherical:
 		var radius := float(planet.visual_radius)
 		var distance := world.to_local(global_point).distance_to(Vector3(planet.position))
 		gravity *= pow(radius / maxf(radius, distance), 2.0)

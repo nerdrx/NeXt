@@ -1966,3 +1966,16 @@ The corrected code at `5d7d653` passes both native ground fixtures and a fresh
 Windows/Proton integration run under hidden Gamescope:
 `build/windows-validation-dd5c267/build/proton-smoke.CgmFH5`, wrapper exit 0,
 `NEXT_INTEGRATION_OK`.
+
+### Ground NPC gravity (2026-09-28)
+
+`test_ground_gravity.gd` passes live port-resident bindings, all four flat-colony
+residents and five outlaw bindings, independence from player boarding/docking
+and selected planet, artificial-deck fallback, measured 3 and 12 m/s² airborne
+velocity changes, zero-gravity drift and invalid callback fallback. The test
+is included in Windows CI's native fixture stage. Ground contact and actor
+behavior regressions pass.
+
+The shared player walking-gravity fixture also passes after extracting the
+planet sampling helper. The NPC fixture additionally verifies actual ShipCrew
+acceleration along a rotated cabin's up vector, matching artificial deck gravity.

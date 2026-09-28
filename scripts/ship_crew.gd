@@ -64,7 +64,7 @@ func _physics_process(delta: float) -> void:
 	up_direction = global_basis.y.normalized()
 	var vertical := velocity.dot(up_direction)
 	if not is_on_floor():
-		vertical -= 20.0 * delta
+		vertical -= walking_gravity() * delta
 	else:
 		vertical = -0.15
 	var direction := Vector3.ZERO

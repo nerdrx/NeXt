@@ -374,3 +374,19 @@ active seconds, without updating it from hidden target movement, then resume
 patrol. Target changes and peaceful status clear combat contact. Existing post
 orders and home pursuit limits still apply. Sight is omnidirectional; hearing,
 view cones, squad communication and tactical cover selection remain open.
+
+## Planetary gravity for ground residents
+
+Ground residents and outlaws now use the same surface-gravity values as the
+commander. Flat surface scenes use the catalog surface value; seamless port
+residents sample the altitude-adjusted value for their own planet. NPC bindings
+are independent of the player's current planet, boarding state and station dock.
+Ship crew and orbital residents default to the same 18 m/s² artificial deck
+gravity as the player, replacing the previous NPC-only 20 m/s² constant.
+Invalid callbacks fall back to artificial gravity; zero gravity preserves
+airborne vertical drift.
+
+Ground NPC movement still uses world-up, appropriate to the current horizontal
+port decks. Radial surface roaming, airborne steering, fall injuries and NPC
+EVA remain unimplemented. This is gravity magnitude integration, not a claim
+that NPCs can navigate arbitrary planetary terrain.

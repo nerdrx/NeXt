@@ -10,6 +10,7 @@ var active: bool = true
 var target: Node3D
 var hp: float = 100.0
 var speed: float = 3.4
+var walking_gravity_source: Callable
 var actor_id: String = ""
 var role: String = "guard"
 var suit_index: int = -1
@@ -62,6 +63,13 @@ func _ready() -> void:
 	capsule.position.y = 0.88
 	add_child(capsule)
 	_build_humanoid()
+
+
+func walking_gravity() -> float:
+	if not walking_gravity_source.is_valid(): return Pilot.DEFAULT_WALK_GRAVITY
+	var value: Variant = walking_gravity_source.call(global_position)
+	if (not value is float and not value is int) or not is_finite(float(value)) or float(value) < 0.0: return Pilot.DEFAULT_WALK_GRAVITY
+	return float(value)
 
 
 func _physics_process(delta: float) -> void:
@@ -123,7 +131,7 @@ func _physics_process(delta: float) -> void:
 	velocity.x = 0.0 if hold_position else move_toward(velocity.x, wanted.x, delta * 8.0)
 	velocity.z = 0.0 if hold_position else move_toward(velocity.z, wanted.z, delta * 8.0)
 	if not is_on_floor():
-		velocity.y -= 20.0 * delta
+		velocity.y -= walking_gravity() * delta
 	else:
 		velocity.y = -0.15
 	if direction.length_squared() > 0.001:
