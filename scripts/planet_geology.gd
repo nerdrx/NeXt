@@ -9,6 +9,7 @@ const VARIANT_COUNT: int = 4
 const NORTH_PORT_CLEARANCE: float = 90.0
 const FULL_LONGITUDE_SCAN_LIMIT: int = 256
 
+var rock_material: ShaderMaterial
 var anchor: Vector3 = Vector3.ZERO
 var rock_multimeshes: Array[MultiMeshInstance3D] = []
 var rock_bodies: Array[StaticBody3D] = []
@@ -23,11 +24,11 @@ func build(radius: float, normal: Vector3, extent: float, seed: int, tint: Color
 	var safe_radius: float = maxf(radius, 1.0) if is_finite(radius) else 1.0
 	var up: Vector3 = (normal if normal.is_normalized() else normal.normalized()) if normal.is_finite() and normal.length_squared() > 0.000001 else Vector3.UP
 	anchor = up * safe_radius
-	var material := StandardMaterial3D.new()
-	material.albedo_color = tint
-	material.vertex_color_use_as_albedo = true
-	material.roughness = 0.94
-	material.metallic = 0.0
+	var material := ShaderMaterial.new()
+	rock_material = material
+	material.shader = preload("res://shaders/planet_rock.gdshader")
+	material.set_shader_parameter("rock_tint", tint)
+	material.set_shader_parameter("planet_anchor", anchor)
 	var meshes: Array[ArrayMesh] = []
 	var shapes: Array[ConvexPolygonShape3D] = []
 	for variant: int in VARIANT_COUNT:
@@ -47,6 +48,7 @@ func build(radius: float, normal: Vector3, extent: float, seed: int, tint: Color
 			continue
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_custom_data = true
 		mm.mesh = meshes[variant]
 		mm.instance_count = rocks.size()
 		var visual := MultiMeshInstance3D.new()
@@ -76,6 +78,7 @@ func build(radius: float, normal: Vector3, extent: float, seed: int, tint: Color
 			var entry: Dictionary = rocks[i]
 			var local_position: Vector3 = entry.local_position if safe_radius > 10000.0 else entry.position - anchor
 			mm.set_instance_transform(i, Transform3D(entry.basis, local_position))
+			mm.set_instance_custom_data(i, Color(local_position.x, local_position.y, local_position.z, 1.0))
 
 
 static func placements(radius: float, normal: Vector3, extent: float, seed: int, has_ocean: bool = false) -> Array[Dictionary]:
