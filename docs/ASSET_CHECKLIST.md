@@ -160,3 +160,5 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Add restrained thermal-damage effects and warning audio. Capped-loop overflow now damages hull and uses the existing flash/explosion/recovery presentation; keep the temperature warning readable and avoid obscuring piloting controls.
 
 - [ ] Add survey scanner presentation and recorded-data icons. Current Navigation controls and text use the shared interface theme; retain clear range/speed requirements, pending payout and surveyed status when replacing the presentation.
+
+- [ ] Refine survey journal presentation: current text rows show planet/system names, atmospheric traits, sold status and course actions, with an unsold filter and twenty records per page. Preserve keyboard controls and bounded list construction when adding thumbnails or discovery imagery.

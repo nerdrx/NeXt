@@ -11,6 +11,10 @@ var subtitle: Label
 var tabs: Dictionary = {}
 var destination: int = 0
 var navigation_info: Label
+var navigation_chart: GalaxyChart
+var navigation_address: SpinBox
+var journal_page_index: int = 0
+var journal_pending_only: bool = false
 var _clock_label := ""
 var balance_label: Label
 var survey_catalog: Dictionary = {}
@@ -110,6 +114,7 @@ func show_page(value: String = "overview") -> void:
 		"wardrobe": _wardrobe()
 		"navigation": _navigation()
 		"survey": _survey()
+		"journal": _survey_journal()
 		"market": _market()
 		"shipyard": _shipyard()
 		"hulls": _hull_families()
@@ -217,6 +222,7 @@ func _wardrobe() -> void:
 func _navigation() -> void:
 	heading.text = "STELLAR CARTOGRAPHY"
 	var chart := GalaxyChart.new()
+	navigation_chart = chart
 	content.add_child(chart)
 	chart.configure(game.state.system_index)
 	chart.selected.connect(_select_destination)
@@ -224,6 +230,7 @@ func _navigation() -> void:
 	navigation_info = _text("Select a star to inspect its system.", 17)
 	var controls := _row()
 	var address := SpinBox.new()
+	navigation_address = address
 	address.max_value = Universe.SYSTEM_LIMIT - 1
 	address.step = 1
 	address.value = game.state.system_index
@@ -237,6 +244,7 @@ func _navigation() -> void:
 	controls.add_child(InterfaceTheme.button("ENGAGE HYPERDRIVE", func(): game.request_jump(destination)))
 	_button("INSPECT SYSTEM PHYSICS", show_page.bind("survey"))
 	_button("RECOVERY BEACONS", show_page.bind("recovery"))
+	_button("SURVEY JOURNAL", show_page.bind("journal")).name = "OpenSurveyJournal"
 	_text("LOCAL SYSTEM / SURFACE APPROACH", 13, InterfaceTheme.CYAN)
 	_text("Survey within 1.2 km of a surface at 100 m/s or slower. Sell recorded data at an orbital station.", 15)
 	_button("CRUISE TO ORBITAL DOCK", game.approach_public_station, not game.pilot.flying or game.aboard)
@@ -294,6 +302,10 @@ func _update_survey() -> void:
 
 func _select_destination(address: int) -> void:
 	destination = address
+	if is_instance_valid(navigation_address): navigation_address.value = address
+	if is_instance_valid(navigation_chart):
+		navigation_chart.destination = address
+		navigation_chart.queue_redraw()
 	var data: Dictionary = Universe.system_data(address)
 	navigation_info.text = "%s  /  %s\n%s  •  %d planets  •  Address %d" % [data.name, data.star_type, data.faction, data.planets.size(), address]
 
@@ -1049,3 +1061,53 @@ func _recovery() -> void:
 				cargo_controls.add_child(take)
 	_button("REFRESH BEACONS", refresh)
 	_button("BACK TO EXCHANGE", show_page.bind("market"))
+
+
+func _survey_journal() -> void:
+	heading.text = "SURVEY JOURNAL"
+	var archive := PlanetSurveys.journal_page(game.state, journal_page_index, journal_pending_only)
+	journal_page_index = int(archive.page)
+	_text("%d recorded planets / %d CR awaiting sale" % [game.state.planet_surveys.size(), PlanetSurveys.pending_value(game.state)], 21, InterfaceTheme.CYAN)
+	var filter := CheckButton.new()
+	filter.name = "PendingSurveysOnly"
+	filter.text = "Show unsold data only"
+	filter.button_pressed = journal_pending_only
+	filter.toggled.connect(func(value: bool):
+		journal_pending_only = value
+		journal_page_index = 0
+		show_page("journal"))
+	content.add_child(filter)
+	if int(archive.total) == 0:
+		_text("No unsold surveys." if journal_pending_only else "No surveys recorded. Approach a planet and use Survey in Navigation.")
+	for entry: Dictionary in archive.entries:
+		var data := Universe.system_data(int(entry.system))
+		var body: Dictionary = data.planets[int(entry.planet)]
+		var row := _row()
+		row.name = "SurveyRecord%d_%d" % [entry.system, entry.planet]
+		var traits := "Ocean / Atmosphere" if Universe.planet_has_ocean(data, int(entry.planet)) else ("Atmosphere" if body.atmosphere else "Airless")
+		var label := InterfaceTheme.label("%s / %s
+Address %d / %s / %s" % [body.name, data.name, entry.system, traits, "Unsold" if entry.status == 1 else "Sold"], 16)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(label)
+		var route := InterfaceTheme.button("SET COURSE", _journal_course.bind(int(entry.system)))
+		route.name = "SurveyCourse%d_%d" % [entry.system, entry.planet]
+		row.add_child(route)
+	var pages := _row()
+	var previous := InterfaceTheme.button("PREVIOUS", _journal_page.bind(journal_page_index - 1))
+	previous.name = "PreviousSurveys"
+	previous.disabled = journal_page_index == 0
+	pages.add_child(previous)
+	pages.add_child(InterfaceTheme.label("Page %d / %d" % [journal_page_index + 1, archive.pages], 16))
+	var next := InterfaceTheme.button("NEXT", _journal_page.bind(journal_page_index + 1))
+	next.name = "NextSurveys"
+	next.disabled = journal_page_index + 1 >= int(archive.pages)
+	pages.add_child(next)
+	_button("RETURN TO NAVIGATION", show_page.bind("navigation"))
+
+func _journal_page(index: int) -> void:
+	journal_page_index = index
+	show_page("journal")
+
+func _journal_course(system: int) -> void:
+	show_page("navigation")
+	_select_destination(system)

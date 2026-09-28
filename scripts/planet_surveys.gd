@@ -43,3 +43,17 @@ static func validate(data: Variant) -> bool:
 		if planet >= Universe.system_data(system).planets.size(): return false
 		if typeof(data[key]) not in [TYPE_INT, TYPE_FLOAT] or not is_finite(float(data[key])) or float(data[key]) not in [1.0, 2.0]: return false
 	return true
+
+
+static func journal_page(state: GameState, page_index: int, pending_only: bool = false) -> Dictionary:
+	var entries: Array[Dictionary] = []
+	for key: String in state.planet_surveys:
+		var status := int(state.planet_surveys[key])
+		if pending_only and status != 1: continue
+		var parts := key.split(":")
+		entries.append({"system": int(parts[0]), "planet": int(parts[1]), "status": status})
+	entries.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return a.system < b.system if a.system != b.system else a.planet < b.planet)
+	var pages := maxi(1, ceili(entries.size() / 20.0))
+	var page := clampi(page_index, 0, pages - 1)
+	return {"page": page, "pages": pages, "total": entries.size(), "entries": entries.slice(page * 20, (page + 1) * 20)}

@@ -131,6 +131,8 @@ jobs:
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_planet_sun_alignment.gd
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_planet_eclipse.gd
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_planet_surveys.gd
+          timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_survey_journal.gd -- --capture-only
+          timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_survey_journal_gameplay.gd -- --capture-only
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_planet_surveys_gameplay.gd -- --capture-only
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_terrain_sun_alignment.gd
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_stellar_heat_gameplay.gd -- --capture-only
