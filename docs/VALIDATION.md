@@ -1755,3 +1755,19 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `589bc0e`:
 `build/windows-validation-dd5c267/build/proton-smoke.sWvWbf`, wrapper exit 0,
 `NEXT_INTEGRATION_OK`. Packaged smoke is general integration; the ENet protocol
 assertions above ran natively.
+
+
+### Combined flight acceleration (2026-09-28)
+
+Pilot and coasting-hull telemetry now retain the world-space vector sum of
+applied propulsion and atmospheric drag. The HUD displays its magnitude as
+NET ACCEL in standard g; opposing thrust and drag cancel. Teleports, collision
+impulses, rotation and gravitational acceleration are excluded, so this is not a
+crew physiological load model. Flight forces themselves are unchanged.
+
+`test_acceleration_vector.gd` passes signed-vector and finite-input checks, actual
+hull braking, thrust/drag cancellation, zero-step reset and collision separation;
+it is registered in CI. Flight-dynamics, coasting-hull and coasting-navigation
+regressions pass. The atmospheric gameplay test passes under hidden Gamescope
+with additional player-vector assertions. Its HUD capture was inspected for
+readable, nonoverlapping telemetry; the dark test scene is not art acceptance.

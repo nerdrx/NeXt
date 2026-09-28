@@ -22,9 +22,14 @@ static func approach_speed(distance: float, maximum: float, acceleration: float 
 	if not is_finite(distance) or not is_finite(maximum): return 0.0
 	return minf(maxf(maximum, 0.0), sqrt(2.0 * usable_acceleration(acceleration) * maxf(distance - 1.0, 0.0)))
 
+# World-space change from applied forces, excluding teleport and collision impulses.
+static func acceleration_vector(before: Vector3, after: Vector3, delta: float) -> Vector3:
+	if not before.is_finite() or not after.is_finite() or not is_finite(delta) or delta <= 0.0: return Vector3.ZERO
+	var acceleration := (after - before) / delta
+	return acceleration if acceleration.is_finite() and is_finite(acceleration.length_squared()) else Vector3.ZERO
+
 static func thrust_load(before: Vector3, after: Vector3, delta: float) -> float:
-	if not before.is_finite() or not after.is_finite() or not is_finite(delta) or delta <= 0.0: return 0.0
-	return before.distance_to(after) / (delta * STANDARD_GRAVITY)
+	return acceleration_vector(before, after, delta).length() / STANDARD_GRAVITY
 
 static func braking_distance(speed: float, acceleration: float = STANDARD_GRAVITY * CRUISE_G) -> float:
 	if not is_finite(speed): return 0.0

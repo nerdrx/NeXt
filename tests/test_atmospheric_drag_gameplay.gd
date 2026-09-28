@@ -43,6 +43,7 @@ func _run() -> void:
 	pilot._fly(0.1)
 	assert(pilot.flight_velocity().length() < pilot_speed and pilot.aerodynamic_g > 0.0, "unpowered pilot loses speed to atmospheric drag")
 	assert(game.state.fuel == fuel_before, "atmospheric drag consumes no propellant")
+	assert(pilot.acceleration_vector.is_equal_approx((pilot.flight_velocity() - Vector3(100, 0, 0)) / 0.1), "pilot reports signed net acceleration before collision")
 	if DisplayServer.get_name() != "headless":
 		pilot.camera.look_at(game.world.to_global(planet.position), Vector3.UP)
 		await process_frame
@@ -80,6 +81,7 @@ func _run() -> void:
 	pilot.restore_flight_velocity(Vector3(100, 0, 0))
 	pilot._fly(0.1)
 	assert(pilot.flight_velocity().is_equal_approx(Vector3(100, 0, 0)) and pilot.aerodynamic_g == 0.0, "vacuum coasting preserves velocity")
+	assert(pilot.acceleration_vector.is_zero_approx(), "vacuum coasting clears net acceleration")
 	planet["atmosphere"] = false
 	pilot.teleport(sea)
 	pilot.restore_flight_velocity(Vector3(100, 0, 0))

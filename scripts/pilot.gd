@@ -28,6 +28,7 @@ var propulsion_limiter: Callable
 var atmospheric_density_source: Callable
 var drag_mass_kg: float = 40000.0
 var drag_dimensions := Vector3.ONE
+var acceleration_vector := Vector3.ZERO
 var aerodynamic_g: float = 0.0
 var aerodynamic_heat_w: float = 0.0
 
@@ -98,6 +99,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	acceleration_vector = Vector3.ZERO
+	aerodynamic_g = 0.0
+	aerodynamic_heat_w = 0.0
 	thrust_g = 0.0
 	_flight_impact_cooldown = maxf(0.0, _flight_impact_cooldown - delta)
 	_fire_cooldown = maxf(0.0, _fire_cooldown - delta)
@@ -190,6 +194,7 @@ func _fly(delta: float) -> void:
 	var density: float = atmospheric_density_source.call(global_position) if atmospheric_density_source.is_valid() else 0.0
 	_flight_velocity = AtmosphericFlight.drag_velocity(_flight_velocity, density, drag_dimensions, camera.global_basis, drag_mass_kg, delta)
 	aerodynamic_g = FlightDynamics.thrust_load(before_drag, _flight_velocity, delta)
+	acceleration_vector = FlightDynamics.acceleration_vector(incoming_thrust, _flight_velocity, delta)
 	var heat_j := AtmosphericFlight.drag_heat_j(before_drag, _flight_velocity, drag_mass_kg)
 	aerodynamic_heat_w = heat_j / delta if delta > 0.0 else 0.0
 	if heat_j > 0.0: aerodynamic_heat.emit(heat_j)
@@ -271,6 +276,7 @@ func reset_view() -> void:
 
 
 func set_flight(value: bool) -> void:
+	acceleration_vector = Vector3.ZERO
 	aerodynamic_g = 0.0
 	aerodynamic_heat_w = 0.0
 	braking = false
@@ -417,6 +423,8 @@ func restore_flight_velocity(value: Vector3) -> void:
 	velocity = value
 
 func teleport(pos: Vector3) -> void:
+	acceleration_vector = Vector3.ZERO
+	thrust_g = 0.0
 	aerodynamic_g = 0.0
 	aerodynamic_heat_w = 0.0
 	braking = false
