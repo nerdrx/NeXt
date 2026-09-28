@@ -2333,3 +2333,9 @@ identity-palette and collision-capsule checks pass. Hidden-Gamescope side-by-sid
 reference capture (`build/crew-bracing.png`) was visually inspected. This remains
 a simple procedural placeholder, not a finished character or handhold animation.
 Parallel review confirmed joint-local coordinate conversions and pose reset.
+
+Ranger long-cabin roaming and brace/release checks also pass. Clean Windows
+export and hidden-Gamescope Proton integration pass at `e73c75d`:
+`build/windows-validation-dd5c267/build/proton-smoke.SAo0Jr`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Pose checks and comparisons were native; packaged smoke
+checks general gameplay and does not establish art quality or performance.
