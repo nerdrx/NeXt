@@ -762,6 +762,21 @@ func _fleet() -> void:
 			small_button.set_meta("fleet_refuel_small", str(vessel.id))
 			small_button.tooltip_text = "Buy one commodity unit for 10 tank fuel. Uses the vessel's market; delivery arrival is abstracted."
 
+		var allowance_row := _row()
+		var allowance := SpinBox.new()
+		allowance.min_value = 0
+		allowance.max_value = 1000000
+		allowance.step = 1
+		allowance.prefix = "Fuel allowance CR "
+		allowance.value = int(vessel.get("fuel_allowance", 0))
+		allowance.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		allowance.set_meta("fleet_fuel_allowance", str(vessel.id))
+		allowance_row.add_child(allowance)
+		var allowance_button := InterfaceTheme.button("SET REMAINING ALLOWANCE", func():
+			_act(game.crew_operations().set_fuel_allowance.bind(str(vessel.id), int(allowance.value)), "Crew fuel allowance updated."))
+		allowance_button.set_meta("fleet_fuel_allowance_apply", str(vessel.id))
+		allowance_row.add_child(allowance_button)
+		_text("Optional crew spending cap; 0 disables. Below 10 fuel, assigned crews buy 10 from local stock, preserving one wage. Purchases reduce this allowance. Funds are not reserved; delivery is abstracted.", 14, InterfaceTheme.MUTED)
 		if not ShipBlueprint.for_vessel(vessel).is_empty():
 			var command_button := _button("TAKE COMMAND", _act.bind(game.exchange_fleet_helm.bind(str(vessel.id)), "Ship exchanged. Previous vessel stored in your fleet."), game.session.connected or game.pilot.flying or game.aboard or game.surface_index >= 0 or game.manual_planet >= 0)
 			command_button.set_meta("fleet_take_command", str(vessel.id))

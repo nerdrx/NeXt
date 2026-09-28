@@ -241,3 +241,10 @@ Remote patrols still use strategic encounter events. Saved local flight is the l
 ### Partial fleet fuel deliveries
 
 Fleet services can sell a single commodity unit (10 tank fuel) as well as filling the tank. A full refill may be unavailable while a small delivery remains affordable and in stock. The domain operation accepts up to ten commodity units and caps the purchase at the remaining tank capacity; credits and market inventory are charged only for units supplied. The command menu exposes a ten-fuel delivery when more than one unit is needed. Delivery travel remains abstract.
+
+
+### Crew fuel allowances
+
+Each registered vessel can have an optional remaining fuel allowance from zero to 1,000,000 credits. Zero disables automatic purchases; changing the cap does not reserve treasury funds. A living ship with an assigned crew order buys one commodity unit (10 fuel) when its tank falls below ten, provided local stock, the remaining allowance and treasury permit it. The crew preserves enough money for its own next wage. Each successful purchase deducts its actual local-market cost from both treasury and allowance.
+
+Hosted crew ticks check before local arrival gates and at remote order boundaries, allowing a stranded local trader to buy fuel before reaching its departure point. Idle vessels and closed worlds do not buy fuel. Manual deliveries remain available and do not consume the automatic spending allowance. This is abstract service delivery, not a tanker simulation; allowances are not a shared treasury reservation or guarantee that every crew member will be paid.

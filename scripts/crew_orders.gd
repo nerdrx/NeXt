@@ -6,6 +6,7 @@ const MAX_SHIPS: int = 50
 const TRIP_SECONDS: float = 300.0
 const STATION_SECONDS: float = 900.0
 const MAX_STOCK: int = 10000
+const MAX_FUEL_ALLOWANCE: int = 1000000
 # Raw outputs draw on abstract extraction/farming; manufactured outputs consume stock.
 const PRODUCTION_INPUTS: Dictionary = {
 	"ore": {}, "alloys": {"ore": 2, "fuel": 1}, "food": {}, "fuel": {},
@@ -56,7 +57,7 @@ func _commission(name: String, quote: Dictionary, blueprint: Dictionary) -> Stri
 	for ship: Dictionary in state.fleet_ships:
 		if str(ship.name).to_lower() == clean.to_lower(): return "Fleet ship names must be unique."
 	state.credits -= int(quote.price)
-	var vessel := {"id": _id("ship"), "name": clean, "system": state.system_index, "hull": 100.0, "cargo": {}, "capacity": int(quote.capacity)}
+	var vessel := {"id": _id("ship"), "name": clean, "system": state.system_index, "hull": 100.0, "cargo": {}, "capacity": int(quote.capacity), "fuel_allowance": 0}
 	if not blueprint.is_empty():
 		vessel.hull_family = str(blueprint.family)
 		if vessel.hull_family == "custom":
@@ -274,6 +275,13 @@ func refuel_fleet_ship(ship_id: String, requested_units: int = 0) -> String:
 	ship.fuel = minf(100.0, float(ship.get("fuel", 100.0)) + float(units) * 10.0)
 	return ""
 
+func set_fuel_allowance(ship_id: String, amount: int) -> String:
+	var ship := _ship(ship_id)
+	if ship.is_empty(): return "Fleet ship does not exist."
+	if amount < 0 or amount > MAX_FUEL_ALLOWANCE: return "Fuel allowance must be between 0 and 1,000,000 credits."
+	ship.fuel_allowance = amount
+	return ""
+
 
 func repair_fleet_ship(ship_id: String) -> String:
 	var ship: Dictionary = _ship(ship_id)
@@ -390,6 +398,7 @@ func tick(elapsed_seconds: float, local_patrol_ship_ids: Array[String] = [], loc
 				if not bool(order.paused): reports.append({"kind": str(order.kind), "status": "paused: ship disabled", "crew_id": crew_id, "ship_id": str(order.ship_id)})
 				order.paused = true
 				continue
+			_refuel_from_allowance(str(assigned_ship.id), int(_member(crew_id).salary))
 		var previous_progress := float(order.progress)
 		order.progress = minf(previous_progress + elapsed_seconds, 86400.0 * 365.0)
 		var interval: float = STATION_SECONDS if order.kind == "station" else TRIP_SECONDS * (2.0 if order.kind == "trade" else 1.0)
@@ -397,6 +406,9 @@ func tick(elapsed_seconds: float, local_patrol_ship_ids: Array[String] = [], loc
 		var local_trade: bool = order.kind == "trade" and local_trade_status.has(str(order.ship_id))
 		if local_trade: order.progress = minf(float(order.progress), interval)
 		while float(order.progress) >= interval:
+			if order.has("ship_id"):
+				var due_ship := _ship(str(order.ship_id))
+				if not due_ship.is_empty(): _refuel_from_allowance(str(due_ship.id), int(_member(crew_id).salary))
 			# A represented trader must actually reach its departure/berth point.
 			if local_trade and not bool(local_trade_status[str(order.ship_id)]): break
 			var fuel_cost := 0.0
@@ -455,6 +467,15 @@ func tick(elapsed_seconds: float, local_patrol_ship_ids: Array[String] = [], loc
 	for vessel: Dictionary in state.fleet_ships:
 		_recharge_shields(vessel, maxf(0.0, elapsed_seconds - float(shield_elapsed.get(str(vessel.id), 0.0))))
 	return reports
+
+func _refuel_from_allowance(ship_id: String, salary: int) -> void:
+	var ship := _ship(ship_id)
+	if ship.is_empty() or float(ship.get("fuel", 100.0)) >= 10.0: return
+	var allowance := int(ship.get("fuel_allowance", 0))
+	if allowance <= 0: return
+	var cost := state.market_total("fuel", int(ship.system), 1, true)
+	if cost < 0 or allowance < cost or state.credits < cost + salary: return
+	if refuel_fleet_ship(ship_id, 1).is_empty(): ship.fuel_allowance = allowance - cost
 
 static func family_combat_stats(family_id: String) -> Dictionary:
 	if family_id not in ShipBlueprint.FAMILIES: return {}

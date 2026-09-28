@@ -840,15 +840,17 @@ func _load_v2(data: Dictionary) -> String:
 		if data.fleet_ships.size() > 50 or data.crew_orders.size() > 12: return "Fleet or crew order limit exceeded."
 		var ship_ids: Dictionary = {}
 		for value: Variant in data.fleet_ships:
-			if not value is Dictionary or value.size() not in [6, 7, 8, 9, 10, 11, 12, 13] or not value.has_all(["id", "name", "system", "hull", "cargo", "capacity"]): return "Invalid fleet ship record."
+			if not value is Dictionary or value.size() not in [6, 7, 8, 9, 10, 11, 12, 13, 14] or not value.has_all(["id", "name", "system", "hull", "cargo", "capacity"]): return "Invalid fleet ship record."
 			for field: Variant in value:
-				if not str(field) in ["id", "name", "system", "hull", "cargo", "capacity", "fuel", "flight", "drive_temperature_k", "hull_family", "layout", "defense", "modules"]: return "Invalid fleet ship field."
+				if not str(field) in ["id", "name", "system", "hull", "cargo", "capacity", "fuel", "fuel_allowance", "flight", "drive_temperature_k", "hull_family", "layout", "defense", "modules"]: return "Invalid fleet ship field."
 			if not value.id is String or value.id.length() < 4 or value.id.length() > 64 or ship_ids.has(value.id) or not value.name is String or value.name.length() < 2 or value.name.length() > 32 or not _is_int(value.system) or int(value.system) < 0 or int(value.system) >= SYSTEM_LIMIT or not _is_number(value.hull) or not is_finite(float(value.hull)) or float(value.hull) < 0 or float(value.hull) > 100 or not _is_int(value.capacity) or int(value.capacity) < 1 or int(value.capacity) > 2000 or not value.cargo is Dictionary: return "Invalid fleet ship values."
+			if value.has("fuel_allowance") and (not _is_int(value.fuel_allowance) or int(value.fuel_allowance) < 0 or int(value.fuel_allowance) > 1000000): return "Invalid fleet fuel allowance."
 			var ship_cargo: Dictionary = {}
 			for good: Variant in value.cargo:
 				if not good is String or not GOODS.has(good) or not _is_int(value.cargo[good]) or int(value.cargo[good]) < 0: return "Invalid fleet cargo."
 				ship_cargo[good] = int(value.cargo[good])
 			var loaded_ship: Dictionary = {"id": value.id, "name": value.name, "system": int(value.system), "hull": float(value.hull), "cargo": ship_cargo, "capacity": int(value.capacity)}
+			loaded_ship.fuel_allowance = int(value.get("fuel_allowance", 0))
 			if value.has("fuel"):
 				if not _is_number(value.fuel) or not is_finite(float(value.fuel)) or float(value.fuel) < 0.0 or float(value.fuel) > 100.0: return "Invalid fleet fuel."
 				loaded_ship.fuel = float(value.fuel)

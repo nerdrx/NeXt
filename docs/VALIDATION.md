@@ -1270,3 +1270,10 @@ Fleet refuelling now supports partial commodity quantities while retaining the d
 The domain regression verifies exact credit/stock settlement, unavailable full refills, affordable smaller purchases, atomic quantity/credit failures, capped top-offs and save persistence. The existing actual-main propellant test now exercises the small-delivery button with one unit left in stock, confirms the full-refill button is disabled and reloads the ten-fuel result. Native and hidden Gamescope integration passed, as did existing fuel-order timing checks. The graphical integration retains the known seven-texture teardown warning. Delivery travel remains abstract; this change does not add physical tankers or automatic crew fuel purchasing.
 
 Clean Windows release export at `65b0142` passed without script/export errors. No fresh Proton runtime check or development ZIP refresh is claimed.
+
+
+## Assigned crew fuel allowances — 2026-09-28
+
+Registered fleet vessels now have an opt-in remaining fuel budget, capped at 1,000,000 credits. Assigned living crews buy one local-market fuel commodity below ten tank units, only within the remaining allowance and while preserving their next wage. Purchases reduce both treasury and allowance. The check runs before local arrival gates and at remote event boundaries; missing stock, insufficient funds/budget and disabled defaults do not mutate fuel or money. The command menu sets the remaining cap without reserving cash.
+
+Domain checks passed purchase accounting, threshold/default/no-order/zero-time gates, blocked purchases, batch-versus-split patrol fuel/budget, save roundtrip, malformed allowance atomic rejection and legacy default. The actual-main UI check passed natively and in hidden Gamescope: setting/saving a cap, purchasing while a trader has not arrived, deducting the remaining budget and reloading the result. Existing fleet propellant/manual-delivery and fuel-order regressions passed. The focused allowance graphical run had no texture teardown warning. Delivery remains abstract, and reserving one member's next wage is not a guarantee of payroll for the whole fleet.
