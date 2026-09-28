@@ -67,6 +67,13 @@ func _capture() -> void:
 		_frame_camera(camera, Vector3.ZERO, extent, Vector3(1.25, 0.9, -1.6))
 		camera.make_current()
 		await _save_capture("family-%s-exterior.png" % family_id)
+		# Close material inspection uses the actual shell rather than a shader swatch.
+		var exterior_transform := camera.transform
+		var exterior_size := camera.size
+		_frame_camera(camera, Vector3(0, extent.y * 0.22, -extent.z * 0.22), Vector3(3, 2, 3), Vector3(1.25, 0.9, -1.6))
+		await _save_capture("family-%s-surface-detail.png" % family_id)
+		camera.transform = exterior_transform
+		camera.size = exterior_size
 		# Same angle at twice the distance-equivalent scale checks panel filtering.
 		camera.size *= 2.0
 		await _save_capture("family-%s-distant.png" % family_id)

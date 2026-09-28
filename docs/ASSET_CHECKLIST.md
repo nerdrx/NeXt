@@ -184,3 +184,9 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Replace interior telescoping bulkhead panels with authored door leaves,
   recessed handles and actuator audio. Preserve the open capsule clearance,
   proximity hold and moving-hull collision behavior.
+
+- [ ] Hull coating wear (`shaders/fleet_surface.gdshader`): replace procedural
+  edge chips, exposed primer and maintenance staining with authored material
+  masks. Preserve separate paint/bare-metal roughness and clearcoat response,
+  metre-scale wear and distance filtering. Current result remains placeholder
+  quality; material noise does not replace hull design, bevels or authored detail.

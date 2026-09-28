@@ -26,6 +26,7 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if not _sensor.monitoring: return
 	var occupied := false
 	for body: Node3D in _sensor.get_overlapping_bodies():
 		if body is CharacterBody3D:

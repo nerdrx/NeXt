@@ -2029,3 +2029,18 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `b2e5453`:
 `build/windows-validation-dd5c267/build/proton-smoke.GLmZYc`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Dedicated radio assertions ran natively; packaged smoke
 covers general gameplay. Read-only parallel review found no further defect.
+
+### Hull finish and capture visibility (2026-09-28)
+
+The shared hull material adds restrained coating chips near plate seams, a
+primer transition and low-frequency maintenance staining. Exposed metal changes
+roughness/metalness and removes clearcoat; wear fades with projected pixel size.
+The family capture runner now includes a close surface view of each actual hull.
+Initial bright repetitive wear was reduced after inspecting GPU captures. This
+is a material-detail increment, not photorealistic ship art.
+
+Capturing cutaways exposed bulkheads querying Area3D overlaps while deferred
+visibility changes had monitoring disabled. The physics callback now waits
+until monitoring is enabled. The subsequent hidden-Gamescope three-family
+capture run has no engine errors; `test_ship_bulkhead.gd` passes closed collision,
+two-sided approach, capsule clearance and occupancy hold.

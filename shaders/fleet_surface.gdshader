@@ -83,6 +83,18 @@ void fragment() {
      * smoothstep(0.002, 0.004, edge_distance)
      * (1.0-smoothstep(0.004, 0.018, pixel))
      * smoothstep(0.45, 0.75, mottling) * industrial_detail * panel_strength;
+ // Paint chips cluster along exposed plate edges, not across every flat face.
+ // All distances are hull-local metres; dissolve small features before aliasing.
+ float wear_detail = 1.0-smoothstep(0.025, 0.10, pixel);
+ float edge_region = 1.0-smoothstep(0.004, 0.025, edge_distance);
+ float wear_noise = grain(panel_position * 13.0);
+ float chipped_paint = edge_region * smoothstep(0.70, 0.87, wear_noise)
+     * industrial_detail * panel_strength * wear_detail;
+ float primer = edge_region * smoothstep(0.60, 0.80, wear_noise)
+     * industrial_detail * panel_strength * wear_detail;
+ // Low-frequency maintenance staining remains subtle at normal viewing range.
+ float oily_stain = smoothstep(0.60, 0.84, grain(panel_position * vec3(1.8, 0.45, 1.8)))
+     * industrial_detail * panel_strength * tone_detail;
  float finish_tone = mix(0.94 + 0.08 * mottling, 0.975 + 0.035 * mottling, panel_strength);
  ALBEDO = paint.rgb * finish_tone * (1.0 + (panel_tone-0.5)*0.16*panel_strength);
  // Broad painted shoulders establish a readable silhouette before fine detail.
@@ -98,10 +110,14 @@ void fragment() {
  ALBEDO = mix(ALBEDO, vec3(0.09), bolt_rim * 0.38);
  ALBEDO = mix(ALBEDO, vec3(0.19), bolt);
  ROUGHNESS = clamp(base_roughness + (panel_tone-0.5)*0.18*panel_strength + (mottling-0.5)*roughness_variation + (micro-0.5)*0.065 + abrasion*0.07 + groove*0.14 + seal_dirt*0.08, 0.12, 0.92);
- ALBEDO = mix(ALBEDO, vec3(0.32, 0.34, 0.35), edge_wear);
- METALLIC = mix(metalness, 0.75, max(bolt, edge_wear));
+ ALBEDO *= 1.0 - oily_stain * 0.18;
+ ALBEDO = mix(ALBEDO, vec3(0.12, 0.10, 0.075), primer * 0.55);
+ float bare_metal = max(edge_wear, chipped_paint);
+ ALBEDO = mix(ALBEDO, vec3(0.17, 0.19, 0.21), bare_metal);
+ ROUGHNESS = mix(clamp(ROUGHNESS - oily_stain * 0.12 + primer * 0.08, 0.12, 0.92), 0.29, bare_metal);
+ METALLIC = mix(metalness, 0.85, max(bolt, bare_metal));
  SPECULAR = 0.5;
- CLEARCOAT = coating;
+ CLEARCOAT = coating * (1.0-bare_metal) * (1.0-primer*0.5);
  CLEARCOAT_ROUGHNESS = 0.35;
  // Submillimetre finish variation; fade below pixel size to avoid sparkle.
  float height = (micro-0.5) * 0.00012 + panel_height - bolt_rim * 0.0015;
