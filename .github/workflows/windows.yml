@@ -76,6 +76,7 @@ jobs:
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_primary_contact.gd -- --capture-only
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_primary_warning.gd -- --capture-only
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_npc_primary_navigation.gd -- --capture-only
+          timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_npc_planet_navigation.gd -- --capture-only
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_walking_gravity.gd -- --capture-only
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_landing_injury.gd -- --capture-only
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_atmospheric_flight.gd

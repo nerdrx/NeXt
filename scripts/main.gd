@@ -679,7 +679,7 @@ func _spawn_actors() -> void:
 			var actor := ShipActor.new()
 			actor.stellar_heat_source = world.stellar_heat
 			actor.primary_contact_source = world.primary_contact
-			actor.primary_obstacle_source = world.primary_obstacle
+			actor.celestial_obstacles_source = world.navigation_obstacles
 			actor.atmospheric_density_source = world.atmospheric_density
 			actor.gravity_source = world.gravity_acceleration
 			actor.actor_id = id
@@ -694,7 +694,7 @@ func _spawn_actors() -> void:
 			var actor := ShipActor.new()
 			actor.stellar_heat_source = world.stellar_heat
 			actor.primary_contact_source = world.primary_contact
-			actor.primary_obstacle_source = world.primary_obstacle
+			actor.celestial_obstacles_source = world.navigation_obstacles
 			actor.atmospheric_density_source = world.atmospheric_density
 			actor.gravity_source = world.gravity_acceleration
 			actor.actor_id = "security_%d" % i
@@ -897,7 +897,7 @@ func _sync_fleet_actors() -> Array[String]:
 				var actor := ShipActor.new()
 				actor.stellar_heat_source = world.stellar_heat
 				actor.primary_contact_source = world.primary_contact
-				actor.primary_obstacle_source = world.primary_obstacle
+				actor.celestial_obstacles_source = world.navigation_obstacles
 				actor.atmospheric_density_source = world.atmospheric_density
 				actor.gravity_source = world.gravity_acceleration
 				actor.actor_id = id

@@ -532,3 +532,14 @@ while waypoints feed existing thrust, fuel, gravity and local obstacle avoidance
 An unsafe destination requests braking until a valid route is available. Hidden
 or surface worlds clear the detour. This is local steering, not strategic remote
 pathfinding or a guarantee against extreme gravity, depleted fuel or collisions.
+
+### Planetary detours for local crews
+
+The local ship routing callback now supplies all loaded planets alongside the
+primary. Planet exclusion radii include the height-field's maximum terrain
+height, then the actor adds hull and stopping margins. The bounded multi-sphere
+planner returns waypoints to the existing propulsion and local collision system.
+This prevents relying solely on a short obstacle fan for a planet-sized crossing.
+The same one-second refresh, rebase and unsafe-destination braking rules apply.
+Surface scenes omit these space routes; this does not implement NPC atmospheric
+landing, terrain-following flight or collision-free routing through dense overlaps.

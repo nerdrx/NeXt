@@ -2285,3 +2285,15 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `300eafc`:
 `build/windows-validation-dd5c267/build/proton-smoke.7mDhba`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Dedicated navigation assertions ran natively and under
 hidden Gamescope; packaged smoke checks general gameplay, not multiplayer or FPS.
+
+### Local NPC planetary navigation (2026-09-28)
+
+Native planetary navigation checks pass: a translated world supplies global
+planet centers, includes the 12 m terrain envelope, remains unchanged by routing
+inflation, and a physical CharacterBody completes a crossing around the planet.
+Minimum distance from its center was 353.370 m for the 262 m terrain envelope.
+This isolates steering without gravity or collision geometry. Existing primary
+navigation, primary-contact/rescue and physical station-transfer checks pass,
+as does editor import.
+Hidden-Gamescope planetary navigation also passes. Parallel review confirmed
+coordinate frames, terrain bounds and obstacle immutability.

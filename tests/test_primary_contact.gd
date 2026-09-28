@@ -37,8 +37,8 @@ func _run() -> void:
 	var npc: ShipActor
 	for actor: Node in game.actors:
 		if actor is ShipActor: npc = actor; break
-	assert(npc != null and npc.primary_contact_source.is_valid() and npc.primary_obstacle_source.is_valid())
-	assert(npc.primary_obstacle_source.call().center.is_equal_approx(center), "spawn binds world obstacle")
+	assert(npc != null and npc.primary_contact_source.is_valid() and npc.celestial_obstacles_source.is_valid())
+	assert(npc.celestial_obstacles_source.call()[0].center.is_equal_approx(center), "spawn binds world obstacle")
 	npc.global_position = center
 	npc.shields = 1000.0
 	var kills: int = game.state.kills

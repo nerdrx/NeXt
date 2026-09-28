@@ -65,6 +65,15 @@ func primary_obstacle() -> Dictionary:
 	if _surface_mode or stellar_profile.is_empty() or not is_visible_in_tree(): return {}
 	return {"center": to_global(PRIMARY_POSITION), "radius": primary_radius()}
 
+func navigation_obstacles() -> Array[Dictionary]:
+	var bodies: Array[Dictionary] = []
+	if _surface_mode or not is_visible_in_tree(): return bodies
+	var primary := primary_obstacle()
+	if not primary.is_empty(): bodies.append(primary)
+	for planet: Dictionary in planets:
+		bodies.append({"center": to_global(planet.position), "radius": float(planet.visual_radius) + PlanetHeightField.HEIGHT_SCALE})
+	return bodies
+
 func primary_contact(global_point: Vector3) -> bool:
 	if _surface_mode or stellar_profile.is_empty() or not is_visible_in_tree() or not global_point.is_finite(): return false
 	return to_local(global_point).distance_squared_to(PRIMARY_POSITION) <= pow(primary_radius(), 2.0)
