@@ -1950,3 +1950,9 @@ the actor to patrol, removing cover reacquires the moved target, switching to
 a distant target clears old contact, and peaceful status clears tracking.
 `test_ground_actor_behavior.gd` still passes post holding, friendly following,
 patrol radius and pursuit leash behavior. The contact fixture is registered in CI.
+
+Clean Windows export and hidden-Gamescope Proton integration pass at `53980de`:
+`build/windows-validation-dd5c267/build/proton-smoke.7Wkn0U`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Dedicated contact assertions ran natively; packaged smoke
+covers general gameplay. The earlier interrupted `proton-smoke.ZDEDAo` run
+produced no completion marker and is not counted as a pass.
