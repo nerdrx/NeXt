@@ -83,7 +83,9 @@ func _build() -> void:
 	_sensor = Area3D.new()
 	_sensor.name = "OccupancySensor"
 	_sensor.collision_layer = 0
-	_sensor.collision_mask = 2 | 4 | 8
+	# Layer 2 includes the enclosing coasting ship: it must never trigger doors.
+	# Aboard pilots carry layer 8; crew use layer 4.
+	_sensor.collision_mask = 4 | 8
 	var sensor_shape := BoxShape3D.new()
 	sensor_shape.size = Vector3(2.4, 2.2, 3.2)
 	_sensor_shape = CollisionShape3D.new()

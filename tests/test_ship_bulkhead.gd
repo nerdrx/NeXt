@@ -16,6 +16,15 @@ func _run() -> void:
 	assert(cabin.find_children("*", "ShipBulkhead", true, false).size() == 1, "shared room boundary creates exactly one bulkhead")
 	var door := ShipBulkhead.new()
 	scene.add_child(door)
+	var hull := CharacterBody3D.new()
+	hull.collision_layer = 2
+	hull.collision_mask = 0
+	var hull_shape := CollisionShape3D.new()
+	var hull_box := BoxShape3D.new()
+	hull_box.size = Vector3(8, 4, 8)
+	hull_shape.shape = hull_box
+	hull.add_child(hull_shape)
+	scene.add_child(hull)
 	var walker := CharacterBody3D.new()
 	walker.collision_layer = 8
 	walker.collision_mask = 1
@@ -30,7 +39,7 @@ func _run() -> void:
 	scene.add_child(walker)
 	await _frames(3)
 	assert(not cabin.crew_path(Vector3(0, 0.1, 0), Vector3(0, 0.1, 2.8)).is_empty(), "closed automatic door remains routable for crew")
-	assert(door.open_fraction == 0.0, "unoccupied door starts closed")
+	assert(door.open_fraction == 0.0, "enclosing ship collision cannot hold an unoccupied door open")
 	assert(walker.move_and_collide(Vector3(0, 0, 4)) != null, "closed panels physically stop the capsule")
 	await _frames(40)
 	assert(door.open_fraction > 0.99, "approaching character opens the bulkhead")
