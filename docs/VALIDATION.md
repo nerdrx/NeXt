@@ -1721,3 +1721,20 @@ regressions pass headless. No seamless door traversal is claimed.
   `NEXT_INTEGRATION_OK`. Dedicated door assertions run natively; packaged smoke
   is general integration coverage. Earlier `6dcbfaf` also passed before the
   enclosing-hull sensor correction (`proton-smoke.9Pfngb`).
+
+
+### Paired visitor save recovery (2026-09-28)
+
+`38172a7` passes `test_visit_journal.gd` (ordinary pair, interruption after visitor
+replacement, replay after completed replacement, malformed snapshot/no writes,
+canonical visitor destination and actual failed-home-write retry). `test_visit.gd`
+passes separate economies and carried ship persistence, plus retaining the live
+visitor profile when return saving fails and refusing a destructive reload.
+`test_state.gd` passes after extracting validated dictionary loading.
+
+Clean Windows export and hidden-Gamescope Proton smoke pass at `38172a7`:
+`build/windows-validation-dd5c267/build/proton-smoke.bET0er`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Dedicated journal failure injection was native; the packaged
+run is general integration coverage. Filesystem power-loss durability, simultaneous
+process access and live Steam transfer authority are not established. The user
+confirmed no NeXt Steamworks AppID exists yet; native Steam setup remains pending.
