@@ -2223,3 +2223,10 @@ hidden-Gamescope runs pass without script errors. The 1440×900 screenshot
 above the reticle without overlapping radar or existing flight telemetry.
 Primary-contact and stellar-gravity regressions plus editor import pass. The
 fixture is registered in CI.
+Parallel review found no actionable issue in the approach math, coordinate
+frames or HUD selection/thresholds.
+
+Clean Windows export and hidden-Gamescope Proton integration pass at `7867752`:
+`build/windows-validation-dd5c267/build/proton-smoke.10bfhV`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Dedicated approach/HUD assertions ran natively and under
+hidden Gamescope; the packaged smoke checks general gameplay.
