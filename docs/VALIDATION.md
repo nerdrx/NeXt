@@ -2044,3 +2044,10 @@ visibility changes had monitoring disabled. The physics callback now waits
 until monitoring is enabled. The subsequent hidden-Gamescope three-family
 capture run has no engine errors; `test_ship_bulkhead.gd` passes closed collision,
 two-sided approach, capsule clearance and occupancy hold.
+
+Final close-detail captures for all three families complete without engine
+errors. Read-only review found no concrete material or sensor-guard defect.
+Clean Windows export and hidden-Gamescope Proton integration pass at `bef0056`:
+`build/windows-validation-dd5c267/build/proton-smoke.yZMumT`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Screenshots were visually inspected; neither these images
+nor the smoke test establishes cinematic quality or the 1440p/60 target.
