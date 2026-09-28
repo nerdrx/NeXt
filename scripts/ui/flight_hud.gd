@@ -52,6 +52,8 @@ func _draw() -> void:
 			for y in [-1, 1]:
 				var direction := Vector2(x, y)
 				draw_line(center + direction * 9, center + direction * 16, InterfaceTheme.GOLD, 2.0)
+	if not pilot.flying and not game.aboard:
+		_word(Vector2(w - 250, h - 215), "GRAVITY %.2f g" % (pilot.walking_gravity() / FlightDynamics.STANDARD_GRAVITY), 14, InterfaceTheme.MUTED)
 	var stats: Dictionary = state.ship_stats()
 	var hull_max: float = maxf(1.0, float(stats.max_hull))
 	var shield_max: float = maxf(1.0, float(stats.max_shield))
@@ -83,7 +85,7 @@ func _draw() -> void:
 		if aerodynamic_heat_w >= 1000.0: _word(Vector2(w - 250, h - 173), "AIR HEAT %.0f kW" % (aerodynamic_heat_w / 1000.0), 14, InterfaceTheme.GOLD)
 		_word(Vector2(w - 250, h - 131), "THRUST %.1f g" % thrust_g, 14, InterfaceTheme.GOLD)
 	_word(Vector2(w - 250, h - 78), "CARGO  %d / %d" % [state.cargo_total() if inspected.is_empty() else state._fleet_cargo_total(inspected), int(stats.cargo_capacity) if inspected.is_empty() else int(inspected.capacity)], 14, InterfaceTheme.MUTED)
-	_word(Vector2(w - 250, h - 54), ("BRAKING" if pilot.braking else ("CRUISE AUTOPILOT" if pilot.autopilot_active else ("FLIGHT ASSIST  ON" if pilot.flight_assist_enabled else "INERTIAL FLIGHT"))) if pilot.flying else "MAG BOOTS  ACTIVE", 13, InterfaceTheme.MUTED)
+	_word(Vector2(w - 250, h - 54), ("BRAKING" if pilot.braking else ("CRUISE AUTOPILOT" if pilot.autopilot_active else ("FLIGHT ASSIST  ON" if pilot.flight_assist_enabled else "INERTIAL FLIGHT"))) if pilot.flying else "ON FOOT", 13, InterfaceTheme.MUTED)
 	_word(Vector2(w * 0.5 - 260, h - 24), "TAB  Command    E  Interact / dock    J  Navigation    F5  Save", 14, InterfaceTheme.MUTED)
 	if pilot.flying:
 		_marker_labels.append(Rect2(Vector2(w - 240, 120), Vector2(220, 225)))

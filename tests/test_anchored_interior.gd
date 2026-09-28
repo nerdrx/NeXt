@@ -62,12 +62,13 @@ func _run() -> void:
 	var saved := GameState.new()
 	assert(saved.load_save(save_path).is_empty())
 	var saved_address: SectorPosition = SectorPosition.from_save(saved.location.address)
-	assert(saved_address.relative_to(game.flight_origin, 60000).distance_to(anchor) < 0.01)
+	assert(saved_address.relative_to(game.flight_origin, 60000).distance_to(game.coasting_hull.position) < 0.01)
 	if DisplayServer.get_name() != "headless":
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png("res://build/anchored-interior.png")
+	var return_anchor: Vector3 = game.coasting_hull.position
 	game.exit_interior()
-	assert(game.pilot.flying and game.pilot.position.distance_to(anchor) < 0.01)
+	assert(game.pilot.flying and game.pilot.position.distance_to(return_anchor) < 0.01)
 	assert(game.pilot.camera.global_basis.is_equal_approx(hull_basis))
 	assert(not game.ship_display.visible)
 	game.sound.shutdown()

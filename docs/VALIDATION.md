@@ -1897,3 +1897,21 @@ Proton integration pass at `9b32428`: `build/windows-validation-dd5c267/build/pr
 wrapper exit 0 and `NEXT_INTEGRATION_OK`. This verifies the packaged gameplay
 loop with local gravity, not astronomical accuracy, long-term orbital stability
 or performance targets.
+
+
+### Planet-dependent walking gravity (2026-09-28)
+
+`test_walking_gravity.gd` passes integrated planet/altitude and rebasing samples,
+ship/station artificial-gravity overrides, separate-colony gravity and invalid
+field fallback. Actual collision-floor jumps using the same 6 m/s impulse peak
+within 5.5–6.5 m at 3 m/s² and 1.2–1.8 m at 12 m/s². Input and movement run
+across real physics frames, not multiple input steps in one frame.
+
+Parked-boarding and anchored-interior regressions pass. The latter now checks
+the current gravity-displaced hull position at save and helm return rather than
+an obsolete stationary anchor. The walking fixture is registered in CI.
+
+The walking fixture also passes under hidden Gamescope. The colony HUD capture
+shows 1.22 g for the fixture's 12 m/s² planet, with readable telemetry. The foot
+mode caption now says ON FOOT rather than implying an implemented magnetic-boot
+system. This is a mechanics check, not visual-quality acceptance.

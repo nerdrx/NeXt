@@ -72,6 +72,7 @@ jobs:
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_flight_dynamics.gd
           timeout 30s "$GODOT_BIN" --headless --path . -s tests/test_acceleration_vector.gd -- --capture-only
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_planet_gravity.gd -- --capture-only
+          timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_walking_gravity.gd -- --capture-only
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_atmospheric_flight.gd
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_atmospheric_drag_gameplay.gd -- --capture-only
           timeout 35s "$GODOT_BIN" --headless --path . -s tests/test_aerodynamic_heat.gd

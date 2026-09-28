@@ -342,3 +342,12 @@ It is not SI-scale orbital travel, moving ephemeris-driven collision geometry,
 stellar or black-hole gravity, N-body integration, or a physiological g-load
 model. Separate colony scenes and culled orbital worlds omit this field; walking
 and interior artificial gravity retain their existing behavior.
+
+
+Planetary first-person walking now samples the landed planet's surface gravity.
+Manual spherical surfaces use the same local radius-based altitude falloff;
+separate flat colony scenes use catalog surface gravity directly. The fixed
+6 m/s jump impulse therefore yields different jump heights across worlds. Ship
+interiors, fleet interiors and orbital stations retain the existing 18 m/s²
+artificial-gravity tuning. This supersedes the previous fixed planetary walking
+strength; NPC ground motion, traction, fall injuries and EVA remain unchanged.

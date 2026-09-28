@@ -25,6 +25,8 @@ var fire_interval: float = 0.16
 var autopilot_target: Vector3 = Vector3.ZERO
 var autopilot_active: bool = false
 var propulsion_limiter: Callable
+const DEFAULT_WALK_GRAVITY := 18.0
+var walking_gravity_source: Callable
 var gravity_source: Callable
 var atmospheric_density_source: Callable
 var drag_mass_kg: float = 40000.0
@@ -130,10 +132,17 @@ func _physics_process(delta: float) -> void:
 	_update_view_effects(delta)
 
 
+func walking_gravity() -> float:
+	if not walking_gravity_source.is_valid(): return DEFAULT_WALK_GRAVITY
+	var value: Variant = walking_gravity_source.call(global_position)
+	if (not value is float and not value is int) or not is_finite(float(value)) or float(value) < 0.0: return DEFAULT_WALK_GRAVITY
+	return float(value)
+
+
 func _walk(delta: float) -> void:
 	var up: Vector3 = up_direction
 	if not is_on_floor():
-		_walk_velocity -= up * 18.0 * delta
+		_walk_velocity -= up * walking_gravity() * delta
 	elif Input.is_action_just_pressed("move_up"):
 		_walk_velocity += up * maxf(0.0, 6.0 - _walk_velocity.dot(up))
 	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")

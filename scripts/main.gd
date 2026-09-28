@@ -817,6 +817,20 @@ func _store_patrol_flight(actor: ShipActor, ship: Dictionary) -> void:
 	if not center.move_delta(actor.patrol_center() - actor.position) or center.relative_to(SectorPosition.new(), SectorPosition.MAX_RELATIVE_DISTANCE) == null: return
 	ship.flight = {"phase": "patrol", "address": address.to_save(), "velocity": [velocity.x, velocity.y, velocity.z], "patrol_center": center.to_save(), "patrol_clock": clock}
 
+func _walking_gravity(global_point: Vector3) -> float:
+	# Decks retain artificial gravity, even when the hull is parked on a planet.
+	if aboard or docked_station >= 0: return Pilot.DEFAULT_WALK_GRAVITY
+	var index := manual_planet if manual_planet >= 0 else surface_index
+	if index < 0 or index >= world.planets.size(): return Pilot.DEFAULT_WALK_GRAVITY
+	var planet: Dictionary = world.planets[index]
+	var gravity := float(planet.get("surface_gravity_mps2", Pilot.DEFAULT_WALK_GRAVITY))
+	if manual_planet >= 0:
+		var radius := float(planet.visual_radius)
+		var distance := world.to_local(global_point).distance_to(Vector3(planet.position))
+		gravity *= pow(radius / maxf(radius, distance), 2.0)
+	return gravity
+
+
 func _fleet_trade_target(order: Dictionary) -> Vector3:
 	if order.has("source_station") and order.phase == "outbound" and state.system_index == int(order.origin):
 		return _owned_station_system_position(int(order.source_station)) + OwnedStation.FREIGHT_APPROACH
@@ -1067,6 +1081,7 @@ func apply_ship_stats() -> void:
 	pilot.propulsion_limiter = _consume_ship_propulsion
 	pilot.atmospheric_density_source = world.atmospheric_density
 	pilot.gravity_source = world.gravity_acceleration
+	pilot.walking_gravity_source = _walking_gravity
 	pilot.drag_dimensions = _thermal_dimensions
 	pilot.configure_ship_collision(state.ship_modules)
 	_refresh_propulsion_limits()
