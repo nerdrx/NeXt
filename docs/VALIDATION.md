@@ -1447,3 +1447,5 @@ Clean Windows release export at `a60f2f6` passed without script or parse errors.
 Every connected horizontal cabin doorway now carries a destination-room label on each approach side. Names derive from the validated saved room layout, so lounge/medical/workshop refits change the signs. Labels face the source room, suppress mirrored back faces and follow the cabin transform. Existing room-identity labels only remain on closed forward walls, avoiding contradictory names on doorway headers. Signs add no collision geometry.
 
 The new `test_ship_wayfinding.gd`, registered in Windows CI, passed exact directed-link coverage, destination names, orientation, header placement, transformed placement, refit updates and rebuild cleanup. Hidden Gamescope Ranger moving-interior checks passed; doorway text was visually inspected in the walking capture. Seven Texture RID shutdown warnings remain in that harness. These are local room identifiers, not a full deck map or route-to-destination navigation system.
+
+Clean Windows release export at `266ae8d` passed without script or parse errors. No new Proton runtime check was run for this cosmetic change.
