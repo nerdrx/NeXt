@@ -2030,7 +2030,9 @@ func _integration_check() -> void:
 	var victim_id: String = victim.actor_id
 	victim.active = true
 	victim.set_meta("player_hit", true)
+	var debris_before: int = state.recovery.wrecks.size()
 	victim.take_damage(10000)
+	if not _check(state.recovery.wrecks.size() == debris_before + 1 and int(state.recovery.wrecks.back().cargo.alloys) > 0, "combat leaves recoverable alloy debris in release build"): return
 	if not _check(victim_id in state.world_flags.get(_location_key(), []), "persistent kill state"): return
 	if not _check(save_commander(false), "save commander"): return
 	var restored := GameState.new()
@@ -2189,18 +2191,21 @@ func _integration_check() -> void:
 	pilot.set_flight(true)
 	pilot.teleport(Vector3(100, 80, -300))
 	state.hull = 0
+	var rescue_wreck_index: int = state.recovery.wrecks.size()
+	var prior_wrecks: Array = state.recovery.wrecks.duplicate(true)
 	_rescue()
-	if not _check(state.recovery.wrecks.size() == 1 and state.cargo_total() == 0 and state.hull > 0, "insured rescue and wreck creation"): return
+	if not _check(state.recovery.wrecks.size() == rescue_wreck_index + 1 and state.cargo_total() == 0 and state.hull > 0, "insured rescue and wreck creation"): return
 	open_menu("recovery")
 	await _capture("recovery")
-	var wreck_id: String = state.recovery.wrecks[0].id
+	if not _check(state.recovery.wrecks.slice(0, rescue_wreck_index) == prior_wrecks, "rescue preserves existing combat salvage"): return
+	var wreck_id: String = state.recovery.wrecks[rescue_wreck_index].id
 	pilot.set_flight(true)
-	pilot.teleport(_wreck_position(state.recovery.wrecks[0]))
+	pilot.teleport(_wreck_position(state.recovery.wrecks[rescue_wreck_index]))
 	if not _check(recover_wreck(wreck_id).is_empty() and state.cargo.food == 5, "cargo recovery at beacon"): return
 	if not _check(recover_wreck(wreck_id, true).is_empty(), "wreck salvage"): return
 	var salvage_balance: int = state.credits
 	if not _check(not recover_wreck(wreck_id, true).is_empty() and state.credits == salvage_balance, "duplicate salvage blocked"): return
-	if not _check(save_commander(false) and restored.load_save(save_path).is_empty() and restored.recovery.wrecks[0].salvaged and restored.crew_orders.size() == 1, "operations save round trip"): return
+	if not _check(save_commander(false) and restored.load_save(save_path).is_empty() and restored.recovery.wrecks[rescue_wreck_index].salvaged and restored.crew_orders.size() == 1, "operations save round trip"): return
 	state.credits = 50000
 	state.cargo.alloys = 20
 	if not _check(state.build_station("Horizon Anchorage").is_empty(), "owned station construction"): return
