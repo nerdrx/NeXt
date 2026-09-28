@@ -1738,3 +1738,20 @@ Clean Windows export and hidden-Gamescope Proton smoke pass at `38172a7`:
 run is general integration coverage. Filesystem power-loss durability, simultaneous
 process access and live Steam transfer authority are not established. The user
 confirmed no NeXt Steamworks AppID exists yet; native Steam setup remains pending.
+
+
+### Multiplayer protocol admission (2026-09-28)
+
+`589bc0e` passes the real ENet-scope `test_network_protocol.gd`: different and
+missing join versions are rejected before admission; a missing welcome version
+leaves world identity unchanged; normal versioned joins succeed; client handshake
+timeout clears transport; the host removes silent peers and preserves admitted
+ones. Deadline callbacks are accelerated in this fixture. Existing multi-process
+network travel/presence and negotiated-loadout/PvP regressions also pass. The new
+fixture is registered in CI. This is protocol validation, not a live Steam test or
+proof of interoperability with every historical binary.
+
+Clean Windows export and hidden-Gamescope Proton integration pass at `589bc0e`:
+`build/windows-validation-dd5c267/build/proton-smoke.sWvWbf`, wrapper exit 0,
+`NEXT_INTEGRATION_OK`. Packaged smoke is general integration; the ENet protocol
+assertions above ran natively.
