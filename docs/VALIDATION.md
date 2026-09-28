@@ -2386,3 +2386,8 @@ found no remaining transaction or system-market issue.
 Hidden-Gamescope repair-menu execution passes and its quote was visually inspected.
 Shutdown reported seven texture RID leaks; no script error occurred. Editor import
 passes after the explicit UI Dictionary annotation.
+
+Clean Windows export and hidden-Gamescope Proton integration pass at `53fe6eb`:
+`build/windows-validation-dd5c267/build/proton-smoke.mMXYGw`, wrapper exit 0 and
+`NEXT_INTEGRATION_OK`. Dedicated repair-supply assertions ran natively and under
+hidden Gamescope; packaged smoke covers general gameplay, not co-op or FPS.
