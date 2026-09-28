@@ -24,6 +24,17 @@ float grain(vec3 p) {
  vec3 i = floor(p); vec3 f = fract(p); f = f*f*(3.0-2.0*f);
  return mix(mix(mix(hash3(i),hash3(i+vec3(1,0,0)),f.x),mix(hash3(i+vec3(0,1,0)),hash3(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash3(i+vec3(0,0,1)),hash3(i+vec3(1,0,1)),f.x),mix(hash3(i+vec3(0,1,1)),hash3(i+vec3(1,1,1)),f.x),f.y),f.z);
 }
+// Box-filter a repeating narrow seam. Its integrated coverage survives below
+// one pixel without widening the physical gap or switching abruptly off.
+float seam_integral(float coordinate, float width) {
+ return floor(coordinate) * width + min(fract(coordinate), width);
+}
+float filtered_seam(float coordinate, float width, float footprint) {
+ float span = max(footprint, 0.00001);
+ float centered = coordinate + width * 0.5;
+ return clamp((seam_integral(centered + span*0.5, width)
+     - seam_integral(centered - span*0.5, width)) / span, 0.0, 1.0);
+}
 void vertex() { local_position = VERTEX; local_normal = NORMAL; }
 void fragment() {
  float surface_footprint = length(fwidth(local_position));
@@ -50,7 +61,11 @@ void fragment() {
  float edge_distance = min(edge.x, edge.y);
  float pixel = max(length(fwidth(surface)), 0.0001);
  float panel_detail = 1.0 - smoothstep(0.03, 0.14, pixel);
- float groove = (1.0-smoothstep(0.003, 0.003+pixel, edge_distance)) * min(1.0, 0.006/pixel) * panel_detail * panel_strength;
+ vec2 seam_width = vec2(0.012) / pitch;
+ float seam_x = filtered_seam(panel_uv.x, seam_width.x, panel_footprint.x);
+ float seam_y = filtered_seam(panel_uv.y, seam_width.y, panel_footprint.y);
+ // x staggering changes at row boundaries; the horizontal seam covers the join.
+ float groove = (1.0 - (1.0-seam_x)*(1.0-seam_y)) * panel_strength;
  // Recessed fasteners and seal dirt establish metre scale without luminous trim.
  vec2 corner_offset = edge - vec2(0.065);
  float bolt_radius = length(corner_offset);
@@ -69,7 +84,7 @@ void fragment() {
      * (1.0-smoothstep(0.004, 0.018, pixel))
      * smoothstep(0.45, 0.75, mottling) * industrial_detail * panel_strength;
  float finish_tone = mix(0.94 + 0.08 * mottling, 0.975 + 0.035 * mottling, panel_strength);
- ALBEDO = paint.rgb * finish_tone * (1.0 + (panel_tone-0.5)*0.065*panel_strength);
+ ALBEDO = paint.rgb * finish_tone * (1.0 + (panel_tone-0.5)*0.16*panel_strength);
  // Broad painted shoulders establish a readable silhouette before fine detail.
  vec3 hull_uv = local_position / max(hull_extent, vec3(0.1));
  float paint_pixel = max(length(fwidth(hull_uv.xz)), 0.0001);
@@ -82,7 +97,7 @@ void fragment() {
  ALBEDO *= 1.0 - groove * 0.42 - seal_dirt * 0.13;
  ALBEDO = mix(ALBEDO, vec3(0.09), bolt_rim * 0.38);
  ALBEDO = mix(ALBEDO, vec3(0.19), bolt);
- ROUGHNESS = clamp(base_roughness + (mottling-0.5)*roughness_variation + (micro-0.5)*0.065 + abrasion*0.07 + groove*0.14 + seal_dirt*0.08, 0.12, 0.92);
+ ROUGHNESS = clamp(base_roughness + (panel_tone-0.5)*0.18*panel_strength + (mottling-0.5)*roughness_variation + (micro-0.5)*0.065 + abrasion*0.07 + groove*0.14 + seal_dirt*0.08, 0.12, 0.92);
  ALBEDO = mix(ALBEDO, vec3(0.32, 0.34, 0.35), edge_wear);
  METALLIC = mix(metalness, 0.75, max(bolt, edge_wear));
  SPECULAR = 0.5;

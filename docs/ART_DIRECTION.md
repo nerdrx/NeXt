@@ -65,3 +65,11 @@ Pathfinder and Merchant outer hulls now use three profile sections around the un
 
 
 Family shell paint now has restrained recessed fasteners, seal dirt and a slightly smoother coating. Engine fairings carry framed service grilles and low-profile rails. The shipyard and family capture tool share a neutral studio reflection environment so reflective finishes can be reviewed against the solid background. This improves material inspection, not the in-world lighting or the unfinished family silhouettes; the procedural grid and repeated roof equipment still need authored design.
+
+
+Hull panel gaps now use integrated pixel coverage for 12 mm seams rather than
+fading them abruptly as projected size decreases. Broad panel albedo and roughness
+variation distinguish neighboring coatings. This is a modest surface readability
+change, not a replacement for designed hull geometry or authored wear. Family
+captures include a `distant` view at twice the exterior camera size to inspect
+filtering; inspect moving gameplay before claiming temporal stability.

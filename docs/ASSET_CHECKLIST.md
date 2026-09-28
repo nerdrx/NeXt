@@ -172,3 +172,7 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
 - [ ] Replace procedural flank service strips and staggered coating seams with authored hull access panels, maintenance markings and material maps. Preserve exposed-face placement, configured windows/armor and radiator clearance; these details do not change pressure-room geometry.
 
 - [ ] Replace parked-ship four-point gear (pads, pistons, sleeves and collars) with authored retractable assemblies. Preserve the lowest occupied deck support plane and surface-normal orientation. Current gear is visual only: no suspension, terrain-adaptive leg extension, retraction animation or physical boarding ramp.
+
+- [ ] Replace the family hull's repeating procedural panel finish with authored,
+  construction-aware paint, roughness and normal maps. Preserve metre-scale seams
+  and distance filtering; review close, distant and moving gameplay views.
