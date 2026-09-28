@@ -5,6 +5,7 @@ uniform float base_roughness = 0.45;
 uniform float roughness_variation = 0.12;
 uniform float metalness = 0.05;
 uniform float coating = 0.25;
+uniform float damage_amount : hint_range(0.0, 1.0) = 0.0;
 uniform float panel_strength : hint_range(0.0, 1.0) = 0.0;
 uniform float industrial_detail : hint_range(0.0, 1.0) = 0.0;
 // Optional family paint scheme, expressed in hull-local metres.
@@ -116,8 +117,17 @@ void fragment() {
  ALBEDO = mix(ALBEDO, vec3(0.17, 0.19, 0.21), bare_metal);
  ROUGHNESS = mix(clamp(ROUGHNESS - oily_stain * 0.12 + primer * 0.08, 0.12, 0.92), 0.29, bare_metal);
  METALLIC = mix(metalness, 0.85, max(bolt, bare_metal));
+ // Hull-condition scorch is deterministic in local space, independent of camera.
+ // This represents accumulated damage, not a location-specific projectile decal.
+ float damage_detail = 1.0-smoothstep(0.3, 1.2, surface_footprint * 6.7);
+ float damage_noise = grain(panel_position * 1.4) * 0.65 + mix(0.5, grain(panel_position * 6.7), damage_detail) * 0.35;
+ float scorch = smoothstep(0.74 - damage_amount * 0.20, 0.86 - damage_amount * 0.22, damage_noise)
+     * damage_amount;
+ ALBEDO = mix(ALBEDO, vec3(0.022, 0.018, 0.016), scorch * 0.90);
+ ROUGHNESS = mix(ROUGHNESS, 0.88, scorch);
+ METALLIC = mix(METALLIC, 0.02, scorch);
  SPECULAR = 0.5;
- CLEARCOAT = coating * (1.0-bare_metal) * (1.0-primer*0.5);
+ CLEARCOAT = coating * (1.0-bare_metal) * (1.0-primer*0.5) * (1.0-scorch);
  CLEARCOAT_ROUGHNESS = 0.35;
  // Submillimetre finish variation; fade below pixel size to avoid sparkle.
  float height = (micro-0.5) * 0.00012 + panel_height - bolt_rim * 0.0015;

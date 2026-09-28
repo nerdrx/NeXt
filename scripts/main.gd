@@ -1068,6 +1068,7 @@ func rebuild_player_ship() -> void:
 	add_child(ship_display)
 	ship_display.build(state.ship_modules, "player", state.ship_layout)
 	ship_display.set_systems_online(state.systems_online)
+	ship_display.set_hull_integrity(state.hull / maxf(1.0, float(state.ship_stats().max_hull)))
 	var low := Vector3(16, 16, 16)
 	var high := Vector3(-16, -16, -16)
 	for module: Dictionary in state.ship_modules:
@@ -1815,6 +1816,7 @@ func _physics_process(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	if pilot == null or state == null: return
+	if is_instance_valid(ship_display): ship_display.set_hull_integrity(state.hull / maxf(1.0, float(_last_stats.max_hull)))
 	if suit_health <= 0:
 		_rescue()
 		return

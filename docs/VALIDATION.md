@@ -2067,3 +2067,19 @@ Clean Windows export and hidden-Gamescope Proton integration pass at `e68982e`:
 `build/windows-validation-dd5c267/build/proton-smoke.CYa4qH`, wrapper exit 0 and
 `NEXT_INTEGRATION_OK`. Distant legibility and overall art quality remain limited
 by the placeholder assets.
+
+### Visible family hull damage (2026-09-28)
+
+`test_hull_damage_visual.gd` passes saved actor condition at spawn, shield-only
+hits leaving finish unchanged, hull damage updating scorch, repaired condition
+clearing it, finite/clamped shader inputs, and the player parked display using
+absolute hull divided by maximum hull. Startup initially encountered an empty
+statistics cache; rebuilding now reads current ship stats and the test runs
+without script errors. The fixture is registered in CI. Family combat and fleet
+family regressions pass.
+
+Scorch is deterministic local-space material feedback on family pressure shells.
+It is not projectile-location damage, mesh deformation or persistent scars;
+legacy FleetShipVisual hulls, remote visitors and equipment meshes do not yet
+receive this effect. Player display updates on rebuild and live state changes;
+family NPC/fleet visuals update on normalized hull assignments, including repair.

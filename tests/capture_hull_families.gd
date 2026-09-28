@@ -72,6 +72,9 @@ func _capture() -> void:
 		var exterior_size := camera.size
 		_frame_camera(camera, Vector3(0, extent.y * 0.22, -extent.z * 0.22), Vector3(3, 2, 3), Vector3(1.25, 0.9, -1.6))
 		await _save_capture("family-%s-surface-detail.png" % family_id)
+		visual.set_hull_integrity(0.25)
+		await _save_capture("family-%s-damaged.png" % family_id)
+		visual.set_hull_integrity(1.0)
 		camera.transform = exterior_transform
 		camera.size = exterior_size
 		# Same angle at twice the distance-equivalent scale checks panel filtering.

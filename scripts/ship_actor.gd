@@ -8,7 +8,10 @@ signal damaged(actor: ShipActor)
 var faction: String = "pirate"
 var target: Node3D
 var active: bool = true
-var hp: float = 100.0 # Hull condition percentage, also used by fleet saves.
+var hp: float = 100.0: # Hull condition percentage, also used by fleet saves.
+	set(value):
+		hp = value
+		if _visual is ShipVisual: _visual.set_hull_integrity(hp / 100.0)
 var max_hull: float = 100.0
 var weapon_damage: float = 9.0
 var shields: float = 40.0
@@ -95,6 +98,7 @@ func _ready() -> void:
 		_visual = family_visual
 		add_child(_visual)
 		family_visual.build(blueprint.modules, faction, model.ship_layout)
+		family_visual.set_hull_integrity(hp / 100.0)
 	# Convex exterior proxy follows the model; cavities remain an approximation.
 	var hull_points := PackedVector3Array()
 	var radius := 0.0

@@ -196,3 +196,9 @@ Target: Star Citizen's material/ship/world credibility plus Elite Dangerous's vi
   designation, role, cargo-bay index, lifting cues and reactor heat warnings;
   markings belong to panel surfaces and must not billboard or glow. These are
   family/bay identifiers, not unique vessel registration numbers.
+
+- [ ] Hull-condition scorch (`shaders/fleet_surface.gdshader`,
+  `ShipVisual.set_hull_integrity`): replace procedural soot with authored damage
+  masks/VFX. Current family pressure shells darken and lose clearcoat as hull
+  condition falls; repairs clear the effect. This is aggregate hull condition,
+  not hit-position decals, deformation, equipment damage or persistent scars.

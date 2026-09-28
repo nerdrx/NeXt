@@ -5,6 +5,8 @@ const CELL_SIZE: float = ShipBlueprint.CELL_SIZE
 
 var _systems_online := true
 var _thrust := 0.0
+var _hull_integrity := 1.0
+var _hull_material: ShaderMaterial
 
 var _engines: Array[MeshInstance3D] = []
 var _engine_glow: Array[StandardMaterial3D] = []
@@ -13,6 +15,7 @@ var _engine_glow: Array[StandardMaterial3D] = []
 func build(modules: Array, faction: String = "player", layout: Dictionary = {}) -> void:
 	for child in get_children():
 		child.queue_free()
+	_hull_material = null
 	_engines.clear()
 	_engine_glow.clear()
 	var active_layout: Dictionary = layout if ShipLayout.validate_data(layout, modules) else ShipLayout.empty_data()
@@ -84,6 +87,8 @@ func build(modules: Array, faction: String = "player", layout: Dictionary = {}) 
 		paint.set_shader_parameter("livery_strength", 1.0)
 		paint.set_shader_parameter("hull_extent", bounds)
 		paint.set_shader_parameter("livery_paint", {"pathfinder": Color("89958f"), "merchant": Color("957946"), "ranger": Color("9b5b38")}.get(family_id, Color("89958f")))
+		_hull_material = paint
+		paint.set_shader_parameter("damage_amount", 1.0 - _hull_integrity)
 		shell.material_override = paint
 		add_child(shell)
 	var exhaust_columns: Dictionary = {}
@@ -436,6 +441,14 @@ func _face_box_size(u: Vector3, v: Vector3, normal: Vector3, width: float, heigh
 	return Vector3(absf(u.x) * width + absf(v.x) * height + absf(normal.x) * depth,
 		absf(u.y) * width + absf(v.y) * height + absf(normal.y) * depth,
 		absf(u.z) * width + absf(v.z) * height + absf(normal.z) * depth)
+
+
+func set_hull_integrity(ratio: float) -> void:
+	if not is_finite(ratio): return
+	var value := clampf(ratio, 0.0, 1.0)
+	if is_equal_approx(value, _hull_integrity): return
+	_hull_integrity = value
+	if _hull_material != null: _hull_material.set_shader_parameter("damage_amount", 1.0 - value)
 
 
 func set_systems_online(online: bool) -> void:
