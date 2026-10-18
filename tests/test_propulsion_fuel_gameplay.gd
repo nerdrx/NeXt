@@ -25,6 +25,9 @@ func _run() -> void:
 	assert(game.aboard and game.coasting_hull.propulsion_limiter.is_valid(), "aboard hull shares ship propulsion limiter")
 
 	var hull = game.coasting_hull
+	# Keep this fuel-budget fixture inertial; gravity/drag have dedicated checks.
+	hull.gravity_source = Callable()
+	hull.atmospheric_density_source = Callable()
 	hull.velocity = Vector3(20, 0, 0)
 	var idle_fuel: float = game.state.fuel
 	hull.advance(0.1)
@@ -45,6 +48,8 @@ func _run() -> void:
 	assert(is_zero_approx(game.state.fuel) and game.pilot.flight_velocity().is_equal_approx(momentum), "returning to helm preserves empty tank and residual momentum")
 	game.pilot.teleport(Vector3(10000, 5000, 0))
 	game.pilot.restore_flight_velocity(Vector3(0.01, 0, 0))
+	game.pilot.gravity_source = Callable()
+	game.pilot.atmospheric_density_source = Callable()
 	game.pilot.autopilot_to(game.pilot.position + Vector3(0.5, 0, 0))
 	game.pilot._fly(0.5)
 	assert(game.pilot.autopilot_active and game.pilot.flight_velocity().x > 0.0, "empty-tank helm cruise remains active while residual momentum moves ship")

@@ -36,6 +36,9 @@ func _run() -> void:
 	var expected_up: Vector3 = game.pilot.camera.global_basis.y.normalized()
 	game.enter_interior()
 	if not _check(game.aboard and game.interior != null and 1 in game.interior.decks, "actual main scene enters a two-deck cabin"): return
+	# Keep this lift fixture stationary; gravity is covered by flight tests.
+	game.coasting_hull.gravity_source = Callable()
+	game.coasting_hull.atmospheric_density_source = Callable()
 	if not _check(game.interior.global_basis.y.normalized().is_equal_approx(expected_up), "cabin preserves the tilted hull up direction"): return
 	await create_timer(0.4).timeout
 	if not _check(game.pilot.is_on_floor() and game.interior_deck == 0, "pilot settles on the lower deck"): return

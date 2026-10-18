@@ -24,13 +24,13 @@ func _run() -> void:
 	pilot.position = Vector3(0.9, 0, 0)
 	await process_frame
 	pilot.set_walk_up(Vector3.RIGHT)
-	await create_timer(0.35).timeout
+	await _physics_wait(0.35)
 	assert(pilot.is_on_floor(), "wall plane supports pilot with rightward gravity")
 	assert(pilot.up_direction.is_equal_approx(Vector3.RIGHT), "walk up is normalized into character up direction")
 	assert(pilot.global_basis.y.is_equal_approx(Vector3.RIGHT), "body local up aligns to wall normal")
 	var start := pilot.global_position
 	Input.action_press("move_forward")
-	await create_timer(0.4).timeout
+	await _physics_wait(0.4)
 	Input.action_release("move_forward")
 	var moved := pilot.global_position - start
 	assert(absf(moved.x) < 0.15 and moved.length() > 0.5, "forward walking remains tangent to the wall")
@@ -38,7 +38,7 @@ func _run() -> void:
 	Input.action_press("move_up")
 	await physics_frame
 	Input.action_release("move_up")
-	await create_timer(0.15).timeout
+	await _physics_wait(0.15)
 	assert(pilot.global_position.x > jump_start.x + 0.3, "jump impulse follows walk up")
 	var prior_up := pilot.up_direction
 	pilot.set_walk_up(Vector3.ZERO)
@@ -48,3 +48,9 @@ func _run() -> void:
 	assert(pilot.up_direction == Vector3.UP and pilot.global_basis.y.is_equal_approx(Vector3.UP), "flight restores global up while retaining heading")
 	print("PILOT_GRAVITY_OK: tangent wall walking, up-axis jump, invalid-up rejection, flight reset")
 	quit()
+
+
+# Count simulation steps so host load cannot shorten physical movement.
+func _physics_wait(seconds: float) -> void:
+	for _frame in ceili(seconds * Engine.physics_ticks_per_second):
+		await physics_frame

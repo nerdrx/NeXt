@@ -28,6 +28,9 @@ func _run() -> void:
 	var saved := GameState.new()
 	assert(saved.load_save(path).is_empty() and not saved.systems_online, "menu persists shutdown")
 	game.close_menu()
+	# Isolate powered braking from external forces, which still act when offline.
+	game.pilot.gravity_source = Callable()
+	game.pilot.atmospheric_density_source = Callable()
 	var fuel: float = game.state.fuel
 	game.pilot._fly(0.1)
 	assert(game.pilot.flight_velocity() == Vector3(20, 0, 0) and game.state.fuel == fuel, "flight assist cannot brake offline ship")
