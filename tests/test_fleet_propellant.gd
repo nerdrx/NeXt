@@ -38,6 +38,11 @@ func _run() -> void:
 	game._sync_fleet_actors()
 	var actor: ShipActor = game.fleet_actors[ship.id]
 	assert(actor.propulsion_limiter.is_valid())
+	# Check propulsion-only momentum; world gravity and drag have separate tests.
+	actor.gravity_source = Callable()
+	actor.atmospheric_density_source = Callable()
+	actor.set_travel_target(actor.global_position + Vector3(1000, 0, 0))
+	actor.collision_mask = 0
 	actor.active = true
 	var before_fuel: float = ship.fuel
 	await create_timer(0.4).timeout
