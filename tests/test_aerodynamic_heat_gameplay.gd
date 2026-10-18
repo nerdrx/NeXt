@@ -30,6 +30,8 @@ func _run() -> void:
 	pilot.set_flight(true)
 	pilot.collision_mask = 0
 	pilot.flight_assist_enabled = false
+	# Isolate drag energy from the separately tested planetary gravity step.
+	pilot.gravity_source = Callable()
 	pilot.teleport(sea)
 	pilot.restore_flight_velocity(Vector3(100, 0, 0))
 	var shield_before: float = game.state.shield
